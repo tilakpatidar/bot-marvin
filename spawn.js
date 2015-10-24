@@ -5,7 +5,7 @@ var queued=0;
 function req(url){
 			(function(url){
 				request(url,function(err,response,html){
-					console.log("[INFO] Data fetched  "+url);
+					//console.log("[INFO] Data fetched  "+url);
 					grabInlinks(html,url);
 					var dic=parser.init.parse(html);//pluggable parser
 					process.send({"setCrawled":[url,dic]});
@@ -56,7 +56,7 @@ function grabInlinks(html,url){
 			}
 
 		});
-		console.log("[INFO] Got "+a.length+"links from "+url)
+		console.log("[INFO] Got "+a.length+" links from "+url)
 	}
 
 }
