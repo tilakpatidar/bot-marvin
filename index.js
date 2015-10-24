@@ -5,6 +5,10 @@ var website=argv["website"];
 var domain=argv["domain"];//http://dmoz.org
 var regex=argv["regex"];//regex for inlinks
 var db_type=argv["dbtype"];
+var help=argv["help"];
+if(help){
+	require('./docs/help');
+}
 var collection;
 var childs=parseInt(argv["childs"]);//childs to spawn
 var batchSize=parseInt(argv["batchSize"]);
@@ -16,12 +20,6 @@ var child=require('child_process');
 var config=require("./config").load();
 var pool=require('./pool');
 
-//if defaults is selected
-var defaults=argv["default"];
-if(defaults){
-	var childs=2;
-	var batchSize=1000;
-}
 
 
 pool=pool.getDB(db_type).init();//choosing db type
@@ -68,7 +66,7 @@ pool.createConnection(function(){
 
 
 	},domain);
-	
+
 });
 tracker.init(pool);//starting crawler webapp
 
