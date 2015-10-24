@@ -1,11 +1,19 @@
-var website=process.argv[2];//dmoz
-var domain=process.argv[3];//http://dmoz.org
-var regex=process.argv[4];//regex for inlinks
-var childs=process.argv[5];//childs to spawn
+//sys argv
+
+var argv = require('minimist')(process.argv.slice(2));
+var website=argv["website"];
+var domain=argv["domain"];//http://dmoz.org
+var regex=argv["regex"];//regex for inlinks
+var childs=parseInt(argv["childs"]);//childs to spawn
+var batchSize=parseInt(argv["batchSize"]);
+
+//requires
+
 var MongoClient = require('mongodb').MongoClient;
 var tracker=require("./server");
 var child=require('child_process');
-var batchSize=1000;
+
+
 //global connection to mongodb
 var pool={
 	"init":function(fn){
