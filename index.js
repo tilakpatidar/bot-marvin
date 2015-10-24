@@ -4,6 +4,8 @@ var argv = require('minimist')(process.argv.slice(2));
 var website=argv["website"];
 var domain=argv["domain"];//http://dmoz.org
 var regex=argv["regex"];//regex for inlinks
+var mongodb=argv["mongodb"];//mongodb://192.168.101.5:27017/db/collection
+var collection;
 var childs=parseInt(argv["childs"]);//childs to spawn
 var batchSize=parseInt(argv["batchSize"]);
 
@@ -12,6 +14,28 @@ var batchSize=parseInt(argv["batchSize"]);
 var MongoClient = require('mongodb').MongoClient;
 var tracker=require("./server");
 var child=require('child_process');
+var config=require("./config").load();
+
+//if mongodb uri is passed
+if(!mongodb){
+	mongodb=config.mongodb_uri;
+	collection=config.mongodb_collection;
+}
+else{
+	var m=mongodb.split("/");
+	var ip=m[2];
+	var db=m[3];
+	collection=m[4];
+	mongodb="mongodb://"+ip+"/"+db;
+}
+
+//if defaults is selected
+var defaults=argv["default"];
+if(defaults){
+	var childs=2;
+	var batchSize=1000;
+}
+
 
 
 //global connection to mongodb
@@ -78,8 +102,8 @@ var pool={
 		});
 	},
 	"createConnection":function(){
-		process.mongo=MongoClient.connect("mongodb://192.168.101.5:27017/dmoz", function(err, db) {
-			process.collection=db.collection("test");
+		process.mongo=MongoClient.connect(mongodb, function(err, db) {
+			process.collection=db.collection(collection);
 			pool.init(function(){
 				pool.getNextBatch(function(err,results){
 
