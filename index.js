@@ -20,7 +20,18 @@ var child=require('child_process');
 var config=require("./config/config").load();
 var pool=require('./pool');
 
-
+function starter(){
+	for (var i = active_childs; i < childs; i++) {
+		  pool.getNextBatch(function(err,results){
+				if(results.length!==0){
+					createChild(results);
+				}
+					
+					
+				},batchSize);
+		}
+}
+setInterval(starter,2000);
 
 pool=pool.getDB(db_type).init();//choosing db type
 
@@ -30,17 +41,29 @@ function createChild(results){
 	console.log('[INFO] Child process started ');
 
 	bot.on('close', function (code) {
+		if(inlinks_pool.length!==0){
+			//push whatever you have in buffer
+			var k=inlinks_pool;
+			inlinks_pool=[];
+			pool.addToPool(k);
+		}
+		
+
 	  console.log('[INFO] Child process exited with code ' + code);
 	  active_childs-=1;
-	  pool.getNextBatch(function(err,results){
-			for (var i = active_childs; i < childs; i++) {
-				createChild(results);
-				
-			};
+	  for (var i = active_childs; i < childs; i++) {
+		  pool.getNextBatch(function(err,results){
+				if(results.length!==0){
+					createChild(results);
+				}
+					
+					
+				},batchSize);
+		}
 							
-	  },batchSize);
+	  
 	});
-
+var inlinks_pool=[];
 	bot.on("message",function(data){
 		var t=data["setCrawled"];
 		var d=data["addToPool"];
@@ -48,7 +71,16 @@ function createChild(results){
 			pool.setCrawled(t[0],t[1]);
 		}
 		else if(d){
-			pool.addToPool(d);
+			if(inlinks_pool.length<=batchSize){
+				inlinks_pool.push(d);
+			}
+			else{
+				var k=inlinks_pool;
+				inlinks_pool=[];
+				pool.addToPool(k);
+
+			}
+			
 		}
 
 	});
@@ -57,13 +89,16 @@ function createChild(results){
 
 pool.createConnection(function(){
 	pool.init(function(){
-		pool.getNextBatch(function(err,results){
-			for (var i = 0; i < childs; i++) {
-				createChild(results);
-			};
-							
-		},batchSize);
-
+		for (var i = 0; i < childs; i++) {
+			pool.getNextBatch(function(err,results){
+				if(results.length!==0){
+					createChild(results);
+				}
+				
+				
+								
+			},batchSize);
+		}
 
 	},domain);
 

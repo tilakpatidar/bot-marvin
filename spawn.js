@@ -28,7 +28,7 @@ function crawl(pools){
 	queued=0;
 	for (var i = 0; i < batchSize; i++) {
 		if(pools!==null && pools[i]!==undefined){
-			var url=pools[i]["_id"];
+			var url=pools[i]['_id'];
 			(function(url){
 				setTimeout(function(){ req(url); }, 100); //to avoid recursion
 			})(url);
