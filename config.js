@@ -1,7 +1,7 @@
 var config={
 	"mongodb":{
-		"mongodb_uri":"mongodb://192.168.101.5:27017/dmoz",
-		"mongodb_collection":"test"
+		"mongodb_uri":"mongodb://192.168.101.5:27017/gov",
+		"mongodb_collection":"1"
 	},
 	"mysql":{
 		"mysql_uri":""

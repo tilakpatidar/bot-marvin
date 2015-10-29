@@ -1,7 +1,7 @@
 //sys argv
 
 var argv = require('minimist')(process.argv.slice(2));
-var website=argv["website"];
+var parseFile=argv["parseFile"];
 var domain=argv["domain"];//http://dmoz.org
 var regex=argv["regex"];//regex for inlinks
 var db_type=argv["dbtype"];
@@ -26,7 +26,7 @@ pool=pool.getDB(db_type).init();//choosing db type
 
 function createChild(results){
 	active_childs+=1;
-	var bot = child.fork("spawn.js", [JSON.stringify(results),batchSize,website,domain]);	
+	var bot = child.fork("spawn.js", [JSON.stringify(results),batchSize,parseFile,domain]);	
 	console.log('[INFO] Child process started ');
 
 	bot.on('close', function (code) {

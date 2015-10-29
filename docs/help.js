@@ -1,6 +1,6 @@
 var help={
 	"--dbtype= ":"DataBase backend to use (mongodb|mysql|elasticsearch)",
-	"--website= ":"website name should same as the parser file you copied in parsers folder",
+	"--parseFile= ":"website name should same as the parser file you copied in parsers folder",
 	"--domain= ":"Actual seed link ex: http://www.google.com",
 	"--regex= ":"regex used to filter inlinks",
     "--childs= ":"Number of child processes to use",
