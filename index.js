@@ -17,7 +17,7 @@ var active_childs=0;
 //requires
 var tracker=require("./server");
 var child=require('child_process');
-var config=require("./config").load();
+var config=require("./config/config").load();
 var pool=require('./pool');
 
 

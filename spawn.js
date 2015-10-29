@@ -1,5 +1,5 @@
 var request=require("request");
-var cheerio=require("cheerio");
+var regex_urlfilter=require("./config/regex-urlfilter.js").load();
 var done=0;
 var queued=0;
 function req(url){
@@ -46,6 +46,17 @@ function grabInlinks($,url){
 		var a=$("a").each(function(){
 			var href=$(this).attr("href");
 			if(href!==undefined){
+				var temp=false;
+				for (var i = 0; i < regex_urlfilter.reject.length; i++) {
+					if(regex_urlfilter.reject[i].test(href)){
+							temp=true;
+
+					}
+				};
+				if(temp){
+					console.log("[INFO] "+href+" rejected by filters");
+					return true;
+				}
 				if(href[0]==="/" || href.indexOf("http://")<0 || href.indexOf("https://")<0 ){
 					//relative link
 					if(href[0]==="/"){
@@ -72,5 +83,4 @@ var parseFile=process.argv[4];
 var parser=require("./parsers/"+parseFile);
 var website=process.argv[5];
 var domain=website.replace("://","###").split("/")[0].replace("###","://");
-console.log(domain);
 crawl(batch);

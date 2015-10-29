@@ -1,7 +1,7 @@
 //global connection to mongodb
 //mongodb connection file
 var MongoClient = require('mongodb').MongoClient;
-var config=require('../config.js').load()["mongodb"];
+var config=require('../config/config.js').load()["mongodb"];
 var mongodb=config["mongodb_uri"];
 var collection=config["mongodb_collection"];
 var pool={
