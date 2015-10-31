@@ -121,38 +121,9 @@ process.on('message',function(data){
 		batch=k[0];
 		batchSize=k[1];
 		links=k[2];
-		buildRegex();
+		re=new RegExp(k[3],'gi');
+		re1=new RegExp(k[4],'gi');
 		crawl(batch);
 
 	}
 });
-function buildRegex(){
-	if(!config["external_links"]){
-		//build regex for it
-		var res=[];
-		for (var key in links) {
-			res.push("^"+key.replace(/\//g,"\\/").replace(/\./g,"\\."));
-			res.push("^"+key.replace("http://","https://").replace(/\//g,"\\/").replace(/\./g,"\\."));
-		
-		};
-		res=res.join("|");
-		res=new RegExp(res,'gi');
-		re=res;
-	}
-	else{
-		re=/.+/gi;//accept anything
-	}
-	if(config["social_media_external_links_allow"]){
-		//build regex for it
-		var res=[];
-		for (var i = 0; i < config["social_media_sites_allow"].length; i++) {
-			var key=config["social_media_sites_allow"][i];
-			res.push("^"+key.replace(/\//g,"\\/").replace(/\./g,"\\."));
-			res.push("^"+key.replace("http://","https://").replace(/\//g,"\\/").replace(/\./g,"\\."));
-		
-		};
-		res=res.join("|");
-		res=new RegExp(res,'gi');
-		re1=res;
-	}
-}

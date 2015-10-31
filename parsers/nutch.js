@@ -14,6 +14,8 @@ var app={
 		 };
 		 var title=$('title').text();
 		 var body=$('body').text();
+		 body=body.replace(/(\n+)|(\t+)|(\s+)|(\r+)/g,' ');
+		 body=body.replace(/\s+/g," ");
 		 var output=this.getID(url);
 		 var id=output[0];
 		 var host=output[1];

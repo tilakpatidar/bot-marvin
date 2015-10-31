@@ -1,6 +1,6 @@
 var config={
 	"mongodb":{
-		"mongodb_uri":"mongodb://192.168.101.5:27017/crawl",
+		"mongodb_uri":"mongodb://192.168.101.5:27017/crawl55",
 		"mongodb_collection":"1",
 		"bucket_collection":"bucket"
 	},
@@ -10,6 +10,7 @@ var config={
 	"elasticsearch":{
 		"elasticsearch_uri":""
 	},
+	"allow_robots":false,
 	"external_links":false,
 	"seed_file":"seed",
 	"childs":5,
