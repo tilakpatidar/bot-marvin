@@ -54,7 +54,7 @@ var pool={
 										////console.log("[ERROR] pool.addToPool");
 									}
 									else{
-										console.log("[INFO] Discovered "+url);
+										//console.log("[INFO] Discovered "+url);
 									}
 									done+=1;
 									if(done===li.length){
@@ -91,7 +91,7 @@ var pool={
 							//console.log("[ERROR] pool.getNextBatch");
 						}
 						else{
-							console.log("[INFO] Got "+docs.length+" for next Batch");
+							//console.log("[INFO] Got "+docs.length+" for next Batch");
 							result(err,docs);		
 						}
 
@@ -125,8 +125,8 @@ var pool={
 	"crawlStats":function(fn){
 		process.collection.find({"done":false}).count(function(err,count){
 					process.collection.find({"done":true}).count(function(err1,count1){
-						process.collection1.count(function(err,count){
-							fn(count,count1,count);
+						process.collection1.count(function(err,count2){
+							fn(count,count1,count2);
 
 						});
 						

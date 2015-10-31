@@ -17,7 +17,7 @@ var child=require('child_process');
 var pool=require('./pool');
 
 function starter(){
-	//console.log("[INFO] Check if new child available");
+	console.log("[INFO] Check if new child available");
 	for (var i = active_childs; i < childs; i++) {
 		  pool.getNextBatch(function(err,results){
 				if(results.length!==0){
@@ -35,7 +35,7 @@ var inlinks_pool=[];
 function createChild(results){
 	active_childs+=1;
 	var bot = child.fork("spawn.js",[]);	
-	//console.log('[INFO] Child process started ');
+	console.log('[INFO] Child process started ');
 	var args=[results,batchSize,pool.links];
 	bot.send({"init":args});
 	bot.on('close', function (code) {
@@ -49,7 +49,7 @@ function createChild(results){
 		}
 		
 
-	  //console.log('[INFO] Child process exited with code ' + code);
+	  console.log('[INFO] Child process exited with code ' + code);
 	  active_childs-=1;
 	  for (var i = active_childs; i < childs; i++) {
 		  pool.getNextBatch(function(err,results){

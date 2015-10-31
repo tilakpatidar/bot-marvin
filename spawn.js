@@ -58,7 +58,7 @@ function grabInlinks($,url,domain){
 		var a=$("a").each(function(){
 			function reject(a){
 				//console.log(a);
-				console.log("[INFO] "+href+" rejected by filters");
+				//console.log("[INFO] "+href+" rejected by filters");
 				return true;
 				
 			}
