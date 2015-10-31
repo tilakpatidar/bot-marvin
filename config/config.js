@@ -15,6 +15,8 @@ var config={
 	"childs":5,
 	"batch_size":1000,
 	"db_type":"mongodb",
+	"social_media_external_links_allow":true,
+	"social_media_sites_allow":['http://www.twitter.com','http://www.facebook.com','http://www.linkedin.com','http://www.instagram.com','http://www.youtube.com'],
 	"remove_tags":["table","style","script","noscript","img","form","input","iframe","header","footer","button","pre","br","code","select","option","nav"]
 };
 function load(){

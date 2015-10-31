@@ -52,8 +52,6 @@ function grabInlinks($,url,domain){
 		var a=$("a").each(function(){
 			function reject(a){
 				console.log(a);
-				console.log(abs);
-				console.log(domain);
 				console.log("[INFO] "+href+" rejected by filters");
 				return true;
 				
@@ -68,13 +66,27 @@ function grabInlinks($,url,domain){
 							return reject("accept");
 
 				}
+				//console.log(re1);
 				if(abs.match(re)===null){ //for external links option
-							return reject("external");
+
+					if(config["social_media_sites_allow"]){ //for external links option
+						if(abs.match(re1)===null){
+							return reject("external social reject");
+						}
+						else{
+							console.log("[INFO] Social media accepted");
+						}
+
+					}
+					else{
+						return reject("external");
+					}
+							
 
 				}
 				for (var i = 0; i < regex_urlfilter.reject.length; i++) {
 					if(abs.match(regex_urlfilter.reject[i])!==null){
-							return reject("from");
+							return reject("reject filters");
 
 					}
 					
@@ -91,14 +103,15 @@ function grabInlinks($,url,domain){
 var batch;
 var batchSize;
 var links;
-var re;
+var re;//for external link check
+var re1;//for external social link check
 process.on('message',function(data){
 	var k=data["init"];
 	if(k){
 		batch=k[0];
 		batchSize=k[1];
 		links=k[2];
-		re=buildRegex();
+		buildRegex();
 		crawl(batch);
 
 	}
@@ -106,17 +119,30 @@ process.on('message',function(data){
 function buildRegex(){
 	if(!config["external_links"]){
 		//build regex for it
-		var re=[];
+		var res=[];
 		for (var key in links) {
-			re.push("^"+key.replace(/\//g,"\\/").replace(/\./g,"\\."));
-			re.push("^"+key.replace("http://","https://").replace(/\//g,"\\/").replace(/\./g,"\\."));
+			res.push("^"+key.replace(/\//g,"\\/").replace(/\./g,"\\."));
+			res.push("^"+key.replace("http://","https://").replace(/\//g,"\\/").replace(/\./g,"\\."));
 		
 		};
-		re=re.join("|");
-		re=new RegExp(re,'gi');
-		return re;
+		res=res.join("|");
+		res=new RegExp(res,'gi');
+		re=res;
 	}
 	else{
-		return /.+/gi;//accept anything
+		re=/.+/gi;//accept anything
+	}
+	if(config["social_media_external_links_allow"]){
+		//build regex for it
+		var res=[];
+		for (var i = 0; i < config["social_media_sites_allow"].length; i++) {
+			var key=config["social_media_sites_allow"][i];
+			res.push("^"+key.replace(/\//g,"\\/").replace(/\./g,"\\."));
+			res.push("^"+key.replace("http://","https://").replace(/\//g,"\\/").replace(/\./g,"\\."));
+		
+		};
+		res=res.join("|");
+		res=new RegExp(res,'gi');
+		re1=res;
 	}
 }
