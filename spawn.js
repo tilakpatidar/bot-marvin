@@ -10,13 +10,19 @@ function req(url,domain){
 		}
 			(function(url,domain,req_url){
 				
-				request(req_url,function(err,response,html){
+				request(req_url.replace("#social#",""),function(err,response,html){
 					var parser=require("./parsers/"+links[domain]["parseFile"]);
 					var dic=parser.init.parse(html,url);//pluggable parser
 					//dic[0] is cheerio object
 					//dic[1] is dic to be inserted
-					grabInlinks(dic[0],url,domain);
+					if(req_url.indexOf("#social#")<0){
+						//only grab inlinks if not social page or brand page of twitter etc
+						grabInlinks(dic[0],url,domain);
+						
+					}
 					process.send({"setCrawled":[url,dic[1]]});
+					
+					
 					
 				});
 
@@ -70,10 +76,13 @@ function grabInlinks($,url,domain){
 				if(abs.match(re)===null){ //for external links option
 
 					if(config["social_media_sites_allow"]){ //for external links option
-						if(abs.match(re1)===null){
+						var k=abs.match(re1);
+						if(k===null){
 							return reject("external social reject");
 						}
 						else{
+							domain=k[0].replace("https://","http://");//change domain as social site
+							abs=abs+"#social#";//marking as social
 							console.log("[INFO] Social media accepted");
 						}
 
