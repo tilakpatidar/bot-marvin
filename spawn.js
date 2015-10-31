@@ -2,7 +2,6 @@ var request=require("request");
 var urllib = require('url');
 var regex_urlfilter=require("./config/regex-urlfilter.js").load();
 var config=require("./config/config").load();
-var done=0;
 function req(url,domain){
 	var req_url=url;
 		if(links[domain]["phantomjs"]){
@@ -21,7 +20,10 @@ function req(url,domain){
 						
 					}
 					process.send({"setCrawled":[url,dic[1]]});
-					
+					queued+=1;
+					if(queued===batch.length){
+						process.exit(0);//exit 
+					}
 					
 					
 				});
@@ -29,12 +31,11 @@ function req(url,domain){
 
 
 			})(url,domain,req_url);
-					
+			
 
 
 }
 function crawl(pools){
-	done=0;
 	queued=0;
 	for (var i = 0; i < pools.length; i++) {
 		if(pools!==null && pools[i]!==undefined){

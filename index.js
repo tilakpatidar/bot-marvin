@@ -18,6 +18,7 @@ var pool=require('./pool');
 
 function starter(){
 	console.log("[INFO] Check if new child available");
+	console.log(active_childs);
 	for (var i = active_childs; i < childs; i++) {
 		  pool.getNextBatch(function(err,results){
 				if(results.length!==0){
