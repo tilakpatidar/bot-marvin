@@ -2,10 +2,6 @@ var request=require("request");
 var urllib = require('url');
 var regex_urlfilter=require("./config/regex-urlfilter.js").load();
 var config=require("./config/config").load();
-if(!config["external_links"]){
-	//build regex for it
-
-}
 var done=0;
 function req(url,domain){
 	var req_url=url;
@@ -34,7 +30,7 @@ function req(url,domain){
 function crawl(pools){
 	done=0;
 	queued=0;
-	for (var i = 0; i < batchSize; i++) {
+	for (var i = 0; i < pools.length; i++) {
 		if(pools!==null && pools[i]!==undefined){
 			var url=pools[i]['_id'];
 			var domain=pools[i]['domain'];
@@ -56,14 +52,26 @@ function grabInlinks($,url,domain){
 		var a=$("a").each(function(){
 			var href=$(this).attr("href");
 			if(href!==undefined){
-				var abs=urllib.resolve(domain,url);
+				console.log("[INFO] domain "+domain);
+				console.log("[INFO] url "+href);
+				var abs=urllib.resolve(domain,href);
+				console.log("[INFO] abs "+abs);
 				var temp;
-				if(regex_urlfilter.accept.test(abs)){
+				if(regex_urlfilter.accept.test(abs)){ //user give acceptance
 							temp=false;
 
 				}
 				else{
-					temp=true;
+							temp=true;
+				}
+				if(re.test(abs)){ //for external links option
+							temp=false;
+
+				}
+				else{
+					console.log(abs);
+					console.log("[INFO] external url rejected");		
+							temp=true;
 				}
 				for (var i = 0; i < regex_urlfilter.reject.length; i++) {
 					if(regex_urlfilter.reject[i].test(abs)){
@@ -92,12 +100,30 @@ function grabInlinks($,url,domain){
 var batch;
 var batchSize;
 var links;
+var re;
 process.on('message',function(data){
 	var k=data["init"];
 	if(k){
 		batch=k[0];
 		batchSize=k[1];
 		links=k[2];
-		crawl(batch);		
+		re=buildRegex();
+		crawl(batch);
+
 	}
 });
+function buildRegex(){
+	if(!config["external_links"]){
+		//build regex for it
+		var re=[];
+		for (var key in links) {
+			re.push("^"+key);
+		};
+		re=re.join("|");
+		re=new RegExp(re,'gi');
+		return re;
+	}
+	else{
+		return /.+/gi;//accept anything
+	}
+}

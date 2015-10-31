@@ -17,6 +17,7 @@ var child=require('child_process');
 var pool=require('./pool');
 
 function starter(){
+	console.log("[INFO] Check if new child available");
 	for (var i = active_childs; i < childs; i++) {
 		  pool.getNextBatch(function(err,results){
 				if(results.length!==0){
@@ -27,7 +28,7 @@ function starter(){
 				},batchSize);
 		}
 }
-setInterval(starter,50000);
+setInterval(starter,5000);
 
 pool=pool.getDB(db_type).init();//choosing db type
 var inlinks_pool=[];
