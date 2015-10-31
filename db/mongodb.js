@@ -54,7 +54,7 @@ var pool={
 										////console.log("[ERROR] pool.addToPool");
 									}
 									else{
-										//console.log("[INFO] Discovered "+url);
+										console.log("[INFO] Discovered "+url);
 									}
 									done+=1;
 									if(done===li.length){
@@ -63,7 +63,7 @@ var pool={
 																////console.log("[ERROR] pool.addToPool");
 															}
 															else{
-																//console.log("[INFO] Updated bucket "+hash);
+																console.log("[INFO] Updated bucket "+hash);
 															}
 															
 															
@@ -91,7 +91,7 @@ var pool={
 							//console.log("[ERROR] pool.getNextBatch");
 						}
 						else{
-							//console.log("[INFO] Got "+docs.length+" for next Batch");
+							console.log("[INFO] Got "+docs.length+" for next Batch");
 							result(err,docs);		
 						}
 
@@ -117,7 +117,7 @@ var pool={
 				//console.log("[ERROR] pool.setCrawled");
 			}
 			else{
-				//console.log("[INFO] Updated "+url);
+				console.log("[INFO] Updated "+url);
 			}
 			
 		});
@@ -125,7 +125,11 @@ var pool={
 	"crawlStats":function(fn){
 		process.collection.find({"done":false}).count(function(err,count){
 					process.collection.find({"done":true}).count(function(err1,count1){
-						fn(count,count1);
+						process.collection1.count(function(err,count){
+							fn(count,count1,count);
+
+						});
+						
 
 					});
 
@@ -135,6 +139,7 @@ var pool={
 		process.mongo=MongoClient.connect(mongodb, function(err, db) {
 			process.collection=db.collection(collection);
 			process.collection1=db.collection(collection1);
+
 			fn(err,db);
 
 		});

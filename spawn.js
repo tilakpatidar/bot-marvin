@@ -57,7 +57,7 @@ function crawl(pools){
 function grabInlinks($,url,domain){
 		var a=$("a").each(function(){
 			function reject(a){
-				console.log(a);
+				//console.log(a);
 				console.log("[INFO] "+href+" rejected by filters");
 				return true;
 				
@@ -69,7 +69,7 @@ function grabInlinks($,url,domain){
 				var abs=urllib.resolve(domain,href);
 				//console.log("[INFO] abs "+abs);
 				if(abs.match(regex_urlfilter.accept)===null){ //user give acceptance
-							return reject("accept");
+							return reject("");
 
 				}
 				//console.log(re1);
@@ -78,24 +78,24 @@ function grabInlinks($,url,domain){
 					if(config["social_media_sites_allow"]){ //for external links option
 						var k=abs.match(re1);
 						if(k===null){
-							return reject("external social reject");
+							return reject("");
 						}
 						else{
 							domain=k[0].replace("https://","http://");//change domain as social site
 							abs=abs+"#social#";//marking as social
-							console.log("[INFO] Social media accepted");
+							//console.log("[INFO] Social media accepted");
 						}
 
 					}
 					else{
-						return reject("external");
+						return reject("");
 					}
 							
 
 				}
 				for (var i = 0; i < regex_urlfilter.reject.length; i++) {
 					if(abs.match(regex_urlfilter.reject[i])!==null){
-							return reject("reject filters");
+							return reject("");
 
 					}
 					
