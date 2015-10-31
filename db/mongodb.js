@@ -1,33 +1,55 @@
 //global connection to mongodb
 //mongodb connection file
 var MongoClient = require('mongodb').MongoClient;
-var config=require('../config/config.js').load()["mongodb"];
-var mongodb=config["mongodb_uri"];
-var collection=config["mongodb_collection"];
-var collection1=config["bucket_collection"];
+var config=require('../config/config.js').load();
+var mongodb=config["mongodb"]["mongodb_uri"];
+var collection=config["mongodb"]["mongodb_collection"];
+var collection1=config["mongodb"]["bucket_collection"];
+//read seed file
+var fs  = require("fs");
+var dic={};
+var links=fs.readFileSync('./'+config["seed_file"]).toString().split('\n');
+//parsing seed file
+for (var i = 0; i < links.length; i++) {
+	var k=links[i].split("\t");
+	dic[k[0]]={"phantomjs":JSON.parse(k[2]),"parseFile":k[1]};
+};
 var pool={
-	"init":function(fn,domain){
+	"init":function(fn){
 		var stamp=new Date().getTime()+"";
 		process.collection1.insert({"_id":stamp},function(err,results){
-			process.collection.insert({"_id":domain,"hash":stamp,"done":false},function(err,results){
-			if(err){
-				console.log("[ERROR] pool.init maybe seed is already added");
-				}
+			var done=0;
+			for (var i = 0; i < links.length; i++) {
+				(function(domain,stamp){
+					process.collection.insert({"_id":domain,"hash":stamp,"domain":domain,"done":false},function(err,results){
+						if(err){
+						console.log("[ERROR] pool.init maybe seed is already added");
+						}
+							console.log("[INFO] Added  "+domain+" to initialize pool");
+							done+=1;
+							if(done===links.length-1){
+								fn(results);
+							}
+							
 				
-					console.log("[INFO] Added  "+domain+" to initialize pool");
-					fn(results);
-				
-				
-			});
+					});
+
+				})(links[i].split('\t')[0],stamp);
+			};
+			
+			
 		});
 		
 	},
-	"addToPool":function(urls){
-		var stamp=new Date().getTime()+"";
+	"addToPool":function(li){
+		//urls we will be getting will be absolute
 		var done=0;
-		for (var i = 0; i < urls.length; i++) {
-			(function(url,hash){
-					process.collection.insert({"_id":url,"done":false,"data":"","hash":hash},function(err,results){
+		var stamp=new Date().getTime()+""+parseInt(Math.random()*10000);
+		for (var i = 0; i < li.length; i++) {
+			
+			(function(url,domain,hash){
+
+					process.collection.insert({"_id":url,"done":false,"domain":domain,"data":"","hash":hash},function(err,results){
 									if(err){
 										//console.log("[ERROR] pool.addToPool");
 									}
@@ -35,7 +57,7 @@ var pool={
 										console.log("[INFO] Discovered "+url);
 									}
 									done+=1;
-									if(done===urls.length){
+									if(done===li.length){
 											process.collection1.insert({"_id":hash},function(err,results){
 															if(err){
 																//console.log("[ERROR] pool.addToPool");
@@ -53,7 +75,7 @@ var pool={
 
 
 
-				})(urls[i],stamp);
+				})(li[i][0],li[i][1],stamp);
 			
 		};
 
@@ -61,7 +83,6 @@ var pool={
 	},
 	"getNextBatch":function(result,batchSize){
 		process.collection1.findAndModify({},[],{},{"remove":true},function(err,object){
-		
 			if(object.value!==null){
 					var hash=object["value"]["_id"];
 					process.collection.find({"hash":hash},{},{}).toArray(function(err,docs){
@@ -119,6 +140,7 @@ var pool={
 		});
 	}
 };
+pool["links"]=dic;
 function init(){
 	return pool;
 }

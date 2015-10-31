@@ -15,4 +15,3 @@ console.log("DataBase connectivity parameters can be set in config.js");
 process.exit(0);
 
     
- 

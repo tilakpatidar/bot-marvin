@@ -1,23 +1,19 @@
 //sys argv
-
 var argv = require('minimist')(process.argv.slice(2));
-var parseFile=argv["parseFile"];
-var domain=argv["domain"];//http://dmoz.org
-var regex=argv["regex"];//regex for inlinks
-var db_type=argv["dbtype"];
+var config=require("./config/config").load();
+var db_type=config["db_type"];
 var help=argv["help"];
 if(help){
 	require('./docs/help');
 }
 var collection;
-var childs=parseInt(argv["childs"]);//childs to spawn
-var batchSize=parseInt(argv["batchSize"]);
+var childs=parseInt(config["childs"]);//childs to spawn
+var batchSize=parseInt(config["batch_size"]);
 var active_childs=0;
 
 //requires
 var tracker=require("./server");
 var child=require('child_process');
-var config=require("./config/config").load();
 var pool=require('./pool');
 
 function starter(){
@@ -31,20 +27,20 @@ function starter(){
 				},batchSize);
 		}
 }
-setInterval(starter,2000);
+setInterval(starter,50000);
 
 pool=pool.getDB(db_type).init();//choosing db type
-
+var inlinks_pool=[];
 function createChild(results){
 	active_childs+=1;
-	var bot = child.fork("spawn.js", [JSON.stringify(results),batchSize,parseFile,domain]);	
+	var bot = child.fork("spawn.js",[]);	
 	console.log('[INFO] Child process started ');
-
+	var args=[results,batchSize,pool.links];
+	bot.send({"init":args});
 	bot.on('close', function (code) {
-		if(inlinks_pool.length!==0){
+		if(inlinks_pool.length%batchSize===0){
 			//push whatever you have in buffer
-			var k=inlinks_pool;
-			inlinks_pool=[];
+			var k=inlinks_pool.splice(0,batchSize);
 			pool.addToPool(k);
 		}
 		
@@ -63,7 +59,7 @@ function createChild(results){
 							
 	  
 	});
-var inlinks_pool=[];
+
 	bot.on("message",function(data){
 		var t=data["setCrawled"];
 		var d=data["addToPool"];
@@ -71,12 +67,11 @@ var inlinks_pool=[];
 			pool.setCrawled(t[0],t[1]);
 		}
 		else if(d){
-			if(inlinks_pool.length<=batchSize){
+			if(inlinks_pool.length%batchSize!==0){
 				inlinks_pool.push(d);
 			}
 			else{
-				var k=inlinks_pool;
-				inlinks_pool=[];
+				var k=inlinks_pool.splice(0,batchSize);
 				pool.addToPool(k);
 
 			}
@@ -100,7 +95,7 @@ pool.createConnection(function(){
 			},batchSize);
 		}
 
-	},domain);
+	});
 
 });
 tracker.init(pool);//starting crawler webapp

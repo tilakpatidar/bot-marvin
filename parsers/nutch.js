@@ -1,7 +1,17 @@
 var cheerio = require('cheerio');
+var config=require("../config/config").load();
 var app={
 	"parse":function(data,url){
+		if(data===undefined){
+			data="";
+		}
+		data=data.replace(/(\n+)|(\t+)|(\s+)|(\r+)/g,' ');
+		data=data.replace(/\s+/g," ");
 		 $ = cheerio.load(data);
+		 //clear dom
+		 for (var i = 0; i < config["remove_tags"].length; i++) {
+		 	$(config["remove_tags"][i]).remove();
+		 };
 		 var title=$('title').text();
 		 var body=$('body').text();
 		 var output=this.getID(url);
@@ -10,7 +20,7 @@ var app={
 		 var meta_keywords=$('meta[name="keywords"]').data('content');
 		 var description=$('meta[name="description"]').data('content');
 		 if(description===undefined || description===""){
-		 	description=body.substr(0,400);
+		 	description="";
 		 }
 		 var dic={};
 		 dic["id"]=id;
