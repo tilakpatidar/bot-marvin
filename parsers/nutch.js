@@ -23,20 +23,21 @@ var app={
 		 	description="";
 		 }
 		 var dic={};
-		 dic["id"]=id;
-		 dic["meta_keywords"]=meta_keywords;
-		 dic["host"]=host;
-		 dic["meta_description"]=description;
-		 dic["boost"]="0.0";
-		 dic["cache"]="content";
-		 dic["anchor"]="";
-		 dic["digest"]="";
-		 dic["body"]=body;
-		 dic["content_length"]=data.length;
-		 dic["lastModified"]="2015-10-29T10:58:56.86"
-         dic["tstamp"]="2015-10-29T10:58:56.86";
-         dic["date"]="2015-10-29T10:58:56.86";
-		 dic["_source"]=JSON.parse(JSON.stringify(dic));
+		 dic["_source"]={};
+		 dic._source["id"]=id;
+		 dic._source["meta_keywords"]=meta_keywords;
+		 dic._source["host"]=host;
+		 dic._source["meta_description"]=description;
+		 dic._source["boost"]="0.0";
+		 dic._source["cache"]="content";
+		 dic._source["anchor"]="";
+		 dic._source["digest"]="";
+		 dic._source["body"]=body;
+		 dic._source["content_length"]=data.length;
+		 dic._source["lastModified"]="2015-10-29T10:58:56.86"
+         dic._source["tstamp"]="2015-10-29T10:58:56.86";
+         dic._source["date"]="2015-10-29T10:58:56.86";
+         dic._source["html"]=data;
 		 return [$,dic];
 	},
 	"getID":function(url){

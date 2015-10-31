@@ -13,7 +13,7 @@ var config={
 	"external_links":false,
 	"seed_file":"seed",
 	"childs":5,
-	"batch_size":100,
+	"batch_size":1000,
 	"db_type":"mongodb",
 	"remove_tags":["table","style","script","noscript","img","form","input","iframe","header","footer","button","pre","br","code","select","option","nav"]
 };

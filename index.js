@@ -39,10 +39,13 @@ function createChild(results){
 	var args=[results,batchSize,pool.links];
 	bot.send({"init":args});
 	bot.on('close', function (code) {
-		if(inlinks_pool.length%batchSize===0){
-			//push whatever you have in buffer
-			var k=inlinks_pool.splice(0,batchSize);
-			pool.addToPool(k);
+		if(inlinks_pool.length>batchSize){
+				var k=inlinks_pool.splice(0,batchSize);
+				if(k.length===batchSize){
+					pool.addToPool(k);
+				}
+				
+
 		}
 		
 
@@ -68,14 +71,18 @@ function createChild(results){
 			pool.setCrawled(t[0],t[1]);
 		}
 		else if(d){
-			if(inlinks_pool.length%batchSize!==0){
-				inlinks_pool.push(d);
-			}
-			else{
+			inlinks_pool.push(d);
+			if(inlinks_pool.length>batchSize){
 				var k=inlinks_pool.splice(0,batchSize);
-				pool.addToPool(k);
+				if(k.length===batchSize){
+					pool.addToPool(k);
+				}
+				
 
 			}
+			
+
+		
 			
 		}
 

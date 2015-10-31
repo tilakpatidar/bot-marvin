@@ -52,10 +52,10 @@ function grabInlinks($,url,domain){
 		var a=$("a").each(function(){
 			var href=$(this).attr("href");
 			if(href!==undefined){
-				console.log("[INFO] domain "+domain);
-				console.log("[INFO] url "+href);
+				//console.log("[INFO] domain "+domain);
+				//console.log("[INFO] url "+href);
 				var abs=urllib.resolve(domain,href);
-				console.log("[INFO] abs "+abs);
+				//console.log("[INFO] abs "+abs);
 				var temp;
 				if(regex_urlfilter.accept.test(abs)){ //user give acceptance
 							temp=false;
@@ -69,8 +69,7 @@ function grabInlinks($,url,domain){
 
 				}
 				else{
-					console.log(abs);
-					console.log("[INFO] external url rejected");		
+					//console.log("[INFO] external url rejected");		
 							temp=true;
 				}
 				for (var i = 0; i < regex_urlfilter.reject.length; i++) {
@@ -117,7 +116,7 @@ function buildRegex(){
 		//build regex for it
 		var re=[];
 		for (var key in links) {
-			re.push("^"+key);
+			re.push("^"+key.replace(/\//g,"\/\/"));
 		};
 		re=re.join("|");
 		re=new RegExp(re,'gi');
