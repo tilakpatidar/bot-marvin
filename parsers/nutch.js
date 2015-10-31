@@ -38,6 +38,7 @@ var app={
          dic._source["tstamp"]="2015-10-29T10:58:56.86";
          dic._source["date"]="2015-10-29T10:58:56.86";
          dic._source["html"]=data;
+         dic._source["title"]=title;
 		 return [$,dic];
 	},
 	"getID":function(url){
