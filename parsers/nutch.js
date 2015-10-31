@@ -57,7 +57,7 @@ var app={
 		domain=temp.reverse().join(".");
 		var path=url.replace(type,"").replace(tt,"");
 		var id=domain+type1+path;
-		console.log(id);
+		//console.log(id);
 		return [id,tt];//id host
                         
 	}

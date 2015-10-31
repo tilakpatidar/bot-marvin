@@ -50,44 +50,36 @@ function crawl(pools){
 
 function grabInlinks($,url,domain){
 		var a=$("a").each(function(){
+			function reject(a){
+				console.log(a);
+				console.log(abs);
+				console.log(domain);
+				console.log("[INFO] "+href+" rejected by filters");
+				return true;
+				
+			}
 			var href=$(this).attr("href");
 			if(href!==undefined){
 				//console.log("[INFO] domain "+domain);
 				//console.log("[INFO] url "+href);
 				var abs=urllib.resolve(domain,href);
 				//console.log("[INFO] abs "+abs);
-				var temp;
-				if(regex_urlfilter.accept.test(abs)){ //user give acceptance
-							temp=false;
+				if(abs.match(regex_urlfilter.accept)===null){ //user give acceptance
+							return reject("accept");
 
 				}
-				else{
-							temp=true;
-				}
-				if(re.test(abs)){ //for external links option
-							temp=false;
+				if(abs.match(re)===null){ //for external links option
+							return reject("external");
 
-				}
-				else{
-					//console.log("[INFO] external url rejected");		
-							temp=true;
 				}
 				for (var i = 0; i < regex_urlfilter.reject.length; i++) {
-					if(regex_urlfilter.reject[i].test(abs)){
-							temp=true;//reject
-							continue;
+					if(abs.match(regex_urlfilter.reject[i])!==null){
+							return reject("from");
 
-					}
-					else{
-						temp=false;
-						
 					}
 					
 				};
-				if(temp){
-					console.log("[INFO] "+href+" rejected by filters");
-					return true;
-				}
+				
 				process.send({"addToPool":[abs,domain]});
 			}
 
@@ -116,7 +108,9 @@ function buildRegex(){
 		//build regex for it
 		var re=[];
 		for (var key in links) {
-			re.push("^"+key.replace(/\//g,"\/\/"));
+			re.push("^"+key.replace(/\//g,"\\/").replace(/\./g,"\\."));
+			re.push("^"+key.replace("http://","https://").replace(/\//g,"\\/").replace(/\./g,"\\."));
+		
 		};
 		re=re.join("|");
 		re=new RegExp(re,'gi');

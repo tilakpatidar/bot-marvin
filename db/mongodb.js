@@ -23,9 +23,9 @@ var pool={
 				(function(domain,stamp){
 					process.collection.insert({"_id":domain,"hash":stamp,"domain":domain,"done":false},function(err,results){
 						if(err){
-						console.log("[ERROR] pool.init maybe seed is already added");
+						//console.log("[ERROR] pool.init maybe seed is already added");
 						}
-							console.log("[INFO] Added  "+domain+" to initialize pool");
+							//console.log("[INFO] Added  "+domain+" to initialize pool");
 							done+=1;
 							if(done===links.length-1){
 								fn(results);
@@ -51,19 +51,19 @@ var pool={
 
 					process.collection.insert({"_id":url,"done":false,"domain":domain,"data":"","hash":hash},function(err,results){
 									if(err){
-										//console.log("[ERROR] pool.addToPool");
+										////console.log("[ERROR] pool.addToPool");
 									}
 									else{
-										console.log("[INFO] Discovered "+url);
+										//console.log("[INFO] Discovered "+url);
 									}
 									done+=1;
 									if(done===li.length){
 											process.collection1.insert({"_id":hash},function(err,results){
 															if(err){
-																//console.log("[ERROR] pool.addToPool");
+																////console.log("[ERROR] pool.addToPool");
 															}
 															else{
-																console.log("[INFO] Updated bucket "+hash);
+																//console.log("[INFO] Updated bucket "+hash);
 															}
 															
 															
@@ -88,10 +88,10 @@ var pool={
 					process.collection.find({"hash":hash},{},{}).toArray(function(err,docs){
 						if(err){
 
-							console.log("[ERROR] pool.getNextBatch");
+							//console.log("[ERROR] pool.getNextBatch");
 						}
 						else{
-							console.log("[INFO] Got "+docs.length+" for next Batch");
+							//console.log("[INFO] Got "+docs.length+" for next Batch");
 							result(err,docs);		
 						}
 
@@ -114,10 +114,10 @@ var pool={
 		}
 		process.collection.updateOne({"_id":url},{"done":true,"data":data},function(err,results){
 			if(err){
-				console.log("[ERROR] pool.setCrawled");
+				//console.log("[ERROR] pool.setCrawled");
 			}
 			else{
-				console.log("[INFO] Updated "+url);
+				//console.log("[INFO] Updated "+url);
 			}
 			
 		});
