@@ -1,6 +1,7 @@
 //sys argv
 var argv = require('minimist')(process.argv.slice(2));
 var config=require("./config/config").load();
+var regex_urlfilter=require("./regex-urlfilter.js").load();
 var db_type=config["db_type"];
 var help=argv["help"];
 if(help){
@@ -24,6 +25,12 @@ function starter(){
 				if(results.length!==0){
 					createChild(results);
 				}
+				else{
+					console.log(inlinks_pool.length+" len");
+					//push pool into db as childs are available but no buckets
+					var k=inlinks_pool.splice(0,batchSize);
+					pool.addToPool(k);
+				}
 					
 					
 				},batchSize);
@@ -33,22 +40,19 @@ function starter(){
 
 pool=pool.getDB(db_type).init();//choosing db type
 var inlinks_pool=[];
+var seed_links=pool.readSeedFile();//read the seed file
 function createChild(results){
 	active_childs+=1;
 	var bot = child.fork("spawn.js",[]);	
 	console.log('[INFO] Child process started ');
-	var args=[results,batchSize,pool.links,re,re1,botObjs];
+	var args=[results,batchSize,pool.links,botObjs];
 	bot.send({"init":args});
 	bot.on('close', function (code) {
-		if(inlinks_pool.length>batchSize){
+				//pushing the pool to db
 				var k=inlinks_pool.splice(0,batchSize);
-				if(k.length===batchSize){
-					pool.addToPool(k);
-				}
-				
-
-		}
+				pool.addToPool(k);
 		
+	
 
 	  console.log('[INFO] Child process exited with code ' + code);
 	  active_childs-=1;
@@ -75,56 +79,24 @@ function createChild(results){
 			inlinks_pool.push(d);
 			if(inlinks_pool.length>batchSize){
 				var k=inlinks_pool.splice(0,batchSize);
-				if(k.length===batchSize){
-					pool.addToPool(k);
-				}
+				pool.addToPool(k);
+				
 				
 
 			}
-			
 
 		
-			
 		}
 
 	});
 
 }
-var re;
-var re1;
-var links=pool.links;
-function buildRegex(){
-	if(!config["external_links"]){
-		//build regex for it
-		var res=[];
-		for (var key in links) {
-			res.push("^"+key.replace(/\//g,"\\/").replace(/\./g,"\\."));
-			res.push("^"+key.replace("http://","https://").replace(/\//g,"\\/").replace(/\./g,"\\."));
-		
-		};
-		res=res.join("|");
-		
-		re=res;
-	}
-	else{
-		re=/.+/gi;//accept anything
-	}
-	if(config["social_media_external_links_allow"]){
-		//build regex for it
-		var res=[];
-		for (var i = 0; i < config["social_media_sites_allow"].length; i++) {
-			var key=config["social_media_sites_allow"][i];
-			res.push("^"+key.replace(/\//g,"\\/").replace(/\./g,"\\."));
-			res.push("^"+key.replace("http://","https://").replace(/\//g,"\\/").replace(/\./g,"\\."));
-		
-		};
-		res=res.join("|");
-		re1=res;
-	}
-}
+
+
+
 function initConnection(){
 	pool.createConnection(function(){
-		pool.init(function(){
+		pool.seed(seed_links,function(){
 			for (var i = 0; i < childs; i++) {
 				pool.getNextBatch(function(err,results){
 					if(results.length!==0){
@@ -141,7 +113,6 @@ function initConnection(){
 	});
 
 }
-buildRegex();//build regex for external false and social links
 var botObjs;
 if(config["allow_robots"]){
 	console.log("[INFO] downloading robots.txt this could take a while");

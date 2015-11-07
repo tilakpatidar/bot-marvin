@@ -10,8 +10,7 @@ var collection1=config["mongodb"]["bucket_collection"];
 
 
 var pool={
-	"init":function(fn){
-		var links=this.readSeedFile();//read the seed file
+	"seed":function(links,fn){
 		var stamp=new Date().getTime()+"";
 		process.collection1.insert({"_id":stamp},function(err,results){
 			var done=0;
@@ -26,9 +25,9 @@ var pool={
 					}
 					process.collection.insert({"_id":url,"hash":stamp,"domain":domain,"done":false},function(err,results){
 						if(err){
-						//console.log("[ERROR] pool.init maybe seed is already added");
+						console.log("[ERROR] pool.init maybe seed is already added");
 						}
-							//console.log("[INFO] Added  "+domain+" to initialize pool");
+							console.log("[INFO] Added  "+domain+" to initialize pool");
 							done+=1;
 							if(done===links.length-1){
 								fn(results);
@@ -58,7 +57,8 @@ var pool={
 
 					process.collection.insert({"_id":url,"done":false,"domain":domain,"data":"","hash":hash},function(err,results){
 									if(err){
-										////console.log("[ERROR] pool.addToPool");
+
+										//console.log("[ERROR] pool.addToPool");
 									}
 									else{
 										//console.log("[INFO] Discovered "+url);
@@ -67,6 +67,7 @@ var pool={
 									if(done===li.length){
 											process.collection1.insert({"_id":hash},function(err,results){
 															if(err){
+
 																console.log("[ERROR] pool.addToPool"+err);
 															}
 															else{
@@ -168,9 +169,11 @@ var pool={
 				console.log("[INFO] Empty seed file");
 				process.exit(0);
 			}
-		this.links=dic;
+		pool["links"]=dic;
+		pool["seedCount"]=links.length;
 		return links;
-	}
+	},
+	"seedCount":0
 };
 
 
