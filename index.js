@@ -37,7 +37,7 @@ function createChild(results){
 	active_childs+=1;
 	var bot = child.fork("spawn.js",[]);	
 	console.log('[INFO] Child process started ');
-	var args=[results,batchSize,pool.links,re,re1];
+	var args=[results,batchSize,pool.links,re,re1,botObjs];
 	bot.send({"init":args});
 	bot.on('close', function (code) {
 		if(inlinks_pool.length>batchSize){
@@ -142,9 +142,11 @@ function initConnection(){
 
 }
 buildRegex();//build regex for external false and social links
+var botObjs;
 if(config["allow_robots"]){
 	console.log("[INFO] downloading robots.txt this could take a while");
 	var robots=require('./robots.js').app;
+	botObjs=robots.bots;
 	robots.init(Object.keys(pool.links),function(){
 		console.log("[INFO] robots.txt parsed");
 		initConnection();

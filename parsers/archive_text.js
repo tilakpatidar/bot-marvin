@@ -1,5 +1,6 @@
 var cheerio = require('cheerio');
 var config=require("../config/config").load();
+var urllib = require('url');
 var app={
 	"parse":function(data,url){
 		if(data===undefined){
@@ -14,6 +15,12 @@ var app={
 		 };
 		 var title=$('title').text();
 		 var body=$('body').text();
+		 var inlinks=[];
+		 $('.item-ttl>a').each(function(){
+		 	var abs=urllib.resolve(config["counter_domain"],$(this).attr("href"));
+		 	inlinks.push(abs);
+
+		 });
 		 body=body.replace(/(\n+)|(\t+)|(\s+)|(\r+)/g,' ');
 		 body=body.replace(/\s+/g," ");
 		 var output=this.getID(url);
@@ -41,7 +48,7 @@ var app={
          dic._source["date"]="2015-10-29T10:58:56.86";
          dic._source["html"]=data;
          dic._source["title"]=title;
-		 return [$,dic,[]];//cheerio object ,dic to insert ,inlinks to give
+		 return [$,dic,inlinks];//cheerio object ,dic to insert ,inlinks to give
 	},
 	"getID":function(url){
 		var type;

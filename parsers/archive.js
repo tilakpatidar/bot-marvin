@@ -1,8 +1,10 @@
 var cheerio = require('cheerio');
 var config=require("../config/config").load();
+var urllib = require('url');
 var app={
 	"parse":function(data,url){
 		if(data===undefined){
+			console.log("hereee");
 			data="";
 		}
 		data=data.replace(/(\n+)|(\t+)|(\s+)|(\r+)/g,' ');
@@ -14,6 +16,12 @@ var app={
 		 };
 		 var title=$('title').text();
 		 var body=$('body').text();
+		 var inlinks=[];
+		 $('.item-ttl>a').each(function(){
+		 	var abs=urllib.resolve(config["counter_domain"],$(this).attr("href"));
+		 	inlinks.push(abs);
+
+		 });
 		 body=body.replace(/(\n+)|(\t+)|(\s+)|(\r+)/g,' ');
 		 body=body.replace(/\s+/g," ");
 		 var output=this.getID(url);
@@ -41,7 +49,67 @@ var app={
          dic._source["date"]="2015-10-29T10:58:56.86";
          dic._source["html"]=data;
          dic._source["title"]=title;
-		 return [$,dic,[]];//cheerio object ,dic to insert ,inlinks to give
+         var details={};
+         if($("#theatre-ia-wrap")){
+         	//at book
+         	var book_title=$('div .thats-left>h1').text().trim();
+			
+			details["book_title"]=book_title;
+			$("div .key-val-big").each(function(){
+				
+					var temp=[];
+					$(this).find('a').each(function(){
+						temp.push($(this).text().trim());
+						$(this).remove();
+					});
+					details[$(this).text().trim()]=temp;
+				
+			});
+			var keys=[];
+			var values=[];
+			$('span.key').each(function(){
+				
+				keys.push($(this).text().trim());
+
+			});
+			$('span.value').each(function(){
+				
+				values.push($(this).text().trim());
+
+			});
+			for(var j=0;j<keys.length;j++){
+				
+				details[keys[j]]=values[j];
+
+
+			}
+			var k=0;
+			var t=[];
+			if(!$('div.small-label')[0]){
+				
+				$('div.aReview').each(function(){
+						if(k===5){
+							return false;
+						}
+						var d={};
+						d["name"]=$(this).find('a').text();
+						$(this).find("b").remove();
+						$(this).find('a').remove();
+						d["stars"]=$(this).find('span').attr('title');
+						$(this).find('span').remove();
+						d["comments"]=$(this).text();
+						t.push(d);
+						k+=1;
+				});
+
+			}
+				details['reviews']=t;
+				details["img"]="https://archive.org/services/img/"+url.split("/").pop();
+         }
+         var d={};
+         d["general"]=dic;
+         d["v4"]=details;
+		 return [$,d,inlinks];//cheerio object ,dic to insert ,inlinks to give
 	},
 	"getID":function(url){
 		var type;

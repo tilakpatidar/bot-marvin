@@ -1,22 +1,45 @@
-var request=require("request");
+var request = require("request");
 var urllib = require('url');
 var regex_urlfilter=require("./config/regex-urlfilter.js").load();
 var config=require("./config/config").load();
+var queued=0;
+var active_sockets=0;
 function req(url,domain){
+	if(active_sockets>config["max_concurrent_sockets"]){
+		//pooling to avoid socket hanging
+		(function(url,domain){
+				setTimeout(function(){ req(url,domain); }, 100); //to avoid recursion
+		})(url,domain);
+	}
 	var req_url=url;
 		if(links[domain]["phantomjs"]){
 			req_url="http://192.168.101.5:9000/?q="+req_url;
 		}
 			(function(url,domain,req_url){
-				
-				request(req_url.replace("#social#",""),function(err,response,html){
+				if(botObjs!==null){
+					var bot=botObjs[domain];
+					bot.allow(req_url.replace("#social#",""),function(){
+
+
+
+					});
+					
+				}
+
+				var u=urllib.parse(req_url.replace("#social#",""));
+				active_sockets+=1;
+				request({uri:u,pool:{maxSockets: Infinity}},function(err,res,html){
+					active_sockets-=1;
+					if(html===undefined){
+						console.log("[ERROR] Max sockets reached read docs/maxSockets.txt");
+					}
 					var parser=require("./parsers/"+links[domain]["parseFile"]);
 					var dic=parser.init.parse(html,url);//pluggable parser
 					//dic[0] is cheerio object
 					//dic[1] is dic to be inserted
 					if(req_url.indexOf("#social#")<0){
 						//only grab inlinks if not social page or brand page of twitter etc
-						grabInlinks(dic[0],url,domain);
+						grabInlinks(dic[0],url,domain,dic[2]);
 						
 					}
 					process.send({"setCrawled":[url,dic[1]]});
@@ -55,7 +78,11 @@ function crawl(pools){
 
 }
 
-function grabInlinks($,url,domain){
+function grabInlinks($,url,domain,linksFromParsers){
+	for (var i = 0; i < linksFromParsers.length; i++) {
+		var q=linksFromParsers[i];
+		process.send({"addToPool":[q,config["counter_domain"]]});
+	};
 		var a=$("a").each(function(){
 			function reject(a){
 				//console.log(a);
@@ -115,7 +142,9 @@ var batchSize;
 var links;
 var re;//for external link check
 var re1;//for external social link check
+var botObjs;
 process.on('message',function(data){
+	//recieving instructions from parent
 	var k=data["init"];
 	if(k){
 		batch=k[0];
@@ -123,7 +152,9 @@ process.on('message',function(data){
 		links=k[2];
 		re=new RegExp(k[3],'gi');
 		re1=new RegExp(k[4],'gi');
+		botObjs=k[5];
 		crawl(batch);
 
 	}
+
 });

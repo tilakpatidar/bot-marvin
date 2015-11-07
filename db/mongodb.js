@@ -6,22 +6,25 @@ var mongodb=config["mongodb"]["mongodb_uri"];
 var collection=config["mongodb"]["mongodb_collection"];
 var collection1=config["mongodb"]["bucket_collection"];
 //read seed file
-var fs  = require("fs");
-var dic={};
-var links=fs.readFileSync('./'+config["seed_file"]).toString().split('\n');
-//parsing seed file
-for (var i = 0; i < links.length; i++) {
-	var k=links[i].split("\t");
-	dic[k[0]]={"phantomjs":JSON.parse(k[2]),"parseFile":k[1]};
-};
+
+
+
 var pool={
 	"init":function(fn){
+		var links=this.readSeedFile();//read the seed file
 		var stamp=new Date().getTime()+"";
 		process.collection1.insert({"_id":stamp},function(err,results){
 			var done=0;
 			for (var i = 0; i < links.length; i++) {
-				(function(domain,stamp){
-					process.collection.insert({"_id":domain,"hash":stamp,"domain":domain,"done":false},function(err,results){
+				var anon=(function(domain,stamp,url){
+					if(domain===""){
+						return;
+					}
+					if(url===undefined){
+						//not counter links
+						url=domain;
+					}
+					process.collection.insert({"_id":url,"hash":stamp,"domain":domain,"done":false},function(err,results){
 						if(err){
 						//console.log("[ERROR] pool.init maybe seed is already added");
 						}
@@ -34,7 +37,11 @@ var pool={
 				
 					});
 
-				})(links[i].split('\t')[0],stamp);
+				});
+				
+				anon(links[i].split('\t')[0],stamp);
+				
+				
 			};
 			
 			
@@ -60,7 +67,7 @@ var pool={
 									if(done===li.length){
 											process.collection1.insert({"_id":hash},function(err,results){
 															if(err){
-																////console.log("[ERROR] pool.addToPool");
+																console.log("[ERROR] pool.addToPool"+err);
 															}
 															else{
 																console.log("[INFO] Updated bucket "+hash);
@@ -143,9 +150,30 @@ var pool={
 			fn(err,db);
 
 		});
+	},
+	"readSeedFile":function(){
+		var fs  = require("fs");
+		var dic={};
+		var links=[];
+		links=fs.readFileSync('./'+config["seed_file"]).toString().split('\n');
+			//parsing seed file
+			if(links[0]!==""){
+				//not if file is empty
+				for (var i = 0; i < links.length; i++) {
+					var k=links[i].split("\t");
+					dic[k[0]]={"phantomjs":JSON.parse(k[2]),"parseFile":k[1]};
+				};
+			}
+			else{
+				console.log("[INFO] Empty seed file");
+				process.exit(0);
+			}
+		this.links=dic;
+		return links;
 	}
 };
-pool["links"]=dic;
+
+
 function init(){
 	return pool;
 }
