@@ -15,7 +15,7 @@ var config={
 	"allow_robots":true,
 	"external_links":false,
 	"seed_file":"seed",
-	"childs":5,
+	"childs":10,
 	"max_concurrent_sockets":100,
 	"batch_size":1000,
 	"db_type":"mongodb",

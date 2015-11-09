@@ -1,13 +1,11 @@
-var robots = require('robots')
-  , parser = new robots.RobotsParser();
- 
-parser.setUrl('http://www.htmlgoodies.com/robots.txt', function(parser, success) {
-  if(success) {
-    parser.canFetch('*', '/doc/dailyjs-nodepad/', function (access) {
-    console.log(parser);
-      if (access) {
-        // parse url 
-      }
-    });
-  }
+var tika = require('tika');
+
+var options = {
+
+    // Hint the content-type. This is optional but would help Tika choose a parser in some cases.
+    contentType: 'application/pdf'
+};
+
+tika.text('https://training.github.com/kit/downloads/github-git-cheat-sheet.pdf', options, function(err, text) {
+    console.log(text);
 });

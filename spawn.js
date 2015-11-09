@@ -66,14 +66,14 @@ var bot={
 				robot=bot.addProto(robot);
 				 robot.canFetch(config["bot_name"],url, function (access,crawl_delay) {
 				      if (!access) {
-				      	console.log("cannot access "+url);
+				      	console.log("[INFO] Cannot access "+url);
 				        // access not given exit 
 							process.send({"setCrawled":[url,{},"Robots"]});
 							bot.isLinksFetched();
 							return;
 					    }
 					    else{
-					    	console.log("access "+url+" crawl_delay "+crawl_delay);
+					    	//console.log("access "+url+" crawl_delay "+crawl_delay);
 					    	 bot.scheduler(url,domain,crawl_delay);
 							
 					    }

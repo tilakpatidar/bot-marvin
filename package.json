@@ -1,0 +1,30 @@
+{
+  "name": "node-crawler",
+  "version": "1.0.0",
+  "description": "Crawler plus scrapper inspired from Apache Nutch supports document files pdf's etc,gracefull crawling robots.txt,regex parsing,pluggable indexers and parsers. ",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "nodejs index.js",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SRMSE/node-crawler.git"
+  },
+  "keywords": [
+    "crawler",
+    "scrapper",
+    "nutch",
+    "srmse",
+    "tilakpatidar"
+  ],
+  "author": "tilakpatidar",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SRMSE/node-crawler/issues"
+  },
+  "homepage": "https://github.com/SRMSE/node-crawler#readme"
+}
