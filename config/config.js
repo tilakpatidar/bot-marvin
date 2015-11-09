@@ -10,6 +10,7 @@ var config={
 	"elasticsearch":{
 		"elasticsearch_uri":""
 	},
+	"phantomjs_url":"http://192.168.101.5:9000/?q=",
 	"allow_robots":false,
 	"external_links":false,
 	"seed_file":"seed",
@@ -17,8 +18,6 @@ var config={
 	"max_concurrent_sockets":100,
 	"batch_size":1000,
 	"db_type":"mongodb",
-	"social_media_external_links_allow":true,
-	"social_media_sites_allow":['http://www.twitter.com','http://www.facebook.com','http://www.linkedin.com','http://www.instagram.com','http://www.youtube.com'],
 	"remove_tags":["table","style","script","noscript","img","form","input","iframe","header","footer","button","pre","br","code","select","option","nav"]
 };
 function load(){

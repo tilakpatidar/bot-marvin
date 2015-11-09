@@ -73,7 +73,7 @@ function createChild(results){
 		var t=data["setCrawled"];
 		var d=data["addToPool"];
 		if(t){
-			pool.setCrawled(t[0],t[1]);
+			pool.setCrawled(t[0],t[1],t[2]);
 		}
 		else if(d){
 			inlinks_pool.push(d);
@@ -117,9 +117,9 @@ var botObjs;
 if(config["allow_robots"]){
 	console.log("[INFO] downloading robots.txt this could take a while");
 	var robots=require('./robots.js').app;
-	botObjs=robots.bots;
-	robots.init(Object.keys(pool.links),function(){
+	robots.init(Object.keys(pool.links),function(obj){
 		console.log("[INFO] robots.txt parsed");
+		botObjs=obj;
 		initConnection();
 		setInterval(starter,5000);
 	});

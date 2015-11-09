@@ -116,11 +116,14 @@ var pool={
 		
 		
 	},
-	"setCrawled":function(url,data){
+	"setCrawled":function(url,data,status){
 		if(data===undefined || data ===null){
 			data="";
 		}
-		process.collection.updateOne({"_id":url},{"done":true,"data":data},function(err,results){
+		if(status===undefined){
+			status="0";//no error
+		}
+		process.collection.updateOne({"_id":url},{"done":true,"data":data,"err":status},function(err,results){
 			if(err){
 				//console.log("[ERROR] pool.setCrawled");
 			}
