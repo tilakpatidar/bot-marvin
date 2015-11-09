@@ -9,6 +9,7 @@ var bot={
 	"batchSize":0,
 	"links":[],
 	"botObjs":{},
+	"lastAccess":{},
 	"getTask":function(fn){
 		process.on('message',function(data){
 			//recieving instructions from parent
@@ -63,7 +64,7 @@ var bot={
 			
 			if((typeof(robot)!=="string" && robot!=="NO_ROBOTS" ) && (robot!==undefined)){
 				robot=bot.addProto(robot);
-				 robot.canFetch('*',url, function (access) {
+				 robot.canFetch(config["bot_name"],url, function (access,crawl_delay) {
 				      if (!access) {
 				      	console.log("cannot access "+url);
 				        // access not given exit 
@@ -72,8 +73,9 @@ var bot={
 							return;
 					    }
 					    else{
-					    	console.log("access "+url);
-					    	bot.fetch(url,domain);//constraints are met let's fetch the page
+					    	console.log("access "+url+" crawl_delay "+crawl_delay);
+					    	 bot.scheduler(url,domain,crawl_delay);
+							
 					    }
 				  });
 			
@@ -166,33 +168,71 @@ var bot={
 	},
 	"addProto":function(robot){
 		robot.canFetch=function(user_agent,url,allowed){
+			var crawl_delay=parseInt(this.defaultEntry["crawl_delay"])*1000;//into milliseconds
+			if(isNaN(crawl_delay)){
+				crawl_delay=0;
+			}
 			if(this.allowAll){
-				allowed(true);
+				allowed(true,crawl_delay);
 			}
 			else if(this.disallowAll){
-				allowed(false);
+				allowed(false,crawl_delay);
 			}
 			var rules=this.defaultEntry["rules"];
 			if(rules===undefined){
-				allowed(true);
+				allowed(true,crawl_delay);
 			}
+
 			for (var i = 0; i < rules.length; i++) {
 				var path=decodeURIComponent(rules[i].path);
 				var isallowed=rules[i].allowance;
+
 				var given_path="/"+url.replace("http://","").replace("https://","").split("/").slice(1).join("/");
 				if(given_path===path && isallowed){
-					allowed(true);
+					allowed(true,crawl_delay);
 					return;
 				}
 				else if(given_path===path && !isallowed){
-					allowed(false);
+					allowed(false,crawl_delay);
 					return;
 				}
 			};
 			//if no match then simply allow
-			allowed(true);
+			allowed(true,crawl_delay);
 		};
 		return robot;
+	},
+	"scheduler":function(url,domain,time){
+		if(time===0){
+			//queue immediately
+			bot.fetch(url,domain);
+			return;
+		}
+		else{
+			var lastTime=bot.lastAccess[domain];
+			if(lastTime===undefined){
+				//first time visit,set time
+				bot.lastAccess[domain]=new Date().getTime();
+				bot.fetch(url,domain);
+			}
+			else{
+				bot.queueWait(url,domain,time);
+			}
+		}
+
+	},
+	"queueWait":function(url,domain,time){
+		var lastTime=bot.lastAccess[domain];
+			var current_time=new Date().getTime();
+				if(current_time<(lastTime+time)){
+					bot.lastAccess[domain]=current_time;
+					bot.fetch(url,domain);
+				}
+				else{
+					(function(url,domain,time){
+						setTimeout(function(){ bot.queueWait(url,domain,time); },Math.abs(current_time-(lastTime+time)));
+					})(url,domain,time);
+				}
 	}
 
 

@@ -1,4 +1,5 @@
 var config={
+	"bot_name":"*",
 	"mongodb":{
 		"mongodb_uri":"mongodb://192.168.101.5:27017/crawl55",
 		"mongodb_collection":"1",
