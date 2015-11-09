@@ -11,7 +11,7 @@ var config={
 		"elasticsearch_uri":""
 	},
 	"phantomjs_url":"http://192.168.101.5:9000/?q=",
-	"allow_robots":false,
+	"allow_robots":true,
 	"external_links":false,
 	"seed_file":"seed",
 	"childs":5,

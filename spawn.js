@@ -2,8 +2,6 @@ var request = require("request");
 var urllib = require('url');
 var regex_urlfilter=require("./regex-urlfilter.js").load();
 var config=require("./config/config").load();
-var queued=0;
-var active_sockets=0;
 var bot={
 	"queued":0,
 	"active_sockets":0,
@@ -61,16 +59,20 @@ var bot={
 		if(bot.botObjs!==null){
 			//if robots is enabled
 			//check if access is given to the crawler for requested resource
-			var bot=botObjs[domain];
-			if(!(typeof(bot)==="string" && bot==="NO_ROBOTS")){
-				 parser.canFetch('*',url, function (access) {
+			var robot=bot.botObjs[domain];
+			
+			if((typeof(robot)!=="string" && robot!=="NO_ROBOTS" ) && (robot!==undefined)){
+				robot=bot.addProto(robot);
+				 robot.canFetch('*',url, function (access) {
 				      if (!access) {
+				      	console.log("cannot access "+url);
 				        // access not given exit 
 							process.send({"setCrawled":[url,{},"Robots"]});
 							bot.isLinksFetched();
 							return;
 					    }
 					    else{
+					    	console.log("access "+url);
 					    	bot.fetch(url,domain);//constraints are met let's fetch the page
 					    }
 				  });
@@ -161,6 +163,36 @@ var bot={
 					process.exit(0);//exit 
 				}
 
+	},
+	"addProto":function(robot){
+		robot.canFetch=function(user_agent,url,allowed){
+			if(this.allowAll){
+				allowed(true);
+			}
+			else if(this.disallowAll){
+				allowed(false);
+			}
+			var rules=this.defaultEntry["rules"];
+			if(rules===undefined){
+				allowed(true);
+			}
+			for (var i = 0; i < rules.length; i++) {
+				var path=decodeURIComponent(rules[i].path);
+				var isallowed=rules[i].allowance;
+				var given_path="/"+url.replace("http://","").replace("https://","").split("/").slice(1).join("/");
+				if(given_path===path && isallowed){
+					allowed(true);
+					return;
+				}
+				else if(given_path===path && !isallowed){
+					allowed(false);
+					return;
+				}
+			};
+			//if no match then simply allow
+			allowed(true);
+		};
+		return robot;
 	}
 
 
