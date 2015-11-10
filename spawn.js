@@ -94,32 +94,20 @@ var bot={
 
 	},
 	"fetch":function(url,domain){
-		var req_url=url;
-		if(bot.links[domain]["phantomjs"]){
-			//new url if phantomjs is being used
-			req_url=config["phantomjs_url"]+req_url;
-		}
-		bot.active_sockets+=1;
-		request({uri:req_url,pool:{maxSockets: Infinity}},function(err,res,html){
-			bot.active_sockets-=1;
-			if(html===undefined){
-				//some error with the request return silently
-				console.log("[ERROR] Max sockets reached read docs/maxSockets.txt");
-				process.send({"setCrawled":[url,{},"Failed"]});
-				bot.isLinksFetched();
-				return;
+		if(config["tika"]){
+			if(url.match(config["tika_supported_files"])!==null){
+				//file type matched use tika instead
+				bot.fetchFile(url,domain);
 			}
-					var parser=require("./parsers/"+bot.links[domain]["parseFile"]);
-					var dic=parser.init.parse(html,url);//pluggable parser
-					//dic[0] is cheerio object
-					//dic[1] is dic to be inserted
-					//dic[2] inlinks suggested by custom parser
-					bot.grabInlinks(dic[0],url,domain,dic[2]);
-					process.send({"setCrawled":[url,dic[1]]});
-					bot.isLinksFetched();
-					
-					
-				});
+			else{
+				bot.fetchWebPage(url,domain);
+			}
+		}
+		else{
+			bot.fetchWebPage(url,domain);
+		}
+
+		
 	},
 	"grabInlinks":function($,url,domain,linksFromParsers){
 		for (var i = 0; i < linksFromParsers.length; i++) {
@@ -244,6 +232,36 @@ var bot={
 						setTimeout(function(){ bot.queueWait(url,domain,time); },Math.abs(current_time-(lastTime+time)));
 					})(url,domain,time);
 				}
+	},
+	"fetchWebPage":function(url,domain){
+		var req_url=url;
+		if(bot.links[domain]["phantomjs"]){
+			//new url if phantomjs is being used
+			req_url=config["phantomjs_url"]+req_url;
+		}
+		bot.active_sockets+=1;
+		request({uri:req_url,pool:{maxSockets: Infinity}},function(err,res,html){
+			bot.active_sockets-=1;
+			if(html===undefined){
+				//some error with the request return silently
+				console.log("[ERROR] Max sockets reached read docs/maxSockets.txt");
+				process.send({"setCrawled":[url,{},"Failed"]});
+				bot.isLinksFetched();
+				return;
+			}
+					var parser=require("./parsers/"+bot.links[domain]["parseFile"]);
+					var dic=parser.init.parse(html,url);//pluggable parser
+					//dic[0] is cheerio object
+					//dic[1] is dic to be inserted
+					//dic[2] inlinks suggested by custom parser
+					bot.grabInlinks(dic[0],url,domain,dic[2]);
+					process.send({"setCrawled":[url,dic[1]]});
+					bot.isLinksFetched();
+					
+					
+				});
+	},
+	"fetchFile":function(url,domain){
 	}
 
 
