@@ -1,7 +1,7 @@
 var config={
 	"bot_name":"*",
 	"mongodb":{
-		"mongodb_uri":"mongodb://192.168.101.5:27017/crawl55",
+		"mongodb_uri":"mongodb://192.168.101.5:27017/crawl5",
 		"mongodb_collection":"1",
 		"bucket_collection":"bucket"
 	},
@@ -15,9 +15,9 @@ var config={
 	"allow_robots":true,
 	"external_links":false,
 	"seed_file":"seed",
-	"childs":10,
+	"childs":2,
 	"max_concurrent_sockets":100,
-	"batch_size":1000,
+	"batch_size":10,
 	"db_type":"mongodb",
 	"remove_tags":["table","style","script","noscript","img","form","input","iframe","header","footer","button","pre","br","code","select","option","nav"]
 };

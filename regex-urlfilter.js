@@ -1,7 +1,7 @@
 var config=require("./config/config").load();
 var dic={
 	"accept":/http(|s):\/\/archive\.org\/details\/.+|http(|s):\/\/archive\.org\/details\/texts\?&sort=-downloads&page=.+/gi,
-	"reject":[/^(file|ftp|mailto|javascript):/g,/\.(gif|jpg|png|ico|css|sit|eps|wmf|zip|ppt|mpg|xls|gz|rpm|tgz|mov|exe|jpeg|bmp|js|swf|pdf)$/gi],
+	"reject":[/^(file|ftp|mailto|javascript|whatsapp|tel):/g,/\.(gif|jpg|png|ico|css|sit|eps|wmf|zip|ppt|mpg|xls|gz|rpm|tgz|mov|exe|jpeg|bmp|js|swf|pdf)$/gi],
 	"setExternalLinksRegex":function(links){
 		
 		if(!config["external_links"]){

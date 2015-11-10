@@ -7,6 +7,7 @@ var bot={
 	"active_sockets":0,
 	"batch":{},
 	"batchSize":0,
+	"batchId":0,
 	"links":[],
 	"botObjs":{},
 	"lastAccess":{},
@@ -19,6 +20,7 @@ var bot={
 				bot.batchSize=k[1];
 				bot.links=k[2];
 				bot.botObjs=k[3];
+				bot.batchId=k[4];
 				//prepare regexes
 				
 				fn(bot.batch);
@@ -162,6 +164,7 @@ var bot={
 	"isLinksFetched":function(){
 				bot.queued+=1;
 				if(bot.queued===bot.batch.length){
+					process.send({"finishedBatch":bot.batchId});
 					process.exit(0);//exit 
 				}
 

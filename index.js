@@ -21,9 +21,9 @@ function starter(){
 	console.log("[INFO] Check if new child available");
 	console.log(active_childs);
 	for (var i = active_childs; i < childs; i++) {
-		  pool.getNextBatch(function(err,results){
+		  pool.getNextBatch(function(err,results,hash){
 				if(results.length!==0){
-					createChild(results);
+					createChild(results,hash);
 				}
 				else{
 					console.log(inlinks_pool.length+" len");
@@ -41,11 +41,11 @@ function starter(){
 pool=pool.getDB(db_type).init();//choosing db type
 var inlinks_pool=[];
 var seed_links=pool.readSeedFile();//read the seed file
-function createChild(results){
+function createChild(results,hash){
 	active_childs+=1;
 	var bot = child.fork("spawn.js",[]);	
 	console.log('[INFO] Child process started ');
-	var args=[results,batchSize,pool.links,botObjs];
+	var args=[results,batchSize,pool.links,botObjs,hash];
 	bot.send({"init":args});
 	bot.on('close', function (code) {
 				//pushing the pool to db
@@ -57,9 +57,9 @@ function createChild(results){
 	  console.log('[INFO] Child process exited with code ' + code);
 	  active_childs-=1;
 	  for (var i = active_childs; i < childs; i++) {
-		  pool.getNextBatch(function(err,results){
+		  pool.getNextBatch(function(err,results,hash){
 				if(results.length!==0){
-					createChild(results);
+					createChild(results,hash);
 				}
 					
 					
@@ -72,6 +72,7 @@ function createChild(results){
 	bot.on("message",function(data){
 		var t=data["setCrawled"];
 		var d=data["addToPool"];
+		var g=data["finishedBatch"];
 		if(t){
 			pool.setCrawled(t[0],t[1],t[2]);
 		}
@@ -87,6 +88,9 @@ function createChild(results){
 
 		
 		}
+		else if(g){
+			pool.batchFinished(g);//set batch finished
+		}
 
 	});
 
@@ -98,9 +102,9 @@ function initConnection(){
 	pool.createConnection(function(){
 		pool.seed(seed_links,function(){
 			for (var i = 0; i < childs; i++) {
-				pool.getNextBatch(function(err,results){
+				pool.getNextBatch(function(err,results,hash){
 					if(results.length!==0){
-						createChild(results);
+						createChild(results,hash);
 					}
 					
 					

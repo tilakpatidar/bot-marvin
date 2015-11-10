@@ -12,7 +12,7 @@ var collection1=config["mongodb"]["bucket_collection"];
 var pool={
 	"seed":function(links,fn){
 		var stamp=new Date().getTime()+"";
-		process.collection1.insert({"_id":stamp},function(err,results){
+		process.collection1.insert({"_id":stamp,"underProcess":false},function(err,results){
 			var done=0;
 			for (var i = 0; i < links.length; i++) {
 				var anon=(function(domain,stamp,url){
@@ -65,7 +65,7 @@ var pool={
 									}
 									done+=1;
 									if(done===li.length){
-											process.collection1.insert({"_id":hash},function(err,results){
+											process.collection1.insert({"_id":hash,"underProcess":false},function(err,results){
 															if(err){
 
 																console.log("[ERROR] pool.addToPool"+err);
@@ -90,7 +90,7 @@ var pool={
 		
 	},
 	"getNextBatch":function(result,batchSize){
-		process.collection1.findAndModify({},[],{},{"remove":true},function(err,object){
+		process.collection1.findAndModify({"underProcess":false},[],{"$set":{"underProcess":true}},{"remove":false},function(err,object){
 			if(object.value!==null){
 					var hash=object["value"]["_id"];
 					process.collection.find({"hash":hash},{},{}).toArray(function(err,docs){
@@ -100,14 +100,14 @@ var pool={
 						}
 						else{
 							//console.log("[INFO] Got "+docs.length+" for next Batch");
-							result(err,docs);		
+							result(err,docs,hash);		
 						}
 
 
 					});
 			}
 			else{
-					result(null,[]);	
+					result(null,[],null);	
 				}
 				
 
@@ -175,6 +175,17 @@ var pool={
 		pool["links"]=dic;
 		pool["seedCount"]=links.length;
 		return links;
+	},
+	"batchFinished":function(hash){
+		process.collection1.findAndModify({"_id":hash},[],{},{"remove":true},function(err,object){
+			if(object.value!==null){
+					var hash=object["value"]["_id"];
+					console.log("[INFO] Bucket "+hash+"completed !");
+			}
+			
+				
+
+		});
 	},
 	"seedCount":0
 };
