@@ -16,9 +16,9 @@ var config={
 	"allow_robots":true,
 	"external_links":false,
 	"seed_file":"seed",
-	"childs":10,
-	"max_concurrent_sockets":100,
-	"batch_size":1000,
+	"childs":2,
+	"max_concurrent_sockets":10,
+	"batch_size":100,
 	"db_type":"mongodb",
 	"remove_tags":["table","style","script","noscript","img","form","input","iframe","header","footer","button","pre","br","code","select","option","nav"]
 };
@@ -26,5 +26,4 @@ function load(){
 	return config;
 }
 exports.load=load;
-
 

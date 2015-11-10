@@ -8,7 +8,6 @@ var collection1=config["mongodb"]["bucket_collection"];
 //read seed file
 
 
-
 var pool={
 	"seed":function(links,fn){
 		pool.resetBuckets(function(){
@@ -195,7 +194,7 @@ var pool={
 	},
 	"resetBuckets":function(fn){
 		process.collection1.update({"underProcess":true,"bot":config["bot_name"]},{$set:{"underProcess":false}},{multi:true},function(err,results){
-
+		//resetting just buckets processed by this bot
 			if(err){
 				console.log("[ERROR] pool.resetBuckets");
 			}

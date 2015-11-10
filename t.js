@@ -1,4 +1,4 @@
-var tika = require('tika');
+var tika = require('./tika.js');
 
 var options = {
 
