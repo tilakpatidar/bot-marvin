@@ -3,14 +3,15 @@ var fs = require('fs');
 var request = require('request');
 var app={
 	"startServer":function(){
-		exec('java -jar ./lib/tika-server-1.11.jar -h 0.0.0.0', function(error, stdout, stderr) {
+		exec('java -jar ./lib/tika-server-1.11.jar -h '+config["tika_host"], function(error, stdout, stderr) {
 			console.log("[INFO] Tika server started");
 		    if (error !== null) {
-		        console.log('[INFO] Server is already running]');
+		        console.log('[INFO] Server is already running');
 		    }
 		});
 	},
 	"submitFile":function(url,callback){
+		//main function of the module
 		app.addFileToStore(url,function(){
 			console.log("[INFO] File "+url+" added to store");
 			app.extractText(url,function(body){
@@ -33,7 +34,7 @@ var app={
 	},
 	"extractText":function(url,callback){
 		var source = fs.createReadStream(app.getFileName(url));
-		source.pipe(request.put({url:'http://localhost:9998/tika',headers: {'Accept': 'text/plain'}},function(err, httpResponse, body){
+		source.pipe(request.put({url:'http://'+config["tika_host"]+':'+config['tika_port']+'/tika',headers: {'Accept': 'text/plain'}},function(err, httpResponse, body){
 
 			callback(body);
 		}));

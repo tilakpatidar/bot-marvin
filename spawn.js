@@ -149,9 +149,17 @@ var bot={
 					
 					for (var i = 0; i < regex_urlfilter.reject.length; i++) {
 						if(abs.match(regex_urlfilter.reject[i])!==null){
-								return reject("2");
+								if(abs.match(config["tika_supported_files"])!==null){
+									if(!config["tika"]){
+										return reject("3");
+									}
 
-						}
+								}
+								else{
+									return reject("2");
+									
+									}
+							}
 						
 					};
 					

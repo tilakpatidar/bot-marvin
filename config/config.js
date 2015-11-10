@@ -12,6 +12,10 @@ var config={
 	"elasticsearch":{
 		"elasticsearch_uri":""
 	},
+	"tika_host":"0.0.0.0",
+	"tika_port":"9998",
+	"tika":true,
+	"tika_supported_files":/\.(ppt|doc|pdf)$/gi,
 	"phantomjs_url":"http://192.168.101.5:9000/?q=",
 	"allow_robots":true,
 	"external_links":false,
