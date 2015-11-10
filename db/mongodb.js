@@ -11,40 +11,46 @@ var collection1=config["mongodb"]["bucket_collection"];
 
 var pool={
 	"seed":function(links,fn){
-		var stamp=new Date().getTime()+"";
-		process.collection1.insert({"_id":stamp,"underProcess":false},function(err,results){
-			var done=0;
-			for (var i = 0; i < links.length; i++) {
-				var anon=(function(domain,stamp,url){
-					if(domain===""){
-						return;
-					}
-					if(url===undefined){
-						//not counter links
-						url=domain;
-					}
-					process.collection.insert({"_id":url,"hash":stamp,"domain":domain,"done":false},function(err,results){
-						if(err){
-						console.log("[ERROR] pool.init maybe seed is already added");
+		pool.resetBuckets(function(){
+			var stamp=new Date().getTime()+"";
+			process.collection1.insert({"_id":stamp,"underProcess":false},function(err,results){
+				var done=0;
+				for (var i = 0; i < links.length; i++) {
+					var anon=(function(domain,stamp,url){
+						if(domain===""){
+							return;
 						}
-							console.log("[INFO] Added  "+domain+" to initialize pool");
-							done+=1;
-							if(done===links.length-1){
-								fn(results);
+						if(url===undefined){
+							//not counter links
+							url=domain;
+						}
+						process.collection.insert({"_id":url,"hash":stamp,"domain":domain,"done":false},function(err,results){
+							if(err){
+							console.log("[ERROR] pool.init maybe seed is already added");
 							}
-							
-				
-					});
+								console.log("[INFO] Added  "+domain+" to initialize pool");
+								done+=1;
+								if(done===links.length-1){
+									fn(results);
+								}
+								
+					
+						});
 
-				});
+					});
+					
+					anon(links[i].split('\t')[0],stamp);
+					
+					
+				};
 				
-				anon(links[i].split('\t')[0],stamp);
 				
-				
-			};
-			
-			
+			});
+
+
+
 		});
+
 		
 	},
 	"addToPool":function(li){
@@ -186,6 +192,19 @@ var pool={
 				
 
 		});
+	},
+	"resetBuckets":function(fn){
+		process.collection1.update({"underProcess":true},{$set:{"underProcess":false}},{multi:true},function(err,results){
+
+			if(err){
+				console.log("[ERROR] pool.resetBuckets");
+			}
+			else{
+				fn();
+			}
+			
+		});
+
 	},
 	"seedCount":0
 };

@@ -125,12 +125,12 @@ if(config["allow_robots"]){
 		console.log("[INFO] robots.txt parsed");
 		botObjs=obj;
 		initConnection();
-		setInterval(starter,5000);
+		//setInterval(starter,5000);
 	});
 }
 else{
 	initConnection();
-	setInterval(starter,5000);
+	//setInterval(starter,5000);
 }
 
 
