@@ -66,7 +66,7 @@ var bot={
 			
 			if((typeof(robot)!=="string" && robot!=="NO_ROBOTS" ) && (robot!==undefined)){
 				robot=bot.addProto(robot);
-				 robot.canFetch(config["bot_name"],url, function (access,crawl_delay) {
+				 robot.canFetch(config["robot_agent"],url, function (access,crawl_delay) {
 				      if (!access) {
 				      	console.log("[INFO] Cannot access "+url);
 				        // access not given exit 

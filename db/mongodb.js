@@ -13,7 +13,7 @@ var pool={
 	"seed":function(links,fn){
 		pool.resetBuckets(function(){
 			var stamp=new Date().getTime()+"";
-			process.collection1.insert({"_id":stamp,"underProcess":false},function(err,results){
+			process.collection1.insert({"_id":stamp,"underProcess":false,"bot":config["bot_name"]},function(err,results){
 				var done=0;
 				for (var i = 0; i < links.length; i++) {
 					var anon=(function(domain,stamp,url){
@@ -71,7 +71,7 @@ var pool={
 									}
 									done+=1;
 									if(done===li.length){
-											process.collection1.insert({"_id":hash,"underProcess":false},function(err,results){
+											process.collection1.insert({"_id":hash,"underProcess":false,"bot":config["bot_name"]},function(err,results){
 															if(err){
 
 																console.log("[ERROR] pool.addToPool"+err);
@@ -96,7 +96,7 @@ var pool={
 		
 	},
 	"getNextBatch":function(result,batchSize){
-		process.collection1.findAndModify({"underProcess":false},[],{"$set":{"underProcess":true}},{"remove":false},function(err,object){
+		process.collection1.findAndModify({"underProcess":false},[],{"$set":{"underProcess":true,"bot":config["bot_name"]}},{"remove":false},function(err,object){
 			if(object.value!==null){
 					var hash=object["value"]["_id"];
 					process.collection.find({"hash":hash},{},{}).toArray(function(err,docs){
@@ -194,7 +194,7 @@ var pool={
 		});
 	},
 	"resetBuckets":function(fn){
-		process.collection1.update({"underProcess":true},{$set:{"underProcess":false}},{multi:true},function(err,results){
+		process.collection1.update({"underProcess":true,"bot":config["bot_name"]},{$set:{"underProcess":false}},{multi:true},function(err,results){
 
 			if(err){
 				console.log("[ERROR] pool.resetBuckets");
