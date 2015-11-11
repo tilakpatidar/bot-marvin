@@ -11,8 +11,9 @@ var collection1=config["mongodb"]["bucket_collection"];
 var pool={
 	"seed":function(links,fn){
 		pool.resetBuckets(function(){
-			var stamp=new Date().getTime()+"";
-			process.collection1.insert({"_id":stamp,"underProcess":false,"bot":config["bot_name"]},function(err,results){
+			var stamp1=new Date().getTime()-2000;//giving less time
+			var stamp=stamp1+parseInt(Math.random()*10000);
+			process.collection1.insert({"_id":stamp,"underProcess":false,"bot":config["bot_name"],"recrawlAt":stamp1},function(err,results){
 				var done=0;
 				for (var i = 0; i < links.length; i++) {
 					var anon=(function(domain,stamp,url){
@@ -70,7 +71,8 @@ var pool={
 									}
 									done+=1;
 									if(done===li.length){
-											process.collection1.insert({"_id":hash,"underProcess":false,"bot":config["bot_name"]},function(err,results){
+										var stamp1=new Date().getTime();
+											process.collection1.insert({"_id":hash,"underProcess":false,"bot":config["bot_name"],"recrawlAt":stamp1},function(err,results){
 															if(err){
 
 																console.log("[ERROR] pool.addToPool"+err);
@@ -95,7 +97,9 @@ var pool={
 		
 	},
 	"getNextBatch":function(result,batchSize){
-		process.collection1.findAndModify({"underProcess":false},[],{"$set":{"underProcess":true,"bot":config["bot_name"]}},{"remove":false},function(err,object){
+		var stamp1=new Date().getTime();
+		process.collection1.findAndModify({"underProcess":false,"recrawlAt":{$lte:stamp1}},[],{"$set":{"underProcess":true,"bot":config["bot_name"]}},{"remove":false},function(err,object){
+			console.log(object);
 			if(object.value!==null){
 					var hash=object["value"]["_id"];
 					process.collection.find({"hash":hash},{},{}).toArray(function(err,docs){
@@ -122,13 +126,14 @@ var pool={
 		
 	},
 	"setCrawled":function(url,data,status){
+		var stamp1=new Date().getTime();
 		if(data===undefined || data ===null){
 			data="";
 		}
 		if(status===undefined){
 			status="0";//no error
 		}
-		process.collection.updateOne({"_id":url},{"done":true,"data":data,"err":status},function(err,results){
+		process.collection.updateOne({"_id":url},{"done":true,"data":data,"err":status,"lastModified":stamp1},function(err,results){
 			if(err){
 				//console.log("[ERROR] pool.setCrawled");
 			}
@@ -182,7 +187,8 @@ var pool={
 		return links;
 	},
 	"batchFinished":function(hash){
-		process.collection1.findAndModify({"_id":hash},[],{},{"remove":true},function(err,object){
+		var stamp1=new Date().getTime()+config["recrawl_interval"];
+		process.collection1.findAndModify({"_id":hash},[],{"underProcess":false,"recrawlAt":stamp1},{"remove":false},function(err,object){
 			if(object.value!==null){
 					var hash=object["value"]["_id"];
 					console.log("[INFO] Bucket "+hash+"completed !");
@@ -193,8 +199,10 @@ var pool={
 		});
 	},
 	"resetBuckets":function(fn){
-		process.collection1.update({"underProcess":true,"bot":config["bot_name"]},{$set:{"underProcess":false}},{multi:true},function(err,results){
+		var stamp1=new Date().getTime()-2000;//giving less time
+		process.collection1.update({"underProcess":true,"bot":config["bot_name"]},{$set:{"underProcess":false,"recrawlAt":stamp1}},{multi:true},function(err,results){
 		//resetting just buckets processed by this bot
+		console.log(results);
 			if(err){
 				console.log("[ERROR] pool.resetBuckets");
 			}

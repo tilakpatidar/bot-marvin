@@ -1,6 +1,8 @@
+//https://wiki.apache.org/tika/TikaJAXRS
 var exec = require('child_process').exec;
 var fs = require('fs');
 var request = require('request');
+var config=require("./config/config").load();
 var app={
 	"startServer":function(){
 		exec('java -jar ./lib/tika-server-1.11.jar -h '+config["tika_host"], function(error, stdout, stderr) {
@@ -34,9 +36,14 @@ var app={
 	},
 	"extractText":function(url,callback){
 		var source = fs.createReadStream(app.getFileName(url));
+		var dic={};
 		source.pipe(request.put({url:'http://'+config["tika_host"]+':'+config['tika_port']+'/tika',headers: {'Accept': 'text/plain'}},function(err, httpResponse, body){
-
-			callback(body);
+			dic["text"]=body;
+			source = fs.createReadStream(app.getFileName(url));
+			source.pipe(request.put({url:'http://'+config["tika_host"]+':'+config['tika_port']+'/meta',headers: {'Accept': 'application/json'}},function(err1, httpResponse1, body1){
+				dic["meta"]=JSON.parse(body1);
+				callback(dic);
+			}));
 		}));
 
 	},

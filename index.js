@@ -10,7 +10,7 @@ if(help){
 var collection;
 var childs=parseInt(config["childs"]);//childs to spawn
 var batchSize=parseInt(config["batch_size"]);
-var active_childs=0;
+process.active_childs=0;
 
 //requires
 var tracker=require("./server");
@@ -19,8 +19,8 @@ var pool=require('./pool');
 
 function starter(){
 	console.log("[INFO] Check if new child available");
-	console.log(active_childs);
-	for (var i = active_childs; i < childs; i++) {
+	console.log(process.active_childs);
+	for (var i = process.active_childs; i < childs; i++) {
 		  pool.getNextBatch(function(err,results,hash){
 				if(results.length!==0){
 					createChild(results,hash);
@@ -42,7 +42,7 @@ pool=pool.getDB(db_type).init();//choosing db type
 var inlinks_pool=[];
 var seed_links=pool.readSeedFile();//read the seed file
 function createChild(results,hash){
-	active_childs+=1;
+	process.active_childs+=1;
 	var bot = child.fork("spawn.js",[]);	
 	console.log('[INFO] Child process started ');
 	var args=[results,batchSize,pool.links,botObjs,hash];
@@ -55,8 +55,8 @@ function createChild(results,hash){
 	
 
 	  console.log('[INFO] Child process exited with code ' + code);
-	  active_childs-=1;
-	  for (var i = active_childs; i < childs; i++) {
+	  process.active_childs-=1;
+	  for (var i = process.active_childs; i < childs; i++) {
 		  pool.getNextBatch(function(err,results,hash){
 				if(results.length!==0){
 					createChild(results,hash);
@@ -125,13 +125,14 @@ if(config["allow_robots"]){
 		console.log("[INFO] robots.txt parsed");
 		botObjs=obj;
 		initConnection();
-		//setInterval(starter,5000);
+		setInterval(starter,5000);
 	});
 }
 else{
 	initConnection();
-	//setInterval(starter,5000);
+	setInterval(starter,5000);
 }
+
 
 
 tracker.init(pool);//starting crawler webapp

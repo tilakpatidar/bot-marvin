@@ -2,46 +2,94 @@ var cheerio = require('cheerio');
 var config=require("../config/config").load();
 var app={
 	"parse":function(data,url){
+		var indexed={};
 		if(data===undefined){
 			data="";
 		}
-		data=data.replace(/(\n+)|(\t+)|(\s+)|(\r+)/g,' ');
-		data=data.replace(/\s+/g," ");
+		
+		if(config["tika"]){
+			if(url.match(config["tika_supported_files"])!==null){
+				indexed=app.parseDocument(data,url);
+			}
+			else{
+				indexed=app.parseWebPage(data,url);
+			}
+		}
+		else{
+			indexed=app.parseWebPage(data,url);
+		}
+
+		
+		 var dic={};
+		 dic["_source"]={};
+		 dic._source["id"]=indexed["id"];
+		 dic._source["meta_keywords"]=indexed["meta_keywords"];
+		 dic._source["host"]=indexed["host"];
+		 dic._source["meta_description"]=indexed["description"];
+		 dic._source["boost"]="0.0";
+		 dic._source["cache"]="content";
+		 dic._source["anchor"]="";
+		 dic._source["digest"]="";
+		 dic._source["body"]=indexed["body"];
+		 dic._source["content_length"]=data.length;
+		 var date=new Date();
+		 var date_rep=date.getUTCFullYear()+"-"+date.getUTCMonth()+"-"+date.getUTCDate()+"T"+date.getUTCHours()+":"+date.getUTCMinutes()+":"+date.getUTCSeconds();
+		 dic._source["lastModified"]=date_rep;
+         dic._source["tstamp"]=date_rep;
+         dic._source["date"]=date_rep;
+         dic._source["html"]=indexed["html"];
+         dic._source["mime"]=indexed["mime"];
+         dic._source["title"]=indexed["title"];
+         dic._source["file_info"]=indexed["file_info"];
+		 return [indexed["dom"],dic,[]];//cheerio object ,dic to insert ,inlinks to give
+		 //for documents indexed["dom"] is null
+	},
+	"parseDocument":function(data,url){
+		//data is a {} with keys text,meta
+		data["text"]=data["text"].replace(/(\n+)|(\t+)|(\s+)|(\r+)/g,' ');
+		data["text"]=data["text"].replace(/\s+/g," ");
+		var ret={};
+		 ret["title"]=data["meta"]["title"];
+		 ret["body"]=data["text"];
+		 ret["output"]=this.getID(url);
+		 ret["id"]=ret["output"][0];
+		 ret["host"]=ret["output"][1];
+		 ret["meta_keywords"]=data["meta"]["title"];
+		 ret["description"]=data["text"].substring(0,400);
+		 if(ret["description"]===undefined || ret["description"]===""){
+		 	ret["description"]="";
+		 }
+		 ret["dom"]=null;
+		 ret["file_info"]=data["meta"];
+		 ret["mime"]=data["meta"]["Content-Type"];
+		 ret["html"]="";
+		 return ret;
+	},
+	"parseWebPage":function(data,url){
+			data=data.replace(/(\n+)|(\t+)|(\s+)|(\r+)/g,' ');
+			data=data.replace(/\s+/g," ");
 		 $ = cheerio.load(data);
 		 //clear dom
 		 for (var i = 0; i < config["remove_tags"].length; i++) {
 		 	$(config["remove_tags"][i]).remove();
 		 };
-		 var title=$('title').text();
-		 var body=$('body').text();
-		 body=body.replace(/(\n+)|(\t+)|(\s+)|(\r+)/g,' ');
-		 body=body.replace(/\s+/g," ");
-		 var output=this.getID(url);
-		 var id=output[0];
-		 var host=output[1];
-		 var meta_keywords=$('meta[name="keywords"]').data('content');
-		 var description=$('meta[name="description"]').data('content');
-		 if(description===undefined || description===""){
-		 	description="";
+		 var ret={};
+		 ret["title"]=$('title').text();
+		 ret["body"]=$('body').text();
+		 ret["body"]=ret["body"].replace(/(\n+)|(\t+)|(\s+)|(\r+)/g,' ');
+		 ret["body"]=ret["body"].replace(/\s+/g," ");
+		 ret["output"]=this.getID(url);
+		 ret["id"]=ret["output"][0];
+		 ret["host"]=ret["output"][1];
+		 ret["meta_keywords"]=$('meta[name="keywords"]').data('content');
+		 ret["description"]=$('meta[name="description"]').data('content');
+		 if(ret["description"]===undefined || ret["description"]===""){
+		 	ret["description"]="";
 		 }
-		 var dic={};
-		 dic["_source"]={};
-		 dic._source["id"]=id;
-		 dic._source["meta_keywords"]=meta_keywords;
-		 dic._source["host"]=host;
-		 dic._source["meta_description"]=description;
-		 dic._source["boost"]="0.0";
-		 dic._source["cache"]="content";
-		 dic._source["anchor"]="";
-		 dic._source["digest"]="";
-		 dic._source["body"]=body;
-		 dic._source["content_length"]=data.length;
-		 dic._source["lastModified"]="2015-10-29T10:58:56.86"
-         dic._source["tstamp"]="2015-10-29T10:58:56.86";
-         dic._source["date"]="2015-10-29T10:58:56.86";
-         dic._source["html"]=data;
-         dic._source["title"]=title;
-		 return [$,dic,[]];//cheerio object ,dic to insert ,inlinks to give
+		 ret["dom"]=$;
+		 ret["mime"]="text/html";
+		 ret["html"]=data;
+		 return ret;
 	},
 	"getID":function(url){
 		var type;

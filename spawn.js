@@ -262,6 +262,17 @@ var bot={
 				});
 	},
 	"fetchFile":function(url,domain){
+		bot.active_sockets+=1;
+		var tika=require("./tika.js").init;
+		tika.startServer();
+		tika.submitFile(url,function(body){
+					var parser=require("./parsers/"+bot.links[domain]["parseFile"]);
+					var dic=parser.init.parse(body,url);//pluggable parser
+					process.send({"setCrawled":[url,dic]});
+					bot.isLinksFetched();
+					bot.active_sockets-=1;
+		});
+
 	}
 
 
