@@ -57,6 +57,7 @@ var pool={
 		//urls we will be getting will be absolute
 		var done=0;
 		var stamp=new Date().getTime()+""+parseInt(Math.random()*10000);
+		li=pool.generatePool(li);
 		for (var i = 0; i < li.length; i++) {
 			
 			(function(url,domain,hash){
@@ -99,7 +100,6 @@ var pool={
 	"getNextBatch":function(result,batchSize){
 		var stamp1=new Date().getTime();
 		process.collection1.findAndModify({"underProcess":false,"recrawlAt":{$lte:stamp1}},[],{"$set":{"underProcess":true,"bot":config["bot_name"]}},{"remove":false},function(err,object){
-			console.log(object);
 			if(object.value!==null){
 					var hash=object["value"]["_id"];
 					process.collection.find({"hash":hash},{},{}).toArray(function(err,docs){
@@ -202,7 +202,6 @@ var pool={
 		var stamp1=new Date().getTime()-2000;//giving less time
 		process.collection1.update({"underProcess":true,"bot":config["bot_name"]},{$set:{"underProcess":false,"recrawlAt":stamp1}},{multi:true},function(err,results){
 		//resetting just buckets processed by this bot
-		console.log(results);
 			if(err){
 				console.log("[ERROR] pool.resetBuckets");
 			}
@@ -213,7 +212,34 @@ var pool={
 		});
 
 	},
-	"seedCount":0
+	"generatePool":function(li){
+
+		//generates uniform bucket
+		var re=[];
+		for (var i = 0; i < li.length; i++) {
+			var key=li[1];
+			var item=li[0];
+			if(pool.cache[key]){
+				pool.cache[key].push(item);
+			}
+			else{
+				pool.cache[key]=[];
+				pool.cache[key].push(item);
+			}
+		};
+		var n_domains=Object.keys(pool.cache).length;
+		var eachh=config["batch_size"]/n_domains;
+		for (var key in pool.cache) {
+			var l=pool.cache[key].splice(0,eachh);
+			for (var i = 0; i < l.length; i++) {
+				var url=l[i];
+				re.push([url,key]);
+			};
+		};
+		return re;
+	},
+	"seedCount":0,
+	"cache":{}
 };
 
 
