@@ -27,9 +27,6 @@ var bot={
 			}
 		});
 	},
-	"setRegexes":function(){
-		regex_urlfilter.setExternalLinksRegex(bot.links);
-	},
 	"queueLinks":function(pools){
 		bot.queued=0;
 		for (var i = 0; i < pools.length; i++) {
@@ -127,10 +124,11 @@ var bot={
 					
 					//console.log("[INFO] url "+href);
 					var abs=urllib.resolve(domain,href);
-					
 					if(abs.match(regex_urlfilter.accept)===null){ //user give acceptance
-						if(abs.match(regex_urlfilter.getExternalLinksRegex)===null){
-							return reject("1");
+						if(!config["external_links"]){
+							if(abs.indexOf(domain)<0){
+								return reject("1");
+							}
 						}
 					}
 					
