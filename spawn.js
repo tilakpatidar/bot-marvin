@@ -173,13 +173,16 @@ var bot={
 			}
 			if(this.allowAll){
 				allowed(true,crawl_delay);
+				return;
 			}
 			else if(this.disallowAll){
 				allowed(false,crawl_delay);
+				return;
 			}
 			var rules=this.defaultEntry["rules"];
 			if(rules===undefined){
 				allowed(true,crawl_delay);
+				return;
 			}
 
 			for (var i = 0; i < rules.length; i++) {
