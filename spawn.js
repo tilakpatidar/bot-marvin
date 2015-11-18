@@ -64,7 +64,7 @@ var bot={
 			//check if access is given to the crawler for requested resource
 			var robot=bot.botObjs[domain];
 			
-			if((typeof(robot)!=="string" && robot!=="NO_ROBOTS" ) && (robot!==undefined)){
+			if((robot["NO_ROBOTS"]!==undefined) && (robot!==undefined)){
 				robot=bot.addProto(robot);
 				 robot.canFetch(config["robot_agent"],url, function (access,crawl_delay) {
 				      if (!access) {

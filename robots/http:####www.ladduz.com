@@ -1,0 +1,1 @@
+{"entries":[],"sitemaps":[],"defaultEntry":{"userAgents":["*"],"rules":[],"crawl_delay":"30"},"disallowAll":false,"statusCode":200,"allowAll":false,"options":{"headers":{"userAgent":"Mozilla/5.0 (X11; Linux i686; rv:5.0) Gecko/20100101 Firefox/5.0"}},"url":"http://www.ladduz.com/robots.txt","chunks":["User-agent: *\nCrawl-delay: 30\n",null]}
