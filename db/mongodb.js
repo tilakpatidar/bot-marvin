@@ -12,7 +12,7 @@ var pool={
 	"seed":function(links,fn){
 		pool.resetBuckets(function(){
 			var stamp1=new Date().getTime()-2000;//giving less time
-			var stamp=stamp1+parseInt(Math.random()*10000);
+			var stamp=stamp1+""+parseInt(Math.random()*10000);
 			process.collection1.insert({"_id":stamp,"underProcess":false,"bot":config["bot_name"],"recrawlAt":stamp1},function(err,results){
 				var done=0;
 				for (var i = 0; i < links.length; i++) {
@@ -55,9 +55,11 @@ var pool={
 	},
 	"addToPool":function(li){
 		//urls we will be getting will be absolute
+		
 		var done=0;
 		var stamp=new Date().getTime()+""+parseInt(Math.random()*10000);
 		li=pool.generatePool(li);
+		//console.log(li);
 		for (var i = 0; i < li.length; i++) {
 			
 			(function(url,domain,hash){
@@ -102,13 +104,15 @@ var pool={
 		process.collection1.findAndModify({"underProcess":false,"recrawlAt":{$lte:stamp1}},[],{"$set":{"underProcess":true,"bot":config["bot_name"]}},{"remove":false},function(err,object){
 			if(object.value!==null){
 					var hash=object["value"]["_id"];
+					//console.log(hash);
 					process.collection.find({"hash":hash},{},{}).toArray(function(err,docs){
 						if(err){
 
 							//console.log("[ERROR] pool.getNextBatch");
 						}
 						else{
-							//console.log("[INFO] Got "+docs.length+" for next Batch");
+							//console.log(docs);
+							console.log("[INFO] Got "+docs.length+" for next Batch");
 							result(err,docs,hash);		
 						}
 
@@ -133,7 +137,7 @@ var pool={
 		if(status===undefined){
 			status="0";//no error
 		}
-		process.collection.updateOne({"_id":url},{"done":true,"data":data,"err":status,"lastModified":stamp1},function(err,results){
+		process.collection.updateOne({"_id":url},{$set:{"done":true,"data":data,"err":status,"lastModified":stamp1}},function(err,results){
 			if(err){
 				//console.log("[ERROR] pool.setCrawled");
 			}
@@ -217,8 +221,8 @@ var pool={
 		//generates uniform bucket
 		var re=[];
 		for (var i = 0; i < li.length; i++) {
-			var key=li[1];
-			var item=li[0];
+			var key=li[i][1];
+			var item=li[i][0];
 			if(pool.cache[key]){
 				pool.cache[key].push(item);
 			}

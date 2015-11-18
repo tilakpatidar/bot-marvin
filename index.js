@@ -28,7 +28,9 @@ function starter(){
 	}
 	for (var i = process.active_childs; i < childs; i++) {
 		  pool.getNextBatch(function(err,results,hash){
+		  		//console.log("results length  "+results.length);
 				if(results.length!==0){
+					
 					createChild(results,hash);
 				}
 				else{
