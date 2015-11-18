@@ -20,7 +20,7 @@ var app={
 							  else{
 							  	console.log("[INFO] No Robots.txt found for "+req_url);
 							  	var filename=req_url.replace(/\//g,"##");
-							  	var parser_obj={"NO_ROBOTS":""};
+							  	var parser_obj={"NO_ROBOTS":true};
 							  	fs.writeFileSync("./robots/"+filename,JSON.stringify(parser_obj));
 							  	app.bots[req_url]=parser_obj;//no robots.txt found no restriction
 							  }
