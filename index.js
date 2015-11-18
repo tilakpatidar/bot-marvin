@@ -19,17 +19,26 @@ var pool=require('./pool');
 
 function starter(){
 	console.log("[INFO] Check if new child available");
-	console.log(process.active_childs);
+	console.log("[INFO] Current active childs "+process.active_childs);
+	var counter=0;
+	var done=childs-process.active_childs;
+	if(done===0){
+		setTimeout(starter,5000);
+		return;
+	}
 	for (var i = process.active_childs; i < childs; i++) {
 		  pool.getNextBatch(function(err,results,hash){
 				if(results.length!==0){
 					createChild(results,hash);
 				}
 				else{
-					console.log(inlinks_pool.length+" len");
 					//push pool into db as childs are available but no buckets
 					var k=inlinks_pool.splice(0,batchSize);
 					pool.addToPool(k);
+				}
+				counter+=1;
+				if(counter===done){
+					setTimeout(starter,5000);
 				}
 					
 					
@@ -56,15 +65,7 @@ function createChild(results,hash){
 
 	  console.log('[INFO] Child process exited with code ' + code);
 	  process.active_childs-=1;
-	  for (var i = process.active_childs; i < childs; i++) {
-		  pool.getNextBatch(function(err,results,hash){
-				if(results.length!==0){
-					createChild(results,hash);
-				}
-					
-					
-				},batchSize);
-		}
+	  starter();
 							
 	  
 	});
@@ -100,19 +101,7 @@ function createChild(results,hash){
 
 function initConnection(){
 	pool.createConnection(function(){
-		pool.seed(seed_links,function(){
-			for (var i = 0; i < childs; i++) {
-				pool.getNextBatch(function(err,results,hash){
-					if(results.length!==0){
-						createChild(results,hash);
-					}
-					
-					
-									
-				},batchSize);
-			}
-
-		});
+		pool.seed(seed_links,starter);
 
 	});
 
@@ -125,12 +114,12 @@ if(config["allow_robots"]){
 		console.log("[INFO] robots.txt parsed");
 		botObjs=obj;
 		initConnection();
-		setInterval(starter,5000);
+		setTimeout(starter,5000);
 	});
 }
 else{
 	initConnection();
-	setInterval(starter,5000);
+	setTimeout(starter,5000);
 }
 
 

@@ -2,7 +2,7 @@ var config={
 	"robot_agent":"*",
 	"bot_name":"zapphod",
 	"mongodb":{
-		"mongodb_uri":"mongodb://192.168.101.5:27017/crawl0",
+		"mongodb_uri":"mongodb://192.168.101.5:27017/crawl",
 		"mongodb_collection":"1",
 		"bucket_collection":"bucket"
 	},
