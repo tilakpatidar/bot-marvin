@@ -111,9 +111,12 @@ var bot={
 			var q=linksFromParsers[i];
 			process.send({"addToPool":[q,config["counter_domain"]]});
 		};
-			var a=$("a").each(function(){
-				function reject(a){
-					//console.log(a+"rule");
+			var a=$("a")
+			var count=a.length;
+			a.each(function(){
+				function reject(r){
+					count-=1;
+					//console.log(r+"rule");
 					//console.log("[INFO] domain "+domain);
 					//console.log("[INFO] abs "+abs);
 					//console.log(("[ERROR] "+abs+" rejected by filters").red);
@@ -153,7 +156,7 @@ var bot={
 				}
 
 			});
-			console.log(("[INFO] Got "+a.length+" links from "+url).yellow);
+			console.log(("[INFO] Got "+count+" links from "+url).yellow);
 	},
 	"isLinksFetched":function(){
 				bot.queued+=1;
