@@ -117,7 +117,7 @@ var pool={
 		if(status===undefined){
 			status="0";//no error
 		}
-		process.collection.updateOne({"_id":url},{$set:{"done":true,"data":data,"err":status,"lastModified":stamp1}},function(err,results){
+		process.collection.updateOne({"_id":url},{$set:{"done":true,"data":data,"response":status,"lastModified":stamp1}},function(err,results){
 			if(err){
 				console.log("[ERROR] pool.setCrawled".red);
 			}

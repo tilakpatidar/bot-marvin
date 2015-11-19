@@ -65,9 +65,9 @@ var bot={
 				robot=bot.addProto(robot);
 				 robot.canFetch(config["robot_agent"],url, function (access,crawl_delay) {
 				      if (!access) {
-				      	console.log("[INFO] Cannot access "+url);
+				      	console.log(("[ERROR] Cannot access "+url).red);
 				        // access not given exit 
-							process.send({"setCrawled":[url,{},"Robots"]});
+							process.send({"setCrawled":[url,{},403]});
 							bot.isLinksFetched();
 							return;
 					    }
@@ -125,9 +125,13 @@ var bot={
 				}
 				var href=$(this).attr("href");
 				if(href!==undefined){
-					
+					href=href.replace("https://","http://");//std form
 					//console.log("[INFO] url "+href);
 					var abs=urllib.resolve(domain,href);
+					if(abs===domain+"/"){
+						//reject http://www.youtube.com http://www.youtube.com/
+						return reject("0");
+					}
 					if(abs.match(regex_urlfilter.accept)===null){ //user give acceptance
 						if(!config["external_links"]){
 							if(abs.indexOf(domain)<0){
@@ -244,12 +248,12 @@ var bot={
 			req_url=config["phantomjs_url"]+req_url;
 		}
 		bot.active_sockets+=1;
-		request({uri:req_url,pool:{maxSockets: Infinity}},function(err,res,html){
+		request({uri:req_url,pool:{maxSockets: Infinity}},function(err,response,html){
 			bot.active_sockets-=1;
 			if(html===undefined){
 				//some error with the request return silently
 				console.log("[ERROR] Max sockets reached read docs/maxSockets.txt".red);
-				process.send({"setCrawled":[url,{},"Failed"]});
+				process.send({"setCrawled":[url,{},-1]});
 				bot.isLinksFetched();
 				return;
 			}
@@ -259,7 +263,8 @@ var bot={
 					//dic[1] is dic to be inserted
 					//dic[2] inlinks suggested by custom parser
 					bot.grabInlinks(dic[0],url,domain,dic[2]);
-					process.send({"setCrawled":[url,dic[1]]});
+					var code=response.statusCode;
+					process.send({"setCrawled":[url,dic[1],code]});
 					bot.isLinksFetched();
 					
 					
@@ -269,7 +274,7 @@ var bot={
 		bot.active_sockets+=1;
 		var tika=require("./tika.js").init;
 		tika.startServer();
-		tika.submitFile(url,function(body){
+		tika.submitFile(url,function(err,body){
 					var parser=require("./parsers/"+bot.links[domain]["parseFile"]);
 					var dic=parser.init.parse(body,url);//pluggable parser
 					process.send({"setCrawled":[url,dic]});
