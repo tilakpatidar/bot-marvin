@@ -2,28 +2,36 @@
 var exec = require('child_process').exec;
 var fs = require('fs');
 var request = require('request');
+var colors = require('colors');
 var config=require("./config/config").load();
 var app={
 	"startServer":function(){
 		exec('java -jar ./lib/tika-server-1.11.jar -h '+config["tika_host"], function(error, stdout, stderr) {
-			console.log("[INFO] Tika server started");
+			console.log("[SUCCESS] Tika server started".green);
 		    if (error !== null) {
-		        console.log('[INFO] Server is already running');
+		        console.log('[INFO] Server is already running'.yellow);
 		    }
 		});
 	},
 	"submitFile":function(url,callback){
-		//main function of the module
-		app.addFileToStore(url,function(){
-			console.log("[INFO] File "+url+" added to store");
-			app.extractText(url,function(body){
-				app.removeFile(url,function(){
-					console.log("[INFO] File "+url+" removed from store");
-					callback(body);
-				});
-			})
-			
-		});
+		try{
+			var err;
+			//main function of the module
+			app.addFileToStore(url,function(){
+				console.log(("[SUCCESS] File "+url+" added to store").green);
+				app.extractText(url,function(body){
+					app.removeFile(url,function(){
+						console.log(("[SUCCESS] File "+url+" removed from store").green);
+						callback(err,body);
+					});
+				})
+				
+			});
+		}
+		catch(err){
+				callback(err,null);
+		}
+
 		
 	},
 	"addFileToStore":function(url,callback){
@@ -48,7 +56,7 @@ var app={
 
 	},
 	"getFileName":function(url){
-		return "./pdf-store/"+url.replace(/\//gi,"#");
+		return __dirname+"/pdf-store/"+url.replace(/\//gi,"##");
 	}
 
 };

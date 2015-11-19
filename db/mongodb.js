@@ -1,6 +1,7 @@
 //global connection to mongodb
 //mongodb connection file
 var MongoClient = require('mongodb').MongoClient;
+var colors = require('colors');
 var config=require('../config/config.js').load();
 var mongodb=config["mongodb"]["mongodb_uri"];
 var collection=config["mongodb"]["mongodb_collection"];
@@ -26,9 +27,9 @@ var pool={
 						}
 						process.collection.insert({"_id":url,"hash":stamp,"domain":domain,"done":false},function(err,results){
 							if(err){
-							console.log("[ERROR] pool.init maybe seed is already added");
+							console.log("[ERROR] pool.init maybe seed is already added".red);
 							}
-								console.log("[INFO] Added  "+domain+" to initialize pool");
+								console.log(("[SUCCESS] Added  "+domain+" to initialize pool").green);
 								done+=1;
 								if(done===links.length-1){
 									fn(results);
@@ -62,10 +63,10 @@ var pool={
 					process.collection1.insert({"_id":hash,"underProcess":false,"bot":config["bot_name"],"recrawlAt":stamp1},function(err,results){
 						if(err){
 
-							console.log("[ERROR] pool.addToPool"+err);
+							console.log(("[ERROR] pool.addToPool"+err).red);
 						}
 						else{
-							console.log("[INFO] Updated bucket "+hash);
+							console.log(("[SUCCESS] Updated bucket "+hash).green);
 						}
 											
 											
@@ -87,11 +88,11 @@ var pool={
 					process.collection.find({"hash":hash},{},{}).toArray(function(err,docs){
 						if(err){
 
-							//console.log("[ERROR] pool.getNextBatch");
+							console.log("[ERROR] pool.getNextBatch".red);
 						}
 						else{
 							//console.log(docs);
-							console.log("[INFO] Got "+docs.length+" for next Batch");
+							console.log(("[SUCCESS] Got "+docs.length+" for next Batch").green);
 							result(err,docs,hash);		
 						}
 
@@ -118,10 +119,10 @@ var pool={
 		}
 		process.collection.updateOne({"_id":url},{$set:{"done":true,"data":data,"err":status,"lastModified":stamp1}},function(err,results){
 			if(err){
-				//console.log("[ERROR] pool.setCrawled");
+				console.log("[ERROR] pool.setCrawled".red);
 			}
 			else{
-				console.log("[INFO] Updated "+url);
+				console.log(("[SUCCESS] Updated "+url).green);
 			}
 			
 		});
@@ -162,7 +163,7 @@ var pool={
 				};
 			}
 			else{
-				console.log("[INFO] Empty seed file");
+				console.log("[ERROR] Empty seed file".red);
 				process.exit(0);
 			}
 		pool["links"]=dic;
@@ -174,7 +175,7 @@ var pool={
 		process.collection1.findAndModify({"_id":hash},[],{"underProcess":false,"recrawlAt":stamp1},{"remove":false},function(err,object){
 			if(object.value!==null){
 					var hash=object["value"]["_id"];
-					console.log("[INFO] Bucket "+hash+"completed !");
+					console.log(("[SUCCESS] Bucket "+hash+"completed !").green);
 			}
 			
 				
@@ -186,7 +187,7 @@ var pool={
 		process.collection1.update({"underProcess":true,"bot":config["bot_name"]},{$set:{"underProcess":false,"recrawlAt":stamp1}},{multi:true},function(err,results){
 		//resetting just buckets processed by this bot
 			if(err){
-				console.log("[ERROR] pool.resetBuckets");
+				console.log("[ERROR] pool.resetBuckets".red);
 			}
 			else{
 				fn();

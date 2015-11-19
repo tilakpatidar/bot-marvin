@@ -1,4 +1,4 @@
-
+var colors = require('colors');
 var options={
 	"mysql":function(){
 		return require('./db/mysql');
@@ -14,7 +14,7 @@ var options={
 function getDB(db){
 		var temp=options[db];
 		if(temp===undefined){
-			console.log("[ERROR] Invalid db type :"+db);
+			console.log(("[ERROR] Invalid db type :"+db).red);
 			process.exit(0);
 		}
 		else{

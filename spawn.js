@@ -1,4 +1,5 @@
 var request = require("request");
+var colors = require('colors');
 var urllib = require('url');
 var regex_urlfilter=require("./regex-urlfilter.js").load();
 var config=require("./config/config").load();
@@ -115,7 +116,7 @@ var bot={
 					//console.log(a+"rule");
 					//console.log("[INFO] domain "+domain);
 					//console.log("[INFO] abs "+abs);
-					//console.log("[INFO] "+href+" rejected by filters");
+					//console.log(("[ERROR] "+abs+" rejected by filters").red);
 					return true;
 					
 				}
@@ -152,7 +153,7 @@ var bot={
 				}
 
 			});
-			//console.log("[INFO] Got "+a.length+" links from "+url)
+			console.log(("[INFO] Got "+a.length+" links from "+url).yellow);
 	},
 	"isLinksFetched":function(){
 				bot.queued+=1;
@@ -244,7 +245,7 @@ var bot={
 			bot.active_sockets-=1;
 			if(html===undefined){
 				//some error with the request return silently
-				console.log("[ERROR] Max sockets reached read docs/maxSockets.txt");
+				console.log("[ERROR] Max sockets reached read docs/maxSockets.txt".red);
 				process.send({"setCrawled":[url,{},"Failed"]});
 				bot.isLinksFetched();
 				return;

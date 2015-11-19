@@ -3,6 +3,7 @@ var argv = require('minimist')(process.argv.slice(2));
 var config=require("./config/config").load();
 var regex_urlfilter=require("./regex-urlfilter.js").load();
 var db_type=config["db_type"];
+var colors = require('colors');
 var help=argv["help"];
 if(help){
 	require('./docs/help');
@@ -18,8 +19,8 @@ var child=require('child_process');
 var pool=require('./pool');
 
 function starter(){
-	console.log("[INFO] Check if new child available");
-	console.log("[INFO] Current active childs "+process.active_childs);
+	console.log("[INFO] Check if new child available".yellow);
+	console.log(("[INFO] Current active childs "+process.active_childs).yellow);
 	var counter=0;
 	var done=childs-process.active_childs;
 	if(done===0){
@@ -55,7 +56,7 @@ var seed_links=pool.readSeedFile();//read the seed file
 function createChild(results,hash){
 	process.active_childs+=1;
 	var bot = child.fork("spawn.js",[]);	
-	console.log('[INFO] Child process started ');
+	console.log('[SUCCESS] Child process started '.green);
 	var args=[results,batchSize,pool.links,botObjs,hash];
 	bot.send({"init":args});
 	bot.on('close', function (code) {
@@ -64,8 +65,13 @@ function createChild(results,hash){
 				pool.addToPool(k);
 		
 	
-
-	  console.log('[INFO] Child process exited with code ' + code);
+	  if(code===0){
+	  	console.log(('[SUCCESS] Child process exited with code ' + code).green);
+	  }
+	  else{
+	  	console.log(('[ERROR] Child process exited with code ' + code).red);
+	  }
+	  
 	  process.active_childs-=1;
 	  starter();
 							
@@ -110,10 +116,10 @@ function initConnection(){
 }
 var botObjs;
 if(config["allow_robots"]){
-	console.log("[INFO] downloading robots.txt this could take a while");
+	console.log("[INFO] downloading robots.txt this could take a while".yellow);
 	var robots=require('./robots.js').app;
 	robots.init(Object.keys(pool.links),function(obj){
-		console.log("[INFO] robots.txt parsed");
+		console.log("[SUCCESS] robots.txt parsed".green);
 		botObjs=obj;
 		initConnection();
 		setTimeout(starter,5000);
