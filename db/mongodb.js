@@ -56,46 +56,25 @@ var pool={
 	"addToPool":function(li){
 		//urls we will be getting will be absolute
 		
-		var done=0;
-		var stamp=new Date().getTime()+""+parseInt(Math.random()*10000);
-		li=pool.generatePool(li);
-		//console.log(li);
-		for (var i = 0; i < li.length; i++) {
-			
-			(function(url,domain,hash){
+		pool.addLinksToDB(li,function(hash){
+			pool.generatePool(function(){
+					var stamp1=new Date().getTime();
+					process.collection1.insert({"_id":hash,"underProcess":false,"bot":config["bot_name"],"recrawlAt":stamp1},function(err,results){
+						if(err){
 
-					process.collection.insert({"_id":url,"done":false,"domain":domain,"data":"","hash":hash},function(err,results){
-									if(err){
-
-										//console.log("[ERROR] pool.addToPool");
-									}
-									else{
-										//console.log("[INFO] Discovered "+url);
-									}
-									done+=1;
-									if(done===li.length){
-										var stamp1=new Date().getTime();
-											process.collection1.insert({"_id":hash,"underProcess":false,"bot":config["bot_name"],"recrawlAt":stamp1},function(err,results){
-															if(err){
-
-																console.log("[ERROR] pool.addToPool"+err);
-															}
-															else{
-																console.log("[INFO] Updated bucket "+hash);
-															}
-															
-															
-											});
-									}
-									
-									
+							console.log("[ERROR] pool.addToPool"+err);
+						}
+						else{
+							console.log("[INFO] Updated bucket "+hash);
+						}
+											
+											
 					});
-
-
-
-				})(li[i][0],li[i][1],stamp);
+			});
+		});
+		
 			
-		};
+	
 
 		
 	},
@@ -216,21 +195,42 @@ var pool={
 		});
 
 	},
-	"generatePool":function(li){
-
-		//generates uniform bucket
-		var re=[];
+	"addLinksToDB":function(li,fn){
+		var stamp=new Date().getTime()+""+parseInt(Math.random()*10000);
+		var done=0;
 		for (var i = 0; i < li.length; i++) {
 			var key=li[i][1];
 			var item=li[i][0];
-			if(pool.cache[key]){
-				pool.cache[key].push(item);
-			}
-			else{
-				pool.cache[key]=[];
-				pool.cache[key].push(item);
-			}
+			(function(url,domain,hash){
+				process.collection.insert({"_id":url,"done":false,"domain":domain,"data":"","hash":hash},function(err,results){
+						if(err){
+
+							//console.log("[ERROR] pool.addToPool");
+						}
+						else{
+							//console.log("[INFO] Discovered "+url);
+							if(pool.cache[domain]){
+								pool.cache[domain].push(url);
+							}
+							else{
+								pool.cache[domain]=[];
+								pool.cache[domain].push(url);
+							}
+						}
+						done+=1;
+						if(done===li.length-1){
+							fn(stamp);
+						}				
+				});
+			})(item,key,stamp);
+
+
+			
 		};
+		
+	},
+	"generatePool":function(fn){
+		var re=[];
 		var n_domains=Object.keys(pool.cache).length;
 		var eachh=config["batch_size"]/n_domains;
 		for (var key in pool.cache) {
@@ -240,7 +240,8 @@ var pool={
 				re.push([url,key]);
 			};
 		};
-		return re;
+		fn(re);
+
 	},
 	"seedCount":0,
 	"cache":{}
