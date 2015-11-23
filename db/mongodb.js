@@ -1,8 +1,11 @@
 //global connection to mongodb
 //mongodb connection file
 var MongoClient = require('mongodb').MongoClient;
-var colors = require('colors');
-var config=require('../config/config.js').load();
+var temp=__dirname.split("/");
+temp.pop();
+var parent_dir=temp.join("/");
+var log=require(parent_dir+"/lib/logger.js");
+var config=require(parent_dir+'/config/config.js').load();
 var mongodb=config["mongodb"]["mongodb_uri"];
 var collection=config["mongodb"]["mongodb_collection"];
 var collection1=config["mongodb"]["bucket_collection"];
@@ -27,9 +30,9 @@ var pool={
 						}
 						process.collection.insert({"_id":url,"hash":stamp,"domain":domain,"done":false},function(err,results){
 							if(err){
-							console.log("[ERROR] pool.init maybe seed is already added".red);
+							log.put("pool.init maybe seed is already added","error");
 							}
-								console.log(("[SUCCESS] Added  "+domain+" to initialize pool").green);
+								log.put(("Added  "+domain+" to initialize pool"),"success");
 								done+=1;
 								if(done===links.length-1){
 									fn(results);
@@ -63,10 +66,10 @@ var pool={
 					process.collection1.insert({"_id":hash,"underProcess":false,"bot":config["bot_name"],"recrawlAt":stamp1},function(err,results){
 						if(err){
 
-							console.log(("[ERROR] pool.addToPool"+err).red);
+							log.put(("pool.addToPool"+err),"error");
 						}
 						else{
-							console.log(("[SUCCESS] Updated bucket "+hash).green);
+							log.put(("Updated bucket "+hash),"success");
 						}
 											
 											
@@ -88,11 +91,11 @@ var pool={
 					process.collection.find({"hash":hash},{},{}).toArray(function(err,docs){
 						if(err){
 
-							console.log("[ERROR] pool.getNextBatch".red);
+							log.pu("pool.getNextBatch","error");
 						}
 						else{
 							//console.log(docs);
-							console.log(("[SUCCESS] Got "+docs.length+" for next Batch").green);
+							log.put(("Got "+docs.length+" for next Batch"),"success");
 							result(err,docs,hash);		
 						}
 
@@ -119,10 +122,10 @@ var pool={
 		}
 		process.collection.updateOne({"_id":url},{$set:{"done":true,"data":data,"response":status,"lastModified":stamp1}},function(err,results){
 			if(err){
-				console.log("[ERROR] pool.setCrawled".red);
+				log.put("pool.setCrawled","error");
 			}
 			else{
-				console.log(("[SUCCESS] Updated "+url).green);
+				log.put(("Updated "+url),"success");
 			}
 			
 		});
@@ -142,6 +145,7 @@ var pool={
 	},
 	"createConnection":function(fn){
 		process.mongo=MongoClient.connect(mongodb, function(err, db) {
+			process.db=db;
 			process.collection=db.collection(collection);
 			process.collection1=db.collection(collection1);
 
@@ -149,11 +153,14 @@ var pool={
 
 		});
 	},
+	close:function(){
+		process.db.close();
+	},
 	"readSeedFile":function(){
 		var fs  = require("fs");
 		var dic={};
 		var links=[];
-		links=fs.readFileSync('./'+config["seed_file"]).toString().split('\n');
+		links=fs.readFileSync(parent_dir+"/seed").toString().replace(/\n{2,}/gi,"\n").replace(/^\n/gi,"").split('\n');
 			//parsing seed file
 			if(links[0]!==""){
 				//not if file is empty
@@ -163,7 +170,7 @@ var pool={
 				};
 			}
 			else{
-				console.log("[ERROR] Empty seed file".red);
+				log.put("Empty seed file","error");
 				process.exit(0);
 			}
 		pool["links"]=dic;
@@ -175,7 +182,7 @@ var pool={
 		process.collection1.findAndModify({"_id":hash},[],{"underProcess":false,"recrawlAt":stamp1},{"remove":false},function(err,object){
 			if(object.value!==null){
 					var hash=object["value"]["_id"];
-					console.log(("[SUCCESS] Bucket "+hash+"completed !").green);
+					log.put(("Bucket "+hash+"completed !"),"success");
 			}
 			
 				
@@ -186,10 +193,12 @@ var pool={
 		var stamp1=new Date().getTime()-2000;//giving less time
 		process.collection1.update({"underProcess":true,"bot":config["bot_name"]},{$set:{"underProcess":false,"recrawlAt":stamp1}},{multi:true},function(err,results){
 		//resetting just buckets processed by this bot
+		console.log(err+"shit");
 			if(err){
-				console.log("[ERROR] pool.resetBuckets".red);
+				log.put("pool.resetBuckets","error");
 			}
 			else{
+				log.put("pool.resetBuckets","success");
 				fn();
 			}
 			
@@ -206,10 +215,10 @@ var pool={
 				process.collection.insert({"_id":url,"done":false,"domain":domain,"data":"","hash":hash},function(err,results){
 						if(err){
 
-							//console.log("[ERROR] pool.addToPool");
+							//console.log("pool.addToPool");
 						}
 						else{
-							//console.log("[INFO] Discovered "+url);
+							//console.log("Discovered "+url);
 							if(pool.cache[domain]){
 								pool.cache[domain].push(url);
 							}
@@ -243,6 +252,9 @@ var pool={
 		};
 		fn(re);
 
+	},
+	"drop":function(){
+		process.db.dropDatabase();
 	},
 	"seedCount":0,
 	"cache":{}

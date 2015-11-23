@@ -1,5 +1,4 @@
 var webPage = require('webpage');
-
 var webserver = require('webserver');
 var server = webserver.create();
 var service = server.listen(9000, function(request, response) {

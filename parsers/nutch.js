@@ -66,6 +66,7 @@ var app={
 		 return ret;
 	},
 	"parseWebPage":function(data,url){
+		//data is text
 			data=data.replace(/(\n+)|(\t+)|(\s+)|(\r+)/g,' ');
 			data=data.replace(/\s+/g," ");
 		 $ = cheerio.load(data);

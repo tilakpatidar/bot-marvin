@@ -1,6 +1,6 @@
 var request=require("request");
 var fs = require('fs');
-var colors = require('colors');
+var log=require(__dirname+"/lib/logger.js");
 var queued=0;
 var app={
 	"init":function(urls,fn){
@@ -15,16 +15,16 @@ var app={
 					if(app.bots[req_url]===undefined || app.bots[req_url]===null){
 							parser.setUrl(req_url_new+'/robots.txt', function(parser_obj, success) {
 								  if(success) {
-								  	console.log(("[SUCCESS] Robots.txt parsed for "+req_url).green);
+								  	log.put(("Robots.txt parsed for "+req_url),"success");
 								  	var filename=req_url.replace(/\//g,"##");
-								  	fs.writeFileSync("./robots/"+filename,JSON.stringify(parser_obj));
+								  	fs.writeFileSync(__dirname+"/robots/"+filename,JSON.stringify(parser_obj));
 								    app.bots[req_url]=parser_obj;//saving robots obj
 								  }
 								  else{
-								  	console.log(("[ERROR] No Robots.txt found for "+req_url).red);
+								  	log.put(("No Robots.txt found for "+req_url),"error");
 								  	var filename=req_url.replace(/\//g,"##");
 								  	var parser_obj={"NO_ROBOTS":true};
-								  	fs.writeFileSync("./robots/"+filename,JSON.stringify(parser_obj));
+								  	fs.writeFileSync(__dirname+"/robots/"+filename,JSON.stringify(parser_obj));
 								  	app.bots[req_url]=parser_obj;//no robots.txt found no restriction
 								  }
 									queued+=1;
@@ -56,12 +56,16 @@ var app={
 	"loadCache":function(){
 			var files=fs.readdirSync(__dirname+'/robots/');
 			for (var i = 0; i < files.length; i++) {
+				if(files[i].indexOf(".")===0){
+					//do not take hidden files
+					continue;
+				}
 				var domain=files[i].replace(/##/g,"/");
 				var data=fs.readFileSync(__dirname+'/robots/'+files[i]).toString();
 				if(data!==undefined || data !==null){
 					var js=JSON.parse(data);
 					app.bots[domain]=js;
-					console.log(("[SUCCESS] Robots.txt loaded from cache for "+domain).green);
+					log.put(("Robots.txt loaded from cache for "+domain),"success");
 				}
 			};
 		

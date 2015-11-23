@@ -1,4 +1,5 @@
-http://www.google.co.in	nutch	false
+
+http://www.google.co.in	nutch	true
 http://www.google.com	nutch	false
 http://www.facebook.com	nutch	false
 http://www.youtube.com	nutch	false

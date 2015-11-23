@@ -1,4 +1,4 @@
-var colors = require('colors');
+var log=require(__dirname+"/lib/logger.js");
 var d = new Date();
 var n = d.getTime();
 function init(pool){
@@ -24,7 +24,7 @@ function init(pool){
   });
 
   server.listen(2020);
-  console.log("[SUCCESS] Server is listening".green);
+  log.put("Server is listening","success");
 }
 
 exports.init=init;

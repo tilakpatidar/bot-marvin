@@ -1,8 +1,11 @@
 var request = require("request");
 var colors = require('colors');
 var urllib = require('url');
-var regex_urlfilter=require("./regex-urlfilter.js").load();
-var config=require("./config/config").load();
+var config=require(__dirname+"/config/config").load();
+var log=require(__dirname+"/lib/logger.js");
+var regex_urlfilter={};
+regex_urlfilter["accept"]=config["accept_regex"];
+regex_urlfilter["reject"]=config["reject_regex"];
 var bot={
 	"queued":0,
 	"active_sockets":0,
@@ -65,9 +68,9 @@ var bot={
 				robot=bot.addProto(robot);
 				 robot.canFetch(config["robot_agent"],url, function (access,crawl_delay) {
 				      if (!access) {
-				      	console.log(("[ERROR] Cannot access "+url).red);
+				      	log.put(("Cannot access "+url),"error");
 				        // access not given exit 
-							process.send({"setCrawled":[url,{},403]});
+							process.send({"bot":"spawn","setCrawled":[url,{},403]});
 							bot.isLinksFetched();
 							return;
 					    }
@@ -109,7 +112,7 @@ var bot={
 	"grabInlinks":function($,url,domain,linksFromParsers){
 		for (var i = 0; i < linksFromParsers.length; i++) {
 			var q=linksFromParsers[i];
-			process.send({"addToPool":[q,config["counter_domain"]]});
+			process.send({"bot":"spawn","addToPool":[q,config["counter_domain"]]});
 		};
 			var a=$("a")
 			var count=a.length;
@@ -117,16 +120,16 @@ var bot={
 				function reject(r){
 					count-=1;
 					//console.log(r+"rule");
-					//console.log("[INFO] domain "+domain);
-					//console.log("[INFO] abs "+abs);
-					//console.log(("[ERROR] "+abs+" rejected by filters").red);
+					//console.log("domain "+domain);
+					//console.log("abs "+abs);
+					//log.put((""+abs+" rejected by filters"),"error");
 					return true;
 					
 				}
 				var href=$(this).attr("href");
 				if(href!==undefined){
 					href=href.replace("https://","http://");//std form
-					//console.log("[INFO] url "+href);
+					//console.log("url "+href);
 					var abs=urllib.resolve(domain,href);
 					if(abs===domain+"/"){
 						//reject http://www.youtube.com http://www.youtube.com/
@@ -156,16 +159,16 @@ var bot={
 						
 					};
 					
-					process.send({"addToPool":[abs,domain]});
+					process.send({"bot":"spawn","addToPool":[abs,domain]});
 				}
 
 			});
-			console.log(("[INFO] Got "+count+" links from "+url).yellow);
+			log.put(("Got "+count+" links from "+url),"info");
 	},
 	"isLinksFetched":function(){
 				bot.queued+=1;
 				if(bot.queued===bot.batch.length){
-					process.send({"finishedBatch":bot.batchId});
+					process.send({"bot":"spawn","finishedBatch":bot.batchId});
 					process.exit(0);//exit 
 				}
 
@@ -252,35 +255,34 @@ var bot={
 			bot.active_sockets-=1;
 			if(html===undefined){
 				//some error with the request return silently
-				console.log("[ERROR] Max sockets reached read docs/maxSockets.txt".red);
-				process.send({"setCrawled":[url,{},-1]});
+				log.put("Max sockets reached read docs/maxSockets.txt","error");
+				process.send({"bot":"spawn","setCrawled":[url,{},-1]});
 				bot.isLinksFetched();
 				return;
 			}
-					var parser=require("./parsers/"+bot.links[domain]["parseFile"]);
+					var parser=require(__dirname+"/parsers/"+bot.links[domain]["parseFile"]);
 					var dic=parser.init.parse(html,url);//pluggable parser
 					//dic[0] is cheerio object
 					//dic[1] is dic to be inserted
 					//dic[2] inlinks suggested by custom parser
 					bot.grabInlinks(dic[0],url,domain,dic[2]);
 					var code=response.statusCode;
-					process.send({"setCrawled":[url,dic[1],code]});
+					process.send({"bot":"spawn","setCrawled":[url,dic[1],code]});
 					bot.isLinksFetched();
 					
 					
 				});
 	},
 	"fetchFile":function(url,domain){
+		//files will be downloaded by seperate process
 		bot.active_sockets+=1;
-		var tika=require("./tika.js").init;
-		tika.startServer();
-		tika.submitFile(url,function(err,body){
-					var parser=require("./parsers/"+bot.links[domain]["parseFile"]);
-					var dic=parser.init.parse(body,url);//pluggable parser
-					process.send({"setCrawled":[url,dic]});
-					bot.isLinksFetched();
-					bot.active_sockets-=1;
-		});
+		var req_url="http://localhost:2030/";
+		var p=bot.links[domain]["parseFile"];
+			request({uri:req_url,qs:{fileName:url,parseFile:p},pool:{maxSockets: Infinity}},function(err,response,html){
+				bot.active_sockets-=1;
+				bot.isLinksFetched();
+			});
+					
 
 	}
 
