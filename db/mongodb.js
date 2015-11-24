@@ -194,7 +194,7 @@ var pool={
 		var stamp1=new Date().getTime()-2000;//giving less time
 		process.collection1.update({"underProcess":true,"bot":config["bot_name"]},{$set:{"underProcess":false,"recrawlAt":stamp1}},{multi:true},function(err,results){
 		//resetting just buckets processed by this bot
-		console.log(err+"shit");
+		
 			if(err){
 				log.put("pool.resetBuckets","error");
 			}

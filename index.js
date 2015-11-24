@@ -156,6 +156,9 @@ function main(flag) {
 					log.put("downloading robots.txt this could take a while","info");
 					var robots=require(__dirname+'/robots.js').app;
 					robots.init(Object.keys(pool.links),function(err,obj){
+						if(!config["verbose"]){
+							log.put("Robots files parsed","no_verbose");
+						}
 						log.put("robots.txt parsed","success");
 						botObjs=obj;
 						initConnection();
@@ -194,16 +197,34 @@ var app={
 		var config=require(__dirname+"/config/config.js").load();
 		return config;
 	},
-	"set":function(key,value){
+	"set":function(key,value,oldKey){
 		//for recursive json objects
-		if(Object.prototype.toString.call(value) === '[object object]'){
+		if(Object.prototype.toString.call(value) === '[object Object]'){
 			for(var key1 in value){
-				app.set(key1,value[key1]);
+				app.set(key1,value[key1],key);
 			}
 			return true;
 		}
 		if(this.isProperty(key)){
-			config[key]=value;
+			if(oldKey!==undefined){
+				if(value===null){
+					delete config[oldKey][key];
+				}
+				else{
+					config[oldKey][key]=value;
+				}
+				
+			}
+			else{
+				if(value===null){
+					delete config[key];
+				}
+				else{
+					config[key]=value;
+				}
+				
+			}
+			
 			if(updateJson(config)){
 				log.put((""+key+" updated"),"success");
 				return true;

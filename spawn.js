@@ -94,6 +94,9 @@ var bot={
 
 	},
 	"fetch":function(url,domain){
+		if(!config["verbose"]){
+			log.put(url,"no_verbose");
+		}
 		if(config["tika"]){
 			if(url.match(config["tika_supported_files"])!==null){
 				//file type matched use tika instead

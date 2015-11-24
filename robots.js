@@ -5,6 +5,9 @@ var queued=0;
 var app={
 	"init":function(urls,fn){
 		try{
+			if(!config["verbose"]){
+				log.put("Preparing robots.txt files this will take time . . .","no_verbose");
+			}
 			var err;
 			app.loadCache();
 			for (var i = 0; i < urls.length; i++) {

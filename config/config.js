@@ -6,7 +6,7 @@ var JSONX=proto.init;
 var config={
   "robot_agent": "*",
   "bot_name": "zaphod",
-  "verbose": true,
+  "verbose": false,
   "logging": true,
   "headers": {
     "User-Agent": "Mozilla/5.0 (X11; Linux i686) AppleWebKit/535.7 (KHTML, like Gecko) Chrome/16.0.912.63 Safari/535.7",
@@ -18,12 +18,22 @@ var config={
     "bucket_collection": "bucket"
   },
   "mysql": {
-    "mysql_uri": ""
+    "mysql_uri": "",
+    "mysql_collection": "1",
+    "bucket_collection": "bucket"
   },
   "elasticsearch": {
     "elasticsearch_uri": ""
   },
-  "log_buffer_lines":1000,
+  "file": {
+    "max_content_length": 104857600
+  },
+  "http": {
+    "timeout": 10000,
+    "max_content_length": 10485760,
+    "follow_redirect": true
+  },
+  "log_buffer_lines": 1000,
   "recrawl_interval": 2592000000,
   "tika_host": "0.0.0.0",
   "tika_port": "9998",
