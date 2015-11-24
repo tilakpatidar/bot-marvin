@@ -179,7 +179,8 @@ var pool={
 	},
 	"batchFinished":function(hash){
 		var stamp1=new Date().getTime()+config["recrawl_interval"];
-		process.collection1.findAndModify({"_id":hash},[],{"underProcess":false,"recrawlAt":stamp1},{"remove":false},function(err,object){
+		var lm=new Date().getTime();
+		process.collection1.findAndModify({"_id":hash},[],{$set:{"underProcess":false,"recrawlAt":stamp1,"lastModified":lm}},{"remove":false},function(err,object){
 			if(object.value!==null){
 					var hash=object["value"]["_id"];
 					log.put(("Bucket "+hash+"completed !"),"success");
