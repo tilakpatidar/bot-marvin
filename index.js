@@ -256,6 +256,9 @@ var app={
 	},
 	"reset":function(fn){
 		//drop the db
+		if(fn===undefined){
+			fn=function(){};
+		}
 		var pool=require(__dirname+'/pool');
 		var db_type=config["db_type"];
 		pool=pool.getDB(db_type).init();//choosing db type
@@ -290,7 +293,7 @@ var app={
 									fn();
 								}
 								catch(err){
-									lob.put("in pool.close","error");
+									log.put("in pool.close","error");
 									return;
 								}
 

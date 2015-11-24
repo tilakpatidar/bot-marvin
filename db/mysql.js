@@ -255,7 +255,9 @@ var pool={
 	},
 	"close":function(){
 		process.connection.end();
+		console.log("1");
 		process.mysql_pool.end();
+		console.log("11");
 	},
 	"readSeedFile":function(){
 		var fs  = require("fs");
