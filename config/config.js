@@ -6,7 +6,7 @@ var JSONX=proto.init;
 var config={
   "robot_agent": "*",
   "bot_name": "zaphod",
-  "verbose": false,
+  "verbose": true,
   "logging": true,
   "headers": {
     "User-Agent": "Mozilla/5.0 (X11; Linux i686) AppleWebKit/535.7 (KHTML, like Gecko) Chrome/16.0.912.63 Safari/535.7",
@@ -14,13 +14,17 @@ var config={
   },
   "mongodb": {
     "mongodb_uri": "mongodb://192.168.101.5:27017/crawl",
-    "mongodb_collection": "1",
+    "mongodb_collection": "links",
     "bucket_collection": "bucket"
   },
   "mysql": {
-    "mysql_uri": "",
-    "mysql_collection": "1",
-    "bucket_collection": "bucket"
+    "mysql_host": "127.0.0.1",
+    "mysql_user": "root",
+    "mysql_password": "#brainse",
+    "mysql_db": "crawl",
+    "mysql_collection": "links",
+    "bucket_collection": "bucket",
+    "mysql_connection_pool": 100
   },
   "elasticsearch": {
     "elasticsearch_uri": ""
@@ -45,7 +49,7 @@ var config={
   "childs": 2,
   "max_concurrent_sockets": 10,
   "batch_size": 100,
-  "db_type": "mongodb",
+  "db_type": "mysql",
   "remove_tags": [
     "table",
     "style",

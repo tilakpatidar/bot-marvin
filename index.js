@@ -261,37 +261,42 @@ var app={
 		pool=pool.getDB(db_type).init();//choosing db type
 				pool.createConnection(function(){
 						
-							pool.drop();
-							log.put("db reset","success");
-							var files=fs.readdirSync(__dirname+'/robots/');
-							for (var i = 0; i < files.length; i++) {
-								if(files[i].indexOf(".")===0){
-									//do not take hidden files
-									continue;
+							pool.drop(function(){
+								log.put("db reset","success");
+								var files=fs.readdirSync(__dirname+'/robots/');
+								for (var i = 0; i < files.length; i++) {
+									if(files[i].indexOf(".")===0){
+										//do not take hidden files
+										continue;
+									}
+									var domain=files[i].replace(/##/g,"/");
+									var data=fs.unlinkSync(__dirname+'/robots/'+files[i]);
+								};
+								log.put("robots cache reset","success");
+								var files=fs.readdirSync(__dirname+'/pdf-store/');
+								for (var i = 0; i < files.length; i++) {
+									if(files[i].indexOf(".")===0){
+										//do not take hidden files
+										continue;
+									}
+									var domain=files[i].replace(/##/g,"/");
+									var data=fs.unlinkSync(__dirname+'/pdf-store/'+files[i]);
+								};
+								log.put("pdf-store cache reset","success");
+								log.put("crawler reset","success");
+								app.clearSeed();
+								try{
+									pool.close();
+									fn();
 								}
-								var domain=files[i].replace(/##/g,"/");
-								var data=fs.unlinkSync(__dirname+'/robots/'+files[i]);
-							};
-							log.put("robots cache reset","success");
-							var files=fs.readdirSync(__dirname+'/pdf-store/');
-							for (var i = 0; i < files.length; i++) {
-								if(files[i].indexOf(".")===0){
-									//do not take hidden files
-									continue;
+								catch(err){
+									lob.put("in pool.close","error");
+									return;
 								}
-								var domain=files[i].replace(/##/g,"/");
-								var data=fs.unlinkSync(__dirname+'/pdf-store/'+files[i]);
-							};
-							log.put("pdf-store cache reset","success");
-							log.put("crawler reset","success");
-							app.clearSeed();
-							try{
-								pool.close();
-								fn();
-							}
-							catch(err){
-								return;
-							}
+
+
+							});
+
 							
 
 				});
@@ -368,6 +373,7 @@ var app={
 			log.put(("Seed file cleared"),"success");
 		}
 		catch(err){
+			console.log(err);
 			log.put(("Unable to clear seed file"),"error");
 			return false;
 		}

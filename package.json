@@ -32,6 +32,7 @@
     "minimist": "1.2.0",
     "mongodb": "2.0.48",
     "mysql": "^2.9.0",
+    "node-mysql": "^0.4.2",
     "phantomjs": "1.9.18",
     "request": "2.67.0",
     "robots": "0.9.4"

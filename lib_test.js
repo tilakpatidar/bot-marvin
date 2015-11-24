@@ -12,7 +12,6 @@ bot.removeSeed("http://www.geeksforgeeks.org/");
 bot.set("headers",{"User-Agent":"Mozilla/5.0 (X11; Linux i686) AppleWebKit/535.7 (KHTML, like Gecko) Chrome/16.0.912.63 Safari/535.7",
 		"Accept-Language":"en-us,en-gb,en;"
 	});
-
 //clearing the crawl list
 bot.clearSeed();
 

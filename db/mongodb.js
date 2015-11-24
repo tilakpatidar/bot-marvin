@@ -254,8 +254,9 @@ var pool={
 		fn(re);
 
 	},
-	"drop":function(){
+	"drop":function(fn){
 		process.db.dropDatabase();
+		fn();
 	},
 	"seedCount":0,
 	"cache":{}
