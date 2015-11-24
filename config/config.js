@@ -23,6 +23,7 @@ var config={
   "elasticsearch": {
     "elasticsearch_uri": ""
   },
+  "log_buffer_lines":1000,
   "recrawl_interval": 2592000000,
   "tika_host": "0.0.0.0",
   "tika_port": "9998",
