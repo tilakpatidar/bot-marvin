@@ -5,10 +5,10 @@ var temp=__dirname.split("/");
 temp.pop();
 var parent_dir=temp.join("/");
 var log=require(parent_dir+"/lib/logger.js");
-var config=require(parent_dir+'/config/config.js').load();
-var mongodb=config["mongodb"]["mongodb_uri"];
-var collection=config["mongodb"]["mongodb_collection"];
-var collection1=config["mongodb"]["bucket_collection"];
+var config=require(parent_dir+"/lib/config-reloader.js");
+var mongodb=config.getConfig("mongodb","mongodb_uri");
+var collection=config.getConfig("mongodb","mongodb_collection");
+var collection1=config.getConfig("mongodb","bucket_collection");
 //read seed file
 
 
@@ -17,7 +17,7 @@ var pool={
 		pool.resetBuckets(function(){
 			var stamp1=new Date().getTime()-2000;//giving less time
 			var stamp=stamp1+""+parseInt(Math.random()*10000);
-			process.collection1.insert({"_id":stamp,"underProcess":false,"bot":config["bot_name"],"recrawlAt":stamp1},function(err,results){
+			process.collection1.insert({"_id":stamp,"underProcess":false,"bot":config.getConfig("bot_name"),"recrawlAt":stamp1},function(err,results){
 				var done=0;
 				for (var i = 0; i < links.length; i++) {
 					var anon=(function(domain,stamp,url){
@@ -63,7 +63,7 @@ var pool={
 		pool.addLinksToDB(li,function(hash){
 			pool.generatePool(function(){
 					var stamp1=new Date().getTime();
-					process.collection1.insert({"_id":hash,"underProcess":false,"bot":config["bot_name"],"recrawlAt":stamp1},function(err,results){
+					process.collection1.insert({"_id":hash,"underProcess":false,"bot":config.getConfig("bot_name"),"recrawlAt":stamp1},function(err,results){
 						if(err){
 
 							log.put(("pool.addToPool"+err),"error");
@@ -84,7 +84,7 @@ var pool={
 	},
 	"getNextBatch":function(result,batchSize){
 		var stamp1=new Date().getTime();
-		process.collection1.findAndModify({"underProcess":false,"recrawlAt":{$lte:stamp1}},[],{"$set":{"underProcess":true,"bot":config["bot_name"]}},{"remove":false},function(err,object){
+		process.collection1.findAndModify({"underProcess":false,"recrawlAt":{$lte:stamp1}},[],{"$set":{"underProcess":true,"bot":config.getConfig("bot_name")}},{"remove":false},function(err,object){
 			if(object.value!==null){
 					var hash=object["value"]["_id"];
 					//console.log(hash);
@@ -178,7 +178,7 @@ var pool={
 		return links;
 	},
 	"batchFinished":function(hash){
-		var stamp1=new Date().getTime()+config["recrawl_interval"];
+		var stamp1=new Date().getTime()+config.getConfig("recrawl_interval");
 		var lm=new Date().getTime();
 		process.collection1.findAndModify({"_id":hash},[],{$set:{"underProcess":false,"recrawlAt":stamp1,"lastModified":lm}},{"remove":false},function(err,object){
 			if(object.value!==null){
@@ -192,7 +192,7 @@ var pool={
 	},
 	"resetBuckets":function(fn){
 		var stamp1=new Date().getTime()-2000;//giving less time
-		process.collection1.update({"underProcess":true,"bot":config["bot_name"]},{$set:{"underProcess":false,"recrawlAt":stamp1}},{multi:true},function(err,results){
+		process.collection1.update({"underProcess":true,"bot":config.getConfig("bot_name")},{$set:{"underProcess":false,"recrawlAt":stamp1}},{multi:true},function(err,results){
 		//resetting just buckets processed by this bot
 		
 			if(err){
@@ -243,7 +243,7 @@ var pool={
 	"generatePool":function(fn){
 		var re=[];
 		var n_domains=Object.keys(pool.cache).length;
-		var eachh=config["batch_size"]/n_domains;
+		var eachh=config.getConfig("batch_size")/n_domains;
 		for (var key in pool.cache) {
 			var l=pool.cache[key].splice(0,eachh);
 			for (var i = 0; i < l.length; i++) {
