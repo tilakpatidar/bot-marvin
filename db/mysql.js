@@ -119,12 +119,14 @@ var pool={
 	},
 	"getNextBatch":function(result,batchSize){
 		var stamp1=new Date().getTime();
-		var q="UPDATE "+config["mysql"]["bucket_collection"]+" SET `underProcess`=1,`bot`='"+config["bot_name"]+"' WHERE `underProcess`=0 AND `recrawlAt`<="+stamp1+";SELECT `_id` FROM "+config["mysql"]["bucket_collection"]+" ORDER BY `lastmodified` DESC LIMIT 1;"
+		var q="UPDATE "+config["mysql"]["bucket_collection"]+" SET `underProcess`=1,`bot`='"+config["bot_name"]+"' WHERE `underProcess`=0 AND `recrawlAt`<="+stamp1+";SELECT `_id` FROM "+config["mysql"]["bucket_collection"]+" WHERE `underProcess`=1 ORDER BY `lastModified` DESC LIMIT 1;"
+		console.log(q);
 		process.mysql_pool.getConnection(function(err,connection){
 			connection.query(q,function(err, rows, fields){
 				
 				if(rows[1][0]["_id"]!==null){
 						var hash=rows[1][0]["_id"];
+						console.log(hash);
 						var q1="SELECT * FROM "+config["mysql"]["mysql_collection"]+" WHERE `hash`='"+hash+"'";
 						connection.query(q1,function(err, rows, fields){
 							if(err){
@@ -255,9 +257,7 @@ var pool={
 	},
 	"close":function(){
 		process.connection.end();
-		console.log("1");
 		process.mysql_pool.end();
-		console.log("11");
 	},
 	"readSeedFile":function(){
 		var fs  = require("fs");
@@ -274,7 +274,7 @@ var pool={
 			}
 			else{
 				log.put("Empty seed file","error");
-				process.exit(0);
+				return undefined;
 			}
 		pool["links"]=dic;
 		pool["seedCount"]=links.length;

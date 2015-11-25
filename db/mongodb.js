@@ -171,7 +171,7 @@ var pool={
 			}
 			else{
 				log.put("Empty seed file","error");
-				process.exit(0);
+				return undefined;
 			}
 		pool["links"]=dic;
 		pool["seedCount"]=links.length;

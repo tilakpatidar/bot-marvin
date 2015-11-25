@@ -6,7 +6,7 @@ var JSONX=proto.init;
 var config={
   "robot_agent": "*",
   "bot_name": "zaphod",
-  "verbose": true,
+  "verbose": false,
   "logging": true,
   "headers": {
     "User-Agent": "Mozilla/5.0 (X11; Linux i686) AppleWebKit/535.7 (KHTML, like Gecko) Chrome/16.0.912.63 Safari/535.7",
@@ -46,7 +46,7 @@ var config={
   "phantomjs_url": "http://192.168.101.5:9000/?q=",
   "allow_robots": true,
   "external_links": false,
-  "childs": 2,
+  "childs": 3,
   "max_concurrent_sockets": 10,
   "batch_size": 100,
   "db_type": "mysql",

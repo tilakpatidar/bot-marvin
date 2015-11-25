@@ -1,11 +1,11 @@
 var request = require("request");
 var colors = require('colors');
 var urllib = require('url');
-var config=require(__dirname+"/config/config").load();
+var config=require(__dirname+"/lib/config-reloader.js");
 var log=require(__dirname+"/lib/logger.js");
 var regex_urlfilter={};
-regex_urlfilter["accept"]=config["accept_regex"];
-regex_urlfilter["reject"]=config["reject_regex"];
+regex_urlfilter["accept"]=config.getConfig("accept_regex");
+regex_urlfilter["reject"]=config.getConfig("reject_regex");
 var bot={
 	"queued":0,
 	"active_sockets":0,
@@ -51,7 +51,7 @@ var bot={
 	},
 	"processLink":function(url,domain){
 		var bot=this;//inside setTimeout no global access
-		if(bot.active_sockets>config["max_concurrent_sockets"]){
+		if(bot.active_sockets>config.getConfig("max_concurrent_sockets")){
 			//pooling to avoid socket hanging
 			(function(url,domain){
 					setTimeout(function(){ bot.processLink(url,domain); }, 1000); //to avoid recursion
@@ -66,7 +66,7 @@ var bot={
 			var robot=bot.botObjs[domain];
 			if(!robot["NO_ROBOTS"]){
 				robot=bot.addProto(robot);
-				 robot.canFetch(config["robot_agent"],url, function (access,crawl_delay) {
+				 robot.canFetch(config.getConfig("robot_agent"),url, function (access,crawl_delay) {
 				      if (!access) {
 				      	log.put(("Cannot access "+url),"error");
 				        // access not given exit 
@@ -94,11 +94,11 @@ var bot={
 
 	},
 	"fetch":function(url,domain){
-		if(!config["verbose"]){
+		if(!config.getConfig("verbose")){
 			log.put(url,"no_verbose");
 		}
-		if(config["tika"]){
-			if(url.match(config["tika_supported_files"])!==null){
+		if(config.getConfig("tika")){
+			if(url.match(config.getConfig("tika_supported_files"))!==null){
 				//file type matched use tika instead
 				bot.fetchFile(url,domain);
 			}
@@ -115,7 +115,7 @@ var bot={
 	"grabInlinks":function($,url,domain,linksFromParsers){
 		for (var i = 0; i < linksFromParsers.length; i++) {
 			var q=linksFromParsers[i];
-			process.send({"bot":"spawn","addToPool":[q,config["counter_domain"]]});
+			process.send({"bot":"spawn","addToPool":[q,config.getConfig("counter_domain")]});
 		};
 			var a=$("a")
 			var count=a.length;
@@ -139,7 +139,7 @@ var bot={
 						return reject("0");
 					}
 					if(abs.match(regex_urlfilter.accept)===null){ //user give acceptance
-						if(!config["external_links"]){
+						if(!config.getConfig("external_links")){
 							if(abs.indexOf(domain)<0){
 								return reject("1");
 							}
@@ -148,8 +148,8 @@ var bot={
 					
 					for (var i = 0; i < regex_urlfilter.reject.length; i++) {
 						if(abs.match(regex_urlfilter.reject[i])!==null){
-								if(abs.match(config["tika_supported_files"])!==null){
-									if(!config["tika"]){
+								if(abs.match(config.getConfig("tika_supported_files"))!==null){
+									if(!config.getConfig("tika")){
 										return reject("3");
 									}
 
@@ -172,7 +172,7 @@ var bot={
 				bot.queued+=1;
 				if(bot.queued===bot.batch.length){
 					process.send({"bot":"spawn","finishedBatch":bot.batchId});
-					process.exit(0);//exit 
+					
 				}
 
 	},
@@ -251,7 +251,7 @@ var bot={
 		var req_url=url;
 		if(bot.links[domain]["phantomjs"]){
 			//new url if phantomjs is being used
-			req_url=config["phantomjs_url"]+req_url;
+			req_url=config.getConfig("phantomjs_url")+req_url;
 		}
 		bot.active_sockets+=1;
 		request({uri:req_url,pool:{maxSockets: Infinity}},function(err,response,html){

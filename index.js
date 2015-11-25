@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 var proto=require(__dirname+'/lib/proto.js');
-var config=require(__dirname+"/config/config").load();
+var config=require(__dirname+"/lib/config-reloader.js");
 var JSONX=proto.init;
 var fs=require('fs');
 var log=require(__dirname+"/lib/logger.js");
@@ -35,15 +35,14 @@ function main(flag) {
 		app.set("db_type",item);
 	}
 
-			//reload config
-			var config=require(__dirname+"/config/config").load();
+			
 
 			var pool=require(__dirname+'/pool');
-			var db_type=config["db_type"];
+			var db_type=config.getConfig("db_type");
 			pool=pool.getDB(db_type).init();//choosing db type
 			var collection;
-			var childs=parseInt(config["childs"]);//childs to spawn
-			var batchSize=parseInt(config["batch_size"]);
+			var childs=parseInt(config.getConfig("childs"));//childs to spawn
+			var batchSize=parseInt(config.getConfig("batch_size"));
 			process.active_childs=0;
 
 			//requires
@@ -62,7 +61,7 @@ function main(flag) {
 				}
 				for (var i = process.active_childs; i < childs; i++) {
 					  pool.getNextBatch(function(err,results,hash){
-					  		//console.log("results length  "+results.length);
+					  		console.log("results length  "+results.length);
 							if(results.length!==0){
 								
 								createChild(results,hash);
@@ -86,6 +85,10 @@ function main(flag) {
 			
 			var inlinks_pool=[];
 			var seed_links=pool.readSeedFile();//read the seed file
+			if(seed_links===undefined){
+				//empty file or file not exists
+				return;
+			}
 			function createChild(results,hash){
 				process.active_childs+=1;
 				var bot = child.fork(__dirname+"/spawn.js",[]);	
@@ -152,11 +155,11 @@ function main(flag) {
 
 				}
 				var botObjs;
-				if(config["allow_robots"]){
+				if(config.getConfig("allow_robots")){
 					log.put("downloading robots.txt this could take a while","info");
 					var robots=require(__dirname+'/robots.js').app;
 					robots.init(Object.keys(pool.links),function(err,obj){
-						if(!config["verbose"]){
+						if(!config.getConfig("verbose")){
 							log.put("Robots files parsed","no_verbose");
 						}
 						log.put("robots.txt parsed","success");
@@ -194,11 +197,11 @@ function updateJson(js){
 
 var app={
 	"getConfig":function(){
-		var config=require(__dirname+"/config/config.js").load();
-		return config;
+		return config.getConfig();
 	},
 	"set":function(key,value,oldKey){
 		//for recursive json objects
+		var config1=config.getConfig();
 		if(Object.prototype.toString.call(value) === '[object Object]'){
 			for(var key1 in value){
 				app.set(key1,value[key1],key);
@@ -208,24 +211,24 @@ var app={
 		if(this.isProperty(key)){
 			if(oldKey!==undefined){
 				if(value===null){
-					delete config[oldKey][key];
+					delete config1[oldKey][key];
 				}
 				else{
-					config[oldKey][key]=value;
+					config1[oldKey][key]=value;
 				}
 				
 			}
 			else{
 				if(value===null){
-					delete config[key];
+					delete config1[key];
 				}
 				else{
-					config[key]=value;
+					config1[key]=value;
 				}
 				
 			}
 			
-			if(updateJson(config)){
+			if(updateJson(config1)){
 				log.put((""+key+" updated"),"success");
 				return true;
 			}
@@ -240,19 +243,12 @@ var app={
 			return false;
 		}
 	},
-	"get":function(key){
-		return config[key];
+	"get":function(args){
+		return config.getConfig.apply(null,arguments);
 
 	},
-	"isProperty":function(key){
-		var data=fs.readFileSync(__dirname+"/config/config.js").toString();
-		var re=new RegExp("\""+key+"\"","gi");
-		if(data.match(re)){
-			return true;
-		}
-		else{
-			return false;
-		}
+	"isProperty":function(args){
+		return app.get.apply(null,arguments)!==undefined;
 	},
 	"reset":function(fn){
 		//drop the db
@@ -260,7 +256,7 @@ var app={
 			fn=function(){};
 		}
 		var pool=require(__dirname+'/pool');
-		var db_type=config["db_type"];
+		var db_type=config.getConfig("db_type");
 		pool=pool.getDB(db_type).init();//choosing db type
 				pool.createConnection(function(){
 						
@@ -373,6 +369,7 @@ var app={
 	"clearSeed":function(){
 		try{
 			fs.unlinkSync(__dirname+"/seed");
+			fs.appendFileSync(__dirname+"/seed","");
 			log.put(("Seed file cleared"),"success");
 		}
 		catch(err){

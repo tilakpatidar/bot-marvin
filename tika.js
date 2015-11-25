@@ -3,10 +3,10 @@ var exec = require('child_process').exec;
 var fs = require('fs');
 var request = require('request');
 var log=require(__dirname+"/lib/logger.js");
-var config=require(__dirname+"/config/config").load();
+var config=require(__dirname+"/lib/config-reloader.js");
 var app={
 	"startServer":function(){
-		exec('java -jar '+__dirname+'/lib/tika-server-1.11.jar -h '+config["tika_host"], function(error, stdout, stderr) {
+		exec('java -jar '+__dirname+'/lib/tika-server-1.11.jar -h '+config.getConfig("tika_host"), function(error, stdout, stderr) {
 			log.put("[SUCCESS] Tika server started","success");
 		    if (error !== null) {
 		        log.put('[INFO] Server is already running',"info");
@@ -46,10 +46,10 @@ var app={
 	"extractText":function(url,callback){
 		var source = fs.createReadStream(app.getFileName(url));
 		var dic={};
-		source.pipe(request.put({url:'http://'+config["tika_host"]+':'+config['tika_port']+'/tika',headers: {'Accept': 'text/plain'}},function(err, httpResponse, body){
+		source.pipe(request.put({url:'http://'+config.getConfig("tika_host")+':'+config.getConfig('tika_port')+'/tika',headers: {'Accept': 'text/plain'}},function(err, httpResponse, body){
 			dic["text"]=body;
 			source = fs.createReadStream(app.getFileName(url));
-			source.pipe(request.put({url:'http://'+config["tika_host"]+':'+config['tika_port']+'/meta',headers: {'Accept': 'application/json'}},function(err1, httpResponse1, body1){
+			source.pipe(request.put({url:'http://'+config.getConfig("tika_host")+':'+config.getConfig('tika_port')+'/meta',headers: {'Accept': 'application/json'}},function(err1, httpResponse1, body1){
 				var err=null;
 				try{
 					log.put("tika.extractText for "+url,"success");
