@@ -18,7 +18,7 @@ var pool={
 		//this method runs first when crawler starts
 		pool.startBot(function(){
 
-			pool.resetBuckets(function(){
+			
 				var stamp1=new Date().getTime()-2000;//giving less time
 				var stamp=stamp1+""+parseInt(Math.random()*10000);
 				process.bucket_collection.insert({"_id":stamp,"underProcess":false,"bot":config.getConfig("bot_name"),"recrawlAt":stamp1},function(err,results){
@@ -57,7 +57,7 @@ var pool={
 
 
 
-			});			
+					
 		});
 
 
@@ -270,22 +270,14 @@ var pool={
 		//to check if bot_name is unique
 		var t=new Date().getTime();
 		process.bot_collection.findOne({"_id":config.getConfig("bot_name")},function(err,result){
+			
 			if(result){
-				log.put("Found a entry of this bot confirming . . .","success");
-				pool.contactBot(ip,function(isPresent){
-					if(isPresent){
-						log.put("A bot with same is name is still active in cluster","error");
+				log.put("A bot with same is name is still active in cluster","error");
 						process.exit(0);
-					}
-					else{
-						fn();
-					}
-					
-				});
 				
 			}
 			else{
-				process.bot_collection.insert({"_id":config.getConfig("bot_name"),"startTime":t,"ip":},function(err,result){
+				process.bot_collection.insert({"_id":config.getConfig("bot_name"),"registerTime":t},function(err,result){
 
 					if(!err){
 						log.put("Inserted new bot info into cluster","success");
@@ -305,7 +297,8 @@ var pool={
 
 	},
 	"stopBot":function(fn){
-		process.bot_collection.remove({"_id":config.getConfig("bot_name")},function(err,result){
+		pool.resetBuckets(function(){
+			process.bot_collection.remove({"_id":config.getConfig("bot_name")},function(err,result){
 			if(err){
 				log.put("Bot was not found something fishy ","error");
 				fn(false);
@@ -315,7 +308,11 @@ var pool={
 				fn(true);
 			}
 
+			});
+
+
 		});
+		
 	},
 	"contactBot":function(ip,fn){
 		var request=require("request");
