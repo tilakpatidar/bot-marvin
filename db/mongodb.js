@@ -9,51 +9,57 @@ var config=require(parent_dir+"/lib/config-reloader.js");
 var mongodb=config.getConfig("mongodb","mongodb_uri");
 var collection=config.getConfig("mongodb","mongodb_collection");
 var collection1=config.getConfig("mongodb","bucket_collection");
+var collection2=config.getConfig("mongodb","bot_collection");
 //read seed file
 
 
 var pool={
 	"seed":function(links,fn){
-		pool.resetBuckets(function(){
-			var stamp1=new Date().getTime()-2000;//giving less time
-			var stamp=stamp1+""+parseInt(Math.random()*10000);
-			process.collection1.insert({"_id":stamp,"underProcess":false,"bot":config.getConfig("bot_name"),"recrawlAt":stamp1},function(err,results){
-				var done=0;
-				for (var i = 0; i < links.length; i++) {
-					var anon=(function(domain,stamp,url){
-						if(domain===""){
-							return;
-						}
-						if(url===undefined){
-							//not counter links
-							url=domain;
-						}
-						process.collection.insert({"_id":url,"hash":stamp,"domain":domain,"done":false},function(err,results){
-							if(err){
-							log.put("pool.init maybe seed is already added","error");
+		//this method runs first when crawler starts
+		pool.startBot(function(){
+
+			pool.resetBuckets(function(){
+				var stamp1=new Date().getTime()-2000;//giving less time
+				var stamp=stamp1+""+parseInt(Math.random()*10000);
+				process.bucket_collection.insert({"_id":stamp,"underProcess":false,"bot":config.getConfig("bot_name"),"recrawlAt":stamp1},function(err,results){
+					var done=0;
+					for (var i = 0; i < links.length; i++) {
+						var anon=(function(domain,stamp,url){
+							if(domain===""){
+								return;
 							}
-								log.put(("Added  "+domain+" to initialize pool"),"success");
-								done+=1;
-								if(done===links.length-1){
-									fn(results);
+							if(url===undefined){
+								//not counter links
+								url=domain;
+							}
+							process.links_collection.insert({"_id":url,"hash":stamp,"domain":domain,"done":false},function(err,results){
+								if(err){
+								log.put("pool.init maybe seed is already added","error");
 								}
-								
-					
+									log.put(("Added  "+domain+" to initialize pool"),"success");
+									done+=1;
+									if(done===links.length-1){
+										fn(results);
+									}
+									
+						
+							});
+
 						});
-
-					});
+						
+						anon(links[i].split('\t')[0],stamp);
+						
+						
+					};
 					
-					anon(links[i].split('\t')[0],stamp);
 					
-					
-				};
-				
-				
-			});
+				});
 
 
 
+			});			
 		});
+
 
 		
 	},
@@ -61,9 +67,11 @@ var pool={
 		//urls we will be getting will be absolute
 		
 		pool.addLinksToDB(li,function(hash){
+			//first links are added to the db to avoid same links
 			pool.generatePool(function(){
+				//uniform pool of urls are generated
 					var stamp1=new Date().getTime();
-					process.collection1.insert({"_id":hash,"underProcess":false,"bot":config.getConfig("bot_name"),"recrawlAt":stamp1},function(err,results){
+					process.bucket_collection.insert({"_id":hash,"underProcess":false,"bot":config.getConfig("bot_name"),"recrawlAt":stamp1},function(err,results){
 						if(err){
 
 							log.put(("pool.addToPool"+err),"error");
@@ -84,11 +92,11 @@ var pool={
 	},
 	"getNextBatch":function(result,batchSize){
 		var stamp1=new Date().getTime();
-		process.collection1.findAndModify({"underProcess":false,"recrawlAt":{$lte:stamp1}},[],{"$set":{"underProcess":true,"bot":config.getConfig("bot_name")}},{"remove":false},function(err,object){
+		process.bucket_collection.findAndModify({"underProcess":false,"recrawlAt":{$lte:stamp1}},[],{"$set":{"underProcess":true,"bot":config.getConfig("bot_name")}},{"remove":false},function(err,object){
 			if(object.value!==null){
 					var hash=object["value"]["_id"];
 					//console.log(hash);
-					process.collection.find({"hash":hash},{},{}).toArray(function(err,docs){
+					process.links_collection.find({"hash":hash},{},{}).toArray(function(err,docs){
 						if(err){
 
 							log.pu("pool.getNextBatch","error");
@@ -120,7 +128,7 @@ var pool={
 		if(status===undefined){
 			status="0";//no error
 		}
-		process.collection.updateOne({"_id":url},{$set:{"done":true,"data":data,"response":status,"lastModified":stamp1}},function(err,results){
+		process.links_collection.updateOne({"_id":url},{$set:{"done":true,"data":data,"response":status,"lastModified":stamp1}},function(err,results){
 			if(err){
 				log.put("pool.setCrawled","error");
 			}
@@ -131,9 +139,9 @@ var pool={
 		});
 	},
 	"crawlStats":function(fn){
-		process.collection.find({"done":false}).count(function(err,count){
-					process.collection.find({"done":true}).count(function(err1,count1){
-						process.collection1.count(function(err,count2){
+		process.links_collection.find({"done":false}).count(function(err,count){
+					process.links_collection.find({"done":true}).count(function(err1,count1){
+						process.bucket_collection.count(function(err,count2){
 							fn(count,count1,count2);
 
 						});
@@ -146,9 +154,9 @@ var pool={
 	"createConnection":function(fn){
 		process.mongo=MongoClient.connect(mongodb, function(err, db) {
 			process.db=db;
-			process.collection=db.collection(collection);
-			process.collection1=db.collection(collection1);
-
+			process.links_collection=db.collection(collection);
+			process.bucket_collection=db.collection(collection1);
+			process.bot_collection=db.collection(collection2);
 			fn(err,db);
 
 		});
@@ -180,7 +188,7 @@ var pool={
 	"batchFinished":function(hash){
 		var stamp1=new Date().getTime()+config.getConfig("recrawl_interval");
 		var lm=new Date().getTime();
-		process.collection1.findAndModify({"_id":hash},[],{$set:{"underProcess":false,"recrawlAt":stamp1,"lastModified":lm}},{"remove":false},function(err,object){
+		process.bucket_collection.findAndModify({"_id":hash},[],{$set:{"underProcess":false,"recrawlAt":stamp1,"lastModified":lm}},{"remove":false},function(err,object){
 			if(object.value!==null){
 					var hash=object["value"]["_id"];
 					log.put(("Bucket "+hash+"completed !"),"success");
@@ -192,7 +200,7 @@ var pool={
 	},
 	"resetBuckets":function(fn){
 		var stamp1=new Date().getTime()-2000;//giving less time
-		process.collection1.update({"underProcess":true,"bot":config.getConfig("bot_name")},{$set:{"underProcess":false,"recrawlAt":stamp1}},{multi:true},function(err,results){
+		process.bucket_collection.update({"underProcess":true,"bot":config.getConfig("bot_name")},{$set:{"underProcess":false,"recrawlAt":stamp1}},{multi:true},function(err,results){
 		//resetting just buckets processed by this bot
 		
 			if(err){
@@ -213,9 +221,9 @@ var pool={
 			var key=li[i][1];
 			var item=li[i][0];
 			(function(url,domain,hash){
-				process.collection.insert({"_id":url,"done":false,"domain":domain,"data":"","hash":hash},function(err,results){
+				process.links_collection.insert({"_id":url,"done":false,"domain":domain,"data":"","hash":hash},function(err,results){
 						if(err){
-
+							//link is already present
 							//console.log("pool.addToPool");
 						}
 						else{
@@ -257,6 +265,70 @@ var pool={
 	"drop":function(fn){
 		process.db.dropDatabase();
 		fn();
+	},
+	"startBot":function(fn){
+		//to check if bot_name is unique
+		var t=new Date().getTime();
+		process.bot_collection.findOne({"_id":config.getConfig("bot_name")},function(err,result){
+			if(result){
+				log.put("Found a entry of this bot confirming . . .","success");
+				pool.contactBot(ip,function(isPresent){
+					if(isPresent){
+						log.put("A bot with same is name is still active in cluster","error");
+						process.exit(0);
+					}
+					else{
+						fn();
+					}
+					
+				});
+				
+			}
+			else{
+				process.bot_collection.insert({"_id":config.getConfig("bot_name"),"startTime":t,"ip":},function(err,result){
+
+					if(!err){
+						log.put("Inserted new bot info into cluster","success");
+						fn();
+					}
+					else{
+						log.put("Unable to insert new bot into cluster","error");
+						process.exit(0);
+					}
+
+				});
+				
+				
+			}
+			
+		});
+
+	},
+	"stopBot":function(fn){
+		process.bot_collection.remove({"_id":config.getConfig("bot_name")},function(err,result){
+			if(err){
+				log.put("Bot was not found something fishy ","error");
+				fn(false);
+			}
+			else{
+				log.put("Bot cleaned up ","success");
+				fn(true);
+			}
+
+		});
+	},
+	"contactBot":function(ip,fn){
+		var request=require("request");
+		request.get(ip,function(err,response,html){
+			var ans=JSON.parse(html).ack;
+			if(ans){
+				fn(true);
+			}
+			else{
+				fn(false);
+			}
+		});
+		
 	},
 	"seedCount":0,
 	"cache":{}

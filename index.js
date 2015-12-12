@@ -4,6 +4,7 @@ var config=require(__dirname+"/lib/config-reloader.js");
 var JSONX=proto.init;
 var fs=require('fs');
 var log=require(__dirname+"/lib/logger.js");
+process.starter_lock=false;
 function main(flag) {
 
 	//setting args
@@ -51,17 +52,24 @@ function main(flag) {
 			
 
 			function starter(){
+				if(process.starter_lock){
+					//locked 
+					return;
+				}
+				else{
+					process.starter_lock=true;	
+				}
+				
 				log.put("Check if new child available","info");
 				log.put(("Current active childs "+process.active_childs),"info");
 				var counter=0;
 				var done=childs-process.active_childs;
 				if(done===0){
-					setTimeout(starter,15000);
 					return;
 				}
-				for (var i = process.active_childs; i < childs; i++) {
-					  pool.getNextBatch(function(err,results,hash){
-					  		console.log("results length  "+results.length);
+				function nextBatch(){
+					pool.getNextBatch(function(err,results,hash){
+					  		log.put("Got bucket "+hash,"info");
 							if(results.length!==0){
 								
 								createChild(results,hash);
@@ -73,12 +81,19 @@ function main(flag) {
 							}
 							counter+=1;
 							if(counter===done){
-								setTimeout(starter,15000);
+								//unlock starter now
+								process.starter_lock=false;
+								return;
+							}
+							else{
+								process.nextTick(function(){nextBatch();});
 							}
 								
 								
 							},batchSize);
-					}
+				}
+					  
+					nextBatch();
 			}
 
 
@@ -107,8 +122,9 @@ function main(flag) {
 				  else{
 				  	log.put(('Child process exited with code ' + code),"error");
 				  }
-				  
+				  console.log(process.active_childs+"before");
 				  process.active_childs-=1;
+				  console.log(process.active_childs+"after");
 				  starter();
 										
 				  
@@ -144,6 +160,17 @@ function main(flag) {
 
 			//starting child process for tika
 			var tika = child.fork(__dirname+"/tika.js",[]);
+			tika.on('close',function(code){
+
+				if(code===0){
+
+				}
+				else{
+	 
+					log.put("Tika port occupied maybe an instance is already running ","error");
+
+				}
+			});
 			tika.on("message",childFeedback);
 
 
@@ -165,18 +192,27 @@ function main(flag) {
 						log.put("robots.txt parsed","success");
 						botObjs=obj;
 						initConnection();
-						setTimeout(starter,15000);
+						
 					});
 				}
 				else{
 					initConnection();
-					setTimeout(starter,15000);
 				}
-
+				setInterval(starter,15000);
 
 
 				tracker.init(pool);//starting crawler webapp
 
+	//cleanup code
+	function cleanUp(){
+		log.put("Performing cleanUp ","info");
+		pool.stopBot(function(){
+			log.put("cleanUp done","success");
+			process.exit(0);
+		});
+	}
+	var death=require("death");
+	death(cleanUp);
 			
 	}
 
@@ -289,6 +325,7 @@ var app={
 									fn();
 								}
 								catch(err){
+									console.log(err);
 									log.put("in pool.close","error");
 									return;
 								}

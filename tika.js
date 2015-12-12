@@ -122,7 +122,15 @@ if(require.main === module){
         response.end();
 
   });
+	 server.on("listening",function(){
+	 	log.put("TIka server is listening","success");
+	 });
+server.listen(2030);
+server.on("error",function(e){
+	if(e.code==="EADDRINUSE"){
+		log.put("Tika port occupied maybe an instance is already running ","error");
+	}
 
-  server.listen(2030);
-  log.put("Server for tika is listening","success");
+});
+  
 }

@@ -172,6 +172,7 @@ var bot={
 				bot.queued+=1;
 				if(bot.queued===bot.batch.length){
 					process.send({"bot":"spawn","finishedBatch":bot.batchId});
+					setTimeout(function(){process.exit(0);},2000);
 					
 				}
 

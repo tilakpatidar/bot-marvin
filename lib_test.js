@@ -14,7 +14,9 @@ bot.set("headers",{"User-Agent":"Mozilla/5.0 (X11; Linux i686) AppleWebKit/535.7
 	});
 //clearing the crawl list
 bot.clearSeed();
-
+bot.set("db_type","mongodb");
+bot.set("logging",true);
+bot.set("verbose",true);
 //to reset the crawler
 bot.reset(function(){
 
@@ -27,11 +29,10 @@ bot.reset(function(){
 	//ex http://www.google.com	nutch	false
 	//   http://www.yahoo.com	nutch	true
 
-	bot.loadSeedFile("/home/bot/Desktop/seed");
-
+	bot.loadSeedFile("/home/tilak/Desktop/seed");
 	//check if url already present
 
-	console.log(bot.isSeedPresent());
+	console.log(bot.isSeedPresent("http://www.stackoverflow.com"));
 
 	//use get and set to modify config
 

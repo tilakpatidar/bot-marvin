@@ -6,16 +6,18 @@ var JSONX=proto.init;
 var config={
   "robot_agent": "*",
   "bot_name": "zaphod",
-  "verbose": false,
+  "childs": 5,
+  "verbose": true,
   "logging": true,
   "headers": {
     "User-Agent": "Mozilla/5.0 (X11; Linux i686) AppleWebKit/535.7 (KHTML, like Gecko) Chrome/16.0.912.63 Safari/535.7",
     "Accept-Language": "en-us,en-gb,en;"
   },
   "mongodb": {
-    "mongodb_uri": "mongodb://192.168.101.5:27017/crawl",
+    "mongodb_uri": "mongodb://127.0.0.1:27017/crawl",
     "mongodb_collection": "links",
-    "bucket_collection": "bucket"
+    "bucket_collection": "bucket",
+    "bot_collection": "bots"
   },
   "mysql": {
     "mysql_host": "127.0.0.1",
@@ -37,19 +39,18 @@ var config={
     "max_content_length": 10485760,
     "follow_redirect": true
   },
-  "log_buffer_lines": 1000,
+  "log_buffer_lines": 10,
   "recrawl_interval": 2592000000,
   "tika_host": "0.0.0.0",
   "tika_port": "9998",
   "tika": true,
   "tika_supported_files": "__REGEXP /\\.(ppt|doc|pdf|docx|pptx)$/gi",
-  "phantomjs_url": "http://192.168.101.5:9000/?q=",
+  "phantomjs_url": "http://127.0.0.1:9000/?q=",
   "allow_robots": true,
   "external_links": false,
-  "childs": 3,
   "max_concurrent_sockets": 10,
   "batch_size": 100,
-  "db_type": "mysql",
+  "db_type": "mongodb",
   "remove_tags": [
     "table",
     "style",
