@@ -4,7 +4,7 @@ var colors = require('colors');
 var fs=require('fs');
 console.log("[INFO] Test1 Tika module".yellow);
 tika.startServer();
-tika.submitFile("http://www.icicibank.com/managed-assets/docs/about-us/2015/unconsolidated-financial-results.pdf",function(err,body){
+tika.submitFile("file:///home/tilak/bot-marvin/tests/cforjava.pdf",function(err,body){
 	//console.log(body);
 	if(err){
 		console.log(err);

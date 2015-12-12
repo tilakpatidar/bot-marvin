@@ -54,9 +54,12 @@ function main(flag) {
 			function starter(){
 				if(process.starter_lock){
 					//locked 
+					log.put("Starter is locked ",'info');
 					return;
 				}
 				else{
+					log.put('lock release ','info');
+					//now locking
 					process.starter_lock=true;	
 				}
 				
@@ -82,6 +85,7 @@ function main(flag) {
 							counter+=1;
 							if(counter===done){
 								//unlock starter now
+								log.put("fuck here",'info');
 								process.starter_lock=false;
 								return;
 							}
@@ -122,9 +126,7 @@ function main(flag) {
 				  else{
 				  	log.put(('Child process exited with code ' + code),"error");
 				  }
-				  console.log(process.active_childs+"before");
 				  process.active_childs-=1;
-				  console.log(process.active_childs+"after");
 				  starter();
 										
 				  

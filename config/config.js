@@ -17,6 +17,7 @@ var config={
     "mongodb_uri": "mongodb://127.0.0.1:27017/crawl",
     "mongodb_collection": "links",
     "bucket_collection": "bucket",
+    "semaphore_collection": "queue",
     "bot_collection": "bots"
   },
   "mysql": {

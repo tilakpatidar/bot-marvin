@@ -10,6 +10,8 @@ var mongodb=config.getConfig("mongodb","mongodb_uri");
 var collection=config.getConfig("mongodb","mongodb_collection");
 var collection1=config.getConfig("mongodb","bucket_collection");
 var collection2=config.getConfig("mongodb","bot_collection");
+var collection3=config.getConfig("mongodb","semaphore_collection");
+var bot=require(parent_dir+"/lib/bot.js");
 //read seed file
 
 
@@ -78,6 +80,7 @@ var pool={
 						}
 						else{
 							log.put(("Updated bucket "+hash),"success");
+							bot.update("createdBuckets",1);
 						}
 											
 											
@@ -90,35 +93,117 @@ var pool={
 
 		
 	},
-	"getNextBatch":function(result,batchSize){
-		var stamp1=new Date().getTime();
-		process.bucket_collection.findAndModify({"underProcess":false,"recrawlAt":{$lte:stamp1}},[],{"$set":{"underProcess":true,"bot":config.getConfig("bot_name")}},{"remove":false},function(err,object){
-			if(object.value!==null){
-					var hash=object["value"]["_id"];
-					//console.log(hash);
-					process.links_collection.find({"hash":hash},{},{}).toArray(function(err,docs){
-						if(err){
-
-							log.pu("pool.getNextBatch","error");
-						}
-						else{
-							//console.log(docs);
-							log.put(("Got "+docs.length+" for next Batch"),"success");
-							result(err,docs,hash);		
-						}
-
-
-					});
+	"requestAccess":function(fn){
+		var k=new Date();
+		process.semaphore_collection.insert({"bot_name":config.getConfig("bot_name"),"requestTime":k},function(err,results){
+			var reqId=results["ops"][0]["_id"];
+			if(!err){
+				log.put("Request generated "+reqId,"info");
+				fn(true,reqId);
 			}
 			else{
-					result(null,[],null);	
-				}
-				
+				log.put("Unable to request","err");
+				fn(false,null);
+			}
+		});
+	},
+	"verifyAccess":function(reqId,fn){
+		process.semaphore_collection.find({}, {"sort" : [['requestTime', 'asc']]}).each(function (err, docs) {
+
+			console.log(docs);
+			if(docs["_id"].toString()===reqId.toString() && docs["bot_name"].toString()===config.getConfig("bot_name")){
+				log.put("Got access to queue reqId :"+reqId,"success");
+				fn(true);
+			}
+			else{
+				log.put("No access for now","info");
+				fn(false);
+			}
+			return false;
 
 		});
-			
+
+	},
+	"removeRequest":function(reqId,fn){
+		process.semaphore_collection.remove({"_id":reqId},function(err,results){
+			if(err){
+				log.put("Unable to remove request_id "+reqId,"error");
+				fn(false);
+			}
+			else{
+				log.put("Request id removed "+reqId,"success");
+				fn(true);
+			}
+		});
+	},
+	"getNextBatch":function(result,batchSize){
 		
-		
+		pool.requestAccess(function(requestRegistered,reqId){
+
+			if(requestRegistered){
+				(function(reqId){
+					process.semaphore_access=setInterval(function(){
+						
+										pool.verifyAccess(reqId,function(access){
+											if(!access){
+												return;
+											}
+											clearInterval(process.semaphore_access);//clearing the check for verification now
+											if(access){
+												log.put("Got access to the collection","info");
+												var stamp1=new Date().getTime();
+													process.bucket_collection.findAndModify({"underProcess":false,"recrawlAt":{$lte:stamp1}},[],{"$set":{"underProcess":true,"bot":config.getConfig("bot_name")}},{"remove":false},function(err,object){
+														if(object.value!==null){
+																var hash=object["value"]["_id"];
+																pool.removeRequest(reqId,function(removed){
+
+
+																});
+																//console.log(hash);
+																process.links_collection.find({"hash":hash},{},{}).toArray(function(err,docs){
+																	if(err){
+
+																		log.put("pool.getNextBatch","error");
+																	}
+																	else{
+																		//console.log(docs);
+																		log.put(("Got "+docs.length+" for next Batch"),"success");
+																		result(err,docs,hash);		
+																	}
+
+
+																});
+														}
+														else{
+																result(null,[],null);	
+															}
+															
+
+													});
+														
+													
+													
+
+											}
+											else{
+												log.put("Unable to get access to the collection","error");
+											}
+
+										});
+
+									},1000);
+
+
+
+
+				})(reqId);
+				
+				
+
+			}
+
+		});
+
 	},
 	"setCrawled":function(url,data,status){
 		var stamp1=new Date().getTime();
@@ -134,6 +219,7 @@ var pool={
 			}
 			else{
 				log.put(("Updated "+url),"success");
+				bot.update("crawledPages",1);
 			}
 			
 		});
@@ -157,6 +243,7 @@ var pool={
 			process.links_collection=db.collection(collection);
 			process.bucket_collection=db.collection(collection1);
 			process.bot_collection=db.collection(collection2);
+			process.semaphore_collection=db.collection(collection3);
 			fn(err,db);
 
 		});
@@ -192,6 +279,7 @@ var pool={
 			if(object.value!==null){
 					var hash=object["value"]["_id"];
 					log.put(("Bucket "+hash+"completed !"),"success");
+					bot.update("processedBuckets",1);
 			}
 			
 				
@@ -202,14 +290,18 @@ var pool={
 		var stamp1=new Date().getTime()-2000;//giving less time
 		process.bucket_collection.update({"underProcess":true,"bot":config.getConfig("bot_name")},{$set:{"underProcess":false,"recrawlAt":stamp1}},{multi:true},function(err,results){
 		//resetting just buckets processed by this bot
-		
-			if(err){
+			process.semaphore_collection.remove({"bot_name":config.getConfig("bot_name")},function(err,results){
+				if(err){
 				log.put("pool.resetBuckets","error");
-			}
-			else{
-				log.put("pool.resetBuckets","success");
-				fn();
-			}
+				}
+				else{
+					log.put("pool.resetBuckets","success");
+					fn();
+				}
+
+
+			});
+			
 			
 		});
 
@@ -269,7 +361,7 @@ var pool={
 	"startBot":function(fn){
 		//to check if bot_name is unique
 		var t=new Date().getTime();
-		process.bot_collection.findOne({"_id":config.getConfig("bot_name")},function(err,result){
+		process.bot_collection.findOne({"_id":config.getConfig("bot_name"),"active":true},function(err,result){
 			
 			if(result){
 				log.put("A bot with same is name is still active in cluster","error");
@@ -277,7 +369,7 @@ var pool={
 				
 			}
 			else{
-				process.bot_collection.insert({"_id":config.getConfig("bot_name"),"registerTime":t},function(err,result){
+				process.bot_collection.findAndModify({"_id":config.getConfig("bot_name")},[],{"$set":{"registerTime":t,"active":true}},{remove:false,upsert:true},function(err,result){
 
 					if(!err){
 						log.put("Inserted new bot info into cluster","success");
@@ -298,7 +390,7 @@ var pool={
 	},
 	"stopBot":function(fn){
 		pool.resetBuckets(function(){
-			process.bot_collection.remove({"_id":config.getConfig("bot_name")},function(err,result){
+			process.bot_collection.findAndModify({"_id":config.getConfig("bot_name")},[],{"$set":{"active":false}},{remove:false},function(err,result){
 			if(err){
 				log.put("Bot was not found something fishy ","error");
 				fn(false);
@@ -314,18 +406,22 @@ var pool={
 		});
 		
 	},
-	"contactBot":function(ip,fn){
-		var request=require("request");
-		request.get(ip,function(err,response,html){
-			var ans=JSON.parse(html).ack;
-			if(ans){
-				fn(true);
+	'botInfoUpdater':function(){
+		var dic=bot.getBotData();//data is pulled and reseted
+		var n_dic={};
+		for(var key in dic){
+			if(typeof dic[key]==="number"){
+				if(!n_dic['$inc']){
+					n_dic['$inc']={};
+				}
+				n_dic['$inc'][key]=dic[key];
 			}
-			else{
-				fn(false);
-			}
+		}
+		console.log(n_dic);
+		process.bot_collection.update({"_id":config.getConfig('bot_name')},n_dic,function(err,results){
+			console.log(results);
+			console.log(err);
 		});
-		
 	},
 	"seedCount":0,
 	"cache":{}
@@ -336,3 +432,4 @@ function init(){
 	return pool;
 }
 exports.init=init;
+setInterval(pool.botInfoUpdater,10000);
