@@ -4,6 +4,7 @@ var config=require(__dirname+"/lib/config-reloader.js");
 var JSONX=proto.init;
 var fs=require('fs');
 var log=require(__dirname+"/lib/logger.js");
+var spawned={};
 process.starter_lock=false;
 function main(flag) {
 
@@ -85,7 +86,6 @@ function main(flag) {
 							counter+=1;
 							if(counter===done){
 								//unlock starter now
-								log.put("fuck here",'info');
 								process.starter_lock=false;
 								return;
 							}
@@ -110,8 +110,10 @@ function main(flag) {
 			}
 			function createChild(results,hash){
 				process.active_childs+=1;
+				var botId=new Date().getTime()+""+parseInt(Math.random()*10000);
 				var bot = child.fork(__dirname+"/spawn.js",[]);	
-				log.put('Child process started ',"success");
+				spawned[botId]=bot;//saving child process
+				log.put('Child process started '+botId,"success");
 				var args=[results,batchSize,pool.links,botObjs,hash];
 				bot.send({"init":args});
 				bot.on('close', function (code) {
@@ -121,14 +123,14 @@ function main(flag) {
 					
 				
 				  if(code===0){
-				  	log.put(('Child process exited with code ' + code),"success");
+				  	log.put(('Child process '+ botId+' exited with code ' + code),"success");
 				  }
 				  else{
-				  	log.put(('Child process exited with code ' + code),"error");
+				  	log.put(('Child process '+ botId+' exited with code ' + code),"error");
 				  }
 				  process.active_childs-=1;
-				  starter();
-										
+				//  starter();
+				 delete spawned[botId];		
 				  
 				});
 
@@ -162,6 +164,7 @@ function main(flag) {
 
 			//starting child process for tika
 			var tika = child.fork(__dirname+"/tika.js",[]);
+			spawned["tika"]=tika;
 			tika.on('close',function(code){
 
 				if(code===0){
@@ -206,15 +209,42 @@ function main(flag) {
 				tracker.init(pool);//starting crawler webapp
 
 	//cleanup code
-	function cleanUp(){
+	function cleanUp(close,fn){
 		log.put("Performing cleanUp ","info");
+			process.starter_lock=true;
+			for(var key in spawned){
+				spawned[key].kill();//kill the childs before exit
+			}
 		pool.stopBot(function(){
 			log.put("cleanUp done","success");
-			process.exit(0);
+		
+
+			if(close===undefined || close){
+				process.exit(0);
+			}
+			if(fn!==undefined){
+				fn();
+			}
+			
 		});
 	}
 	var death=require("death");
 	death(cleanUp);
+	process.on('restart',function(){
+		if(process.MODE==='exec'){
+				cleanUp(false,function(){
+				var spawn = require('child_process').spawn;
+	    		var file_path=__dirname+'/index.js';
+				var ls    = spawn('/usr/bin/xterm', ['-hold','-e',config.getConfig("env")+" "+file_path+"; bash"]);
+				ls.stdout.pipe(process.stdout);
+				process.exit(0);
+
+
+			});
+		}
+	
+		
+	});
 			
 	}
 
@@ -223,9 +253,18 @@ function main(flag) {
 
 function updateJson(js){
 	try{
-		fs.writeFileSync(__dirname+"/config/config.js","var temp=__dirname.split(\"/\");\ntemp.pop();\nvar parent_dir=temp.join(\"/\");\nvar proto=require(parent_dir+'/lib/proto.js');\nvar JSONX=proto.init;\nvar config="+JSONX.stringify(js)+"\n\nfunction load(){\nreturn JSONX.parse(JSON.stringify(config));\n}\nexports.load=load;\n\n");
+		var pool=require(__dirname+'/pool');
+		var db_type=config.getConfig("db_type");
+		pool=pool.getDB(db_type).init();//choosing db type
+		var dic=JSON.parse(JSONX.stringify(js));
+		pool.createConnection(function(){
+			config.updateLocalConfig(js,false);//update fs copy too
+			pool.updateDbConfig(dic);//regex safe json update to db
+			
+		});
 	}
 	catch(err){
+		console.log(err);
 		return false;
 	}
 	return true;
@@ -341,32 +380,58 @@ var app={
 			return;
 	},
 	"crawl":function(){
-		main();
-		return undefined;
-	},
-	"isSeedPresent":function(url){
 		try{
-			var url=url.replace("https://","http://");
-			var data=fs.readFileSync(__dirname+"/seed").toString();
-			if(url[url.length-1]==="/"){
-				url=url.slice(0,url.length-1);
-			}
-			return (data.indexOf(url)>=0);
+			process.MODE='exec';
+			main();
 		}
 		catch(err){
-			fs.appendFileSync(__dirname+"/seed","");
-			return false;
+			console.log(err);
+			cleanUp();
+		}
+		
+		return undefined;
+	},
+	"isSeedPresent":function(url,fn){
+		try{
+				app.pool.checkIfNewCrawl(function(newCrawl,cluster_info){
+				if(newCrawl){
+					fn(false);
+				}
+				else{
+					url=url.replace(/\./gi,"#dot#");
+					if(cluster_info.seedFile[url]){
+						fn(true);
+					}
+					else{
+						fn(false);
+					}
+				}
+			});
+			
+		}
+		catch(err){
+			fn(false);
 		}
 	},
-	"insertSeed":function(url,parseFile,phantomjs){
-		var url=url.replace("https://","http://");
-		if(this.isSeedPresent(url)){
-			log.put((""+url+" already exists"),"error");
-			return false;
-		}
-		fs.appendFileSync(__dirname+"/seed","\n"+url+"\t"+parseFile+"\t"+""+phantomjs);
-		log.put((""+url+" inserted"),"success");
-		return true;
+	"insertSeed":function(url,parseFile,phantomjs,fn){
+		app.isSeedPresent(url,function(present){
+			if(present){
+				fn(false);
+			}
+			else{
+				app.pool.insertSeed(url,parseFile,phantomjs,function(inserted){
+					if(inserted){
+						fn(true);
+					}
+					else{
+						fn(false);
+					}
+				});
+			}
+
+
+		});
+		
 	},
 	"updateSeed":function(url,parseFile,phantomjs){
 		var url=url.replace("https://","http://");
@@ -421,13 +486,37 @@ var app={
 	}
 };
 if(require.main === module){
-	main();
-}
-exports.init=function(){
-//init function before sending lib
-return app;
+	try{
+		process.MODE='exec';
+		main();
+	}
+	catch(err){
+		//cleanup will run automatically as normal exit
+		console.log(err);
+		cleanup();
+	}
+	
+}else{
+	process.MODE='require';
 
-};
+	exports.init=function(fn){
+		try{
+			var pool=require(__dirname+'/pool');
+			var db_type=config.getConfig("db_type");
+			pool=pool.getDB(db_type).init();//choosing db type
+			pool.createConnection(function(){
+					app.pool=pool;//set pool obj
+					fn(app);//return the app object when db connection is made
+
+			});
+		}
+		catch(err){
+			fn(null);
+		}
+
+	};
+}
+
 
 
 

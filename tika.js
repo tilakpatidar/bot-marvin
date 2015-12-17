@@ -78,7 +78,7 @@ var app={
 						var parser=require(__dirname+"/parsers/"+parseFile);
 						var dic=parser.init.parse(body,filename);//pluggable parser
 						log.put("fetchFile for "+filename,"success");
-						process.send({"bot":"tika","setCrawled":[filename,dic]});
+						process.send({"bot":"tika","setCrawled":[filename,dic,200]});
 
 					}
 					underProcess=false;

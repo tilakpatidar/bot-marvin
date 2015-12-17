@@ -7,10 +7,13 @@ var parent_dir=temp.join("/");
 var log=require(parent_dir+"/lib/logger.js");
 var config=require(parent_dir+"/lib/config-reloader.js");
 var mongodb=config.getConfig("mongodb","mongodb_uri");
+var proto=require(parent_dir+'/lib/proto.js');
+var JSONX=proto.init;
 var collection=config.getConfig("mongodb","mongodb_collection");
 var collection1=config.getConfig("mongodb","bucket_collection");
 var collection2=config.getConfig("mongodb","bot_collection");
 var collection3=config.getConfig("mongodb","semaphore_collection");
+var collection4=config.getConfig("mongodb","cluster_info_collection");
 var bot=require(parent_dir+"/lib/bot.js");
 //read seed file
 
@@ -20,42 +23,51 @@ var pool={
 		//this method runs first when crawler starts
 		pool.startBot(function(){
 
-			
-				var stamp1=new Date().getTime()-2000;//giving less time
-				var stamp=stamp1+""+parseInt(Math.random()*10000);
-				process.bucket_collection.insert({"_id":stamp,"underProcess":false,"bot":config.getConfig("bot_name"),"recrawlAt":stamp1},function(err,results){
-					var done=0;
-					for (var i = 0; i < links.length; i++) {
-						var anon=(function(domain,stamp,url){
-							if(domain===""){
-								return;
-							}
-							if(url===undefined){
-								//not counter links
-								url=domain;
-							}
-							process.links_collection.insert({"_id":url,"hash":stamp,"domain":domain,"done":false},function(err,results){
-								if(err){
-								log.put("pool.init maybe seed is already added","error");
-								}
-									log.put(("Added  "+domain+" to initialize pool"),"success");
-									done+=1;
-									if(done===links.length-1){
-										fn(results);
-									}
-									
-						
-							});
+			pool.checkIfNewCrawl(function(isNewCrawl){
+				if(isNewCrawl){
 
-						});
+					var stamp1=new Date().getTime()-2000;//giving less time
+					var stamp=stamp1+""+parseInt(Math.random()*10000);
+					process.bucket_collection.insert({"_id":stamp,"underProcess":false,"bot":config.getConfig("bot_name"),"recrawlAt":stamp1},function(err,results){
+						var done=0;
+						for (var i = 0; i < links.length; i++) {
+							var anon=(function(domain,stamp,url){
+								if(domain===""){
+									return;
+								}
+								if(url===undefined){
+									//not counter links
+									url=domain;
+								}
+								process.links_collection.insert({"_id":url,"hash":stamp,"domain":domain,"done":false},function(err,results){
+									if(err){
+									log.put("pool.init maybe seed is already added","error");
+									}
+										log.put(("Added  "+domain+" to initialize pool"),"success");
+										done+=1;
+										if(done===links.length-1){
+											fn(results);
+										}
+										
+							
+								});
+
+							});
+							
+							anon(links[i].split('\t')[0],stamp);
+							
+							
+						};
 						
-						anon(links[i].split('\t')[0],stamp);
 						
-						
-					};
-					
-					
-				});
+					});
+				}
+				else{
+					fn(null);
+				}
+
+			});
+				
 
 
 
@@ -70,10 +82,10 @@ var pool={
 		
 		pool.addLinksToDB(li,function(hash){
 			//first links are added to the db to avoid same links
-			pool.generatePool(function(){
+			pool.generatePool(function(numOfLinks){
 				//uniform pool of urls are generated
 					var stamp1=new Date().getTime();
-					process.bucket_collection.insert({"_id":hash,"underProcess":false,"bot":config.getConfig("bot_name"),"recrawlAt":stamp1},function(err,results){
+					process.bucket_collection.insert({"_id":hash,"underProcess":false,"bot":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":numOfLinks},function(err,results){
 						if(err){
 
 							log.put(("pool.addToPool"+err),"error");
@@ -97,6 +109,7 @@ var pool={
 		var k=new Date();
 		process.semaphore_collection.insert({"bot_name":config.getConfig("bot_name"),"requestTime":k},function(err,results){
 			var reqId=results["ops"][0]["_id"];
+
 			if(!err){
 				log.put("Request generated "+reqId,"info");
 				fn(true,reqId);
@@ -109,9 +122,9 @@ var pool={
 	},
 	"verifyAccess":function(reqId,fn){
 		process.semaphore_collection.find({}, {"sort" : [['requestTime', 'asc']]}).each(function (err, docs) {
-
+			console.log(reqId);
 			console.log(docs);
-			if(docs["_id"].toString()===reqId.toString() && docs["bot_name"].toString()===config.getConfig("bot_name")){
+			if(docs && docs["_id"].toString()===reqId.toString() && docs["bot_name"].toString()===config.getConfig("bot_name")){
 				log.put("Got access to queue reqId :"+reqId,"success");
 				fn(true);
 			}
@@ -156,34 +169,36 @@ var pool={
 														if(object.value!==null){
 																var hash=object["value"]["_id"];
 																pool.removeRequest(reqId,function(removed){
+																			if(removed){
+																				//console.log(hash);
+																					process.links_collection.find({"hash":hash},{},{}).toArray(function(err,docs){
+																						if(err){
 
+																							log.put("pool.getNextBatch","error");
+																						}
+																						else{
+																							//console.log(docs);
+																							log.put(("Got "+docs.length+" for next Batch"),"success");
+																							result(err,docs,hash);		
+																						}
+
+
+																					});
+																			}
 
 																});
-																//console.log(hash);
-																process.links_collection.find({"hash":hash},{},{}).toArray(function(err,docs){
-																	if(err){
-
-																		log.put("pool.getNextBatch","error");
-																	}
-																	else{
-																		//console.log(docs);
-																		log.put(("Got "+docs.length+" for next Batch"),"success");
-																		result(err,docs,hash);		
-																	}
-
-
-																});
+																
 														}
 														else{
-																result(null,[],null);	
+															pool.removeRequest(reqId,function(removed){
+																if(removed){
+																	result(null,[],null);
+																}
+																	
+															});
 															}
 															
-
 													});
-														
-													
-													
-
 											}
 											else{
 												log.put("Unable to get access to the collection","error");
@@ -214,6 +229,9 @@ var pool={
 			status="0";//no error
 		}
 		process.links_collection.updateOne({"_id":url},{$set:{"done":true,"data":data,"response":status,"lastModified":stamp1}},function(err,results){
+			if(status!==200){
+				bot.update("failedPages",1);
+			}
 			if(err){
 				log.put("pool.setCrawled","error");
 			}
@@ -224,18 +242,42 @@ var pool={
 			
 		});
 	},
-	"crawlStats":function(fn){
-		process.links_collection.find({"done":false}).count(function(err,count){
-					process.links_collection.find({"done":true}).count(function(err1,count1){
-						process.bucket_collection.count(function(err,count2){
-							fn(count,count1,count2);
+	"stats":{
+		"clusterInfo":function(fn){
+			var id_name=config.getConfig('mongodb','mongodb_uri').split('/').pop();
+			process.cluster_info.findOne({"_id":id_name},function(err,results){
+				fn(err,results);
+			});
+		},
+		"activeBots":function(fn){
+			var d={};
+			d['db_type']=config.getConfig('db_type');
+			d['db']=config.getConfig(config.getConfig('db_type'));
+			process.bot_collection.find({}).toArray(function(err,docs){
+				fn([docs,d]);
+			});
+		},
+		"crawlStats":function(fn){
+			var dic={};
+			process.bucket_collection.find({}).count(function(err,bucket_count){
+				dic["bucket_count"]=bucket_count;
+				process.bucket_collection.find({"lastModified":{"$exists":true}}).count(function(err,lm){
+					dic["processed_buckets"]=lm;
+						process.links_collection.find({"done":true}).count(function(err,crawled_count){
+							dic["crawled_count"]=crawled_count;
+							process.links_collection.find({"done":true,"response":{"$ne":200}}).count(function(err,failed_count){
+								dic["failed_count"]=failed_count;
+								fn(dic);
+
+							});
 
 						});
-						
+				});
 
-					});
 
-		});
+			});
+
+		}
 	},
 	"createConnection":function(fn){
 		process.mongo=MongoClient.connect(mongodb, function(err, db) {
@@ -244,8 +286,9 @@ var pool={
 			process.bucket_collection=db.collection(collection1);
 			process.bot_collection=db.collection(collection2);
 			process.semaphore_collection=db.collection(collection3);
+			process.cluster_info=db.collection(collection4);
+			process.parsers=db.collection(collection5);
 			fn(err,db);
-
 		});
 	},
 	close:function(){
@@ -344,49 +387,86 @@ var pool={
 		var re=[];
 		var n_domains=Object.keys(pool.cache).length;
 		var eachh=config.getConfig("batch_size")/n_domains;
+		var len=0;
 		for (var key in pool.cache) {
 			var l=pool.cache[key].splice(0,eachh);
+			len+=l.length;
 			for (var i = 0; i < l.length; i++) {
 				var url=l[i];
 				re.push([url,key]);
 			};
 		};
-		fn(re);
+		fn(len);
 
 	},
 	"drop":function(fn){
 		process.db.dropDatabase();
 		fn();
 	},
+	"insertParseFile":function(filename,fn){
+
+	},
+	"insertSeed":function(url,parseFile,phantomjs,fn){
+		var cluster_name=config.getConfig("cluster_name");
+		var d={};
+		var url=url.replace(/\./gi,"#dot#");
+		d[url]={"phantomjs":phantomjs,"parseFile":parseFile};
+		process.cluster_info.update({"_id":cluster_name},{"$set":{"seedFile":d}},function(err,result){
+			
+			if(err){
+				fn(false);
+			}
+			else{
+				fn(true);
+			}
+		})
+	},
+	"checkIfBotActive":function(fn){
+		process.bot_collection.findOne({"_id":config.getConfig("bot_name"),"active":true},function(err,result){
+			if(err){
+				fn(true);
+
+			}
+			if(result){
+				fn(true);
+			}
+			else{
+				fn(false);
+			}
+
+		});
+	},
 	"startBot":function(fn){
 		//to check if bot_name is unique
 		var t=new Date().getTime();
-		process.bot_collection.findOne({"_id":config.getConfig("bot_name"),"active":true},function(err,result){
-			
-			if(result){
-				log.put("A bot with same is name is still active in cluster","error");
-						process.exit(0);
+		
+			process.bot_collection.findOne({"_id":config.getConfig("bot_name"),"active":true},function(err,result){
 				
-			}
-			else{
-				process.bot_collection.findAndModify({"_id":config.getConfig("bot_name")},[],{"$set":{"registerTime":t,"active":true}},{remove:false,upsert:true},function(err,result){
+				if(result){
+					log.put("A bot with same is name is still active in cluster","error");
+							process.exit(0);
+					
+				}
+				else{
+					process.bot_collection.findAndModify({"_id":config.getConfig("bot_name")},[],{"$set":{"registerTime":t,"active":true,"config":JSON.parse(JSONX.stringify(config.getConfig()))}},{remove:false,upsert:true},function(err,result){
 
-					if(!err){
-						log.put("Inserted new bot info into cluster","success");
-						fn();
-					}
-					else{
-						log.put("Unable to insert new bot into cluster","error");
-						process.exit(0);
-					}
+						if(!err){
+							log.put("Inserted new bot info into cluster","success");
+							fn();
+						}
+						else{
+							log.put("Unable to insert new bot into cluster","error");
+							process.exit(0);
+						}
 
-				});
+					});
+					
+					
+				}
 				
-				
-			}
-			
-		});
+			});
 
+		
 	},
 	"stopBot":function(fn){
 		pool.resetBuckets(function(){
@@ -396,8 +476,16 @@ var pool={
 				fn(false);
 			}
 			else{
-				log.put("Bot cleaned up ","success");
-				fn(true);
+				pool.botInfoUpdater(false,function(updated){
+					if(updated){
+						log.put("Bot cleaned up ","success");
+						fn(true);
+					}
+					else{
+						log.put("Bot cleaned up ","error");
+					}
+				});
+				
 			}
 
 			});
@@ -406,7 +494,7 @@ var pool={
 		});
 		
 	},
-	'botInfoUpdater':function(){
+	'botInfoUpdater':function(updateConfig,fn){
 		var dic=bot.getBotData();//data is pulled and reseted
 		var n_dic={};
 		for(var key in dic){
@@ -417,19 +505,171 @@ var pool={
 				n_dic['$inc'][key]=dic[key];
 			}
 		}
-		console.log(n_dic);
+		if(updateConfig){
+			n_dic['config']=JSON.parse(JSONX.stringify(config.getConfig()));
+		}
+		//console.log(n_dic);
 		process.bot_collection.update({"_id":config.getConfig('bot_name')},n_dic,function(err,results){
-			console.log(results);
+			//console.log(results);
 			console.log(err);
+			if(err){
+				log.put("Error ocurred while updating bot info ","error");
+				if(fn!==undefined){
+					fn(false);
+				}
+			}
+			else{
+
+				log.put("Bot info updated","success");
+				if(fn!==undefined){
+					fn(true);
+				}
+			}
+		});
+	},
+	"checkIfNewCrawl":function(fn){
+		var id_name=config.getConfig("cluster_name");
+		
+		process.cluster_info.findOne({"_id":id_name},function(err,results){
+			if(!results){
+				//first time crawl therfore update the cluster info
+				process.cluster_info.insert({"_id":id_name,'createdAt':new Date(),'initiatedBy':config.getConfig('bot_name'),"seedFile":{}},function(err1,results1){
+
+					if(!err){
+						log.put("Inserted cluster info for fresh crawl ","success");
+						fn(true);
+					}
+				});
+			}
+			else{
+				log.put("An old crawl is already present ","info");
+				fn(false,results);
+			}
+			
+		});
+	},
+	"updateDbConfig":function(dic){
+		//updates the config changes done from local machine to db
+		process.bot_collection.update({"_id":config.getConfig('bot_name')},{"$set":{"config":dic}},function(err,results){
+			//console.log(results);
+			//console.log(err);
+			if(err){
+				log.put("Error ocurred while updating bot config ","error");
+			}
+			else{
+				log.put("Bot config updated","success");
+			}
+		});
+	},
+	"pullDbConfig":function(fn){
+		process.bot_collection.findOne({"_id":config.getConfig('bot_name')},function(err,results){
+
+			var c=results.config;
+			if(err){
+				log.put("Error ocurred while pulling bot config from db ","error");
+				fn(null);
+			}
+			else{
+				log.put("Bot config pulled from db","success");
+				fn(c);
+			}
+		});
+	},
+	"configReloader":function(){
+		pool.pullDbConfig(function(new_config){
+			if(new_config!==null){
+				console.log(new_config);
+				console.log(JSON.parse(JSONX.stringify(config.getConfig())));
+				if(!pool.isEquivalent(new_config,JSON.parse(JSONX.stringify(config.getConfig())))){
+					log.put("Config changed from db ","info");
+					//if local and db copy unmatches
+					//means config has been changed from db
+					config.updateLocalConfig(JSONX.parse(JSON.stringify(new_config)));
+				}
+				else{
+					log.put("No change in config","info");
+				}
+			}
 		});
 	},
 	"seedCount":0,
 	"cache":{}
 };
 
+process.pool_check_mode=setInterval(function(){
+	if(process.MODE==='exec'){
+		setInterval(function(){
+		pool.botInfoUpdater(false);
+
+		},10000);
+		setInterval(function(){
+			pool.configReloader();
+
+		},10000);
+		clearInterval(process.pool_check_mode);//once intervals are set clear the main interval
+	}
+},5000);
+
+
+
+
+//prototype
+
+pool.isEquivalent=function(a, b) {
+	if (typeof a !== typeof b){
+		return false;
+	}
+	if(typeof a==="number"){
+		if(a===b){
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+	else if(typeof a ==="string"){
+		if(a===b){
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+    // Create arrays of property names
+    var aProps = Object.getOwnPropertyNames(a);
+    var bProps = Object.getOwnPropertyNames(b);
+
+    // If number of properties is different,
+    // objects are not equivalent
+    if (aProps.length != bProps.length) {
+        return false;
+    }
+
+    for (var i = 0; i < aProps.length; i++) {
+        var propName = aProps[i];
+
+        // If values of same property are not equal,
+        // objects are not equivalent
+        if(typeof a[propName] ==="object"){
+        	if (!pool.isEquivalent(a[propName],b[propName])){
+        		return false;
+        	}
+        }
+        else{
+        	if (a[propName] !== b[propName]) {
+	            return false;
+	        }
+        }
+        
+    }
+
+    // If we made it this far, objects
+    // are considered equivalent
+    return true;
+};
 
 function init(){
 	return pool;
 }
 exports.init=init;
-setInterval(pool.botInfoUpdater,10000);
+

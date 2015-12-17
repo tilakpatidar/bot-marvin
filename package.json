@@ -36,6 +36,7 @@
     "phantomjs": "1.9.18",
     "request": "2.67.0",
     "robots": "0.9.4",
-    "death":"1.0.0"
+    "death":"1.0.0",
+    "node-static":"0.7.7"
   }
 }

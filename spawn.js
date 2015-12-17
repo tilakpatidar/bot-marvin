@@ -70,7 +70,13 @@ var bot={
 				      if (!access) {
 				      	log.put(("Cannot access "+url),"error");
 				        // access not given exit 
-							process.send({"bot":"spawn","setCrawled":[url,{},403]});
+							
+							try{
+								process.send({"bot":"spawn","setCrawled":[url,{},403]});
+							}
+							catch(err){
+							log.put("Child killed","error")
+							}
 							bot.isLinksFetched();
 							return;
 					    }
@@ -115,7 +121,12 @@ var bot={
 	"grabInlinks":function($,url,domain,linksFromParsers){
 		for (var i = 0; i < linksFromParsers.length; i++) {
 			var q=linksFromParsers[i];
+			try{
 			process.send({"bot":"spawn","addToPool":[q,config.getConfig("counter_domain")]});
+			}
+							catch(err){
+							log.put("Child killed","error")
+							}
 		};
 			var a=$("a")
 			var count=a.length;
@@ -162,8 +173,13 @@ var bot={
 						
 					};
 					
-					process.send({"bot":"spawn","addToPool":[abs,domain]});
-				}
+									try{
+											process.send({"bot":"spawn","addToPool":[abs,domain]});
+										}catch(err){
+											log.put("Child killed","error")
+										}
+											
+						}
 
 			});
 			log.put(("Got "+count+" links from "+url),"info");
@@ -171,8 +187,13 @@ var bot={
 	"isLinksFetched":function(){
 				bot.queued+=1;
 				if(bot.queued===bot.batch.length){
-					process.send({"bot":"spawn","finishedBatch":bot.batchId});
-					setTimeout(function(){process.exit(0);},2000);
+					try{
+								process.send({"bot":"spawn","finishedBatch":bot.batchId});
+								setTimeout(function(){process.exit(0);},2000);
+						}catch(err){
+											log.put("Child killed","error")
+						}
+				
 					
 				}
 
@@ -260,7 +281,12 @@ var bot={
 			if(html===undefined){
 				//some error with the request return silently
 				log.put("Max sockets reached read docs/maxSockets.txt","error");
-				process.send({"bot":"spawn","setCrawled":[url,{},-1]});
+				try{
+					process.send({"bot":"spawn","setCrawled":[url,{},-1]});
+				}catch(err){
+					log.put("Child killed","error")
+				}
+				
 				bot.isLinksFetched();
 				return;
 			}
@@ -271,7 +297,11 @@ var bot={
 					//dic[2] inlinks suggested by custom parser
 					bot.grabInlinks(dic[0],url,domain,dic[2]);
 					var code=response.statusCode;
+					try{
 					process.send({"bot":"spawn","setCrawled":[url,dic[1],code]});
+					}catch(err){
+					log.put("Child killed","error")
+					}
 					bot.isLinksFetched();
 					
 					

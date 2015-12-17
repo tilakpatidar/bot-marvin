@@ -6,9 +6,11 @@ var JSONX=proto.init;
 var config={
   "robot_agent": "*",
   "bot_name": "zaphod",
-  "childs": 5,
+  "cluster_name":"hitchiker",
+  "childs": 20,
   "verbose": true,
   "logging": true,
+  "env": "/usr/local/bin/nodejs",
   "headers": {
     "User-Agent": "Mozilla/5.0 (X11; Linux i686) AppleWebKit/535.7 (KHTML, like Gecko) Chrome/16.0.912.63 Safari/535.7",
     "Accept-Language": "en-us,en-gb,en;"
@@ -18,7 +20,8 @@ var config={
     "mongodb_collection": "links",
     "bucket_collection": "bucket",
     "semaphore_collection": "queue",
-    "bot_collection": "bots"
+    "bot_collection": "bots",
+    "cluster_info_collection": "cluster_info"
   },
   "mysql": {
     "mysql_host": "127.0.0.1",

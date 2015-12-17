@@ -1,0 +1,56 @@
+.offline{
+	background-color:#FFEB3B !important;
+	width:18px !important;
+	height:18px !important;
+	position: absolute;
+	opacity: .7;
+	border: 0;
+	right: 6px;
+	top: 7px;
+	left: auto;
+}
+.back_arrow{
+	float: left;
+    font-size: 26px;
+    margin-right: 15px;
+    margin-left: -15px;
+    cursor: pointer;
+    display: none;
+}
+.read_log{
+	display: none;
+}
+.online{
+	background-color:#4CAF50 !important;
+	width:18px !important;
+	height:18px !important;
+	position: absolute;
+	opacity: .7;
+	border: 0;
+	right: 6px;
+	top: 7px;
+	left: auto;
+}
+.my-header{
+	font-size:10px !important;
+}
+.bot_stats_side{
+	float: right;
+    font-size: 14px;
+}
+.sub_glyph{
+	float:right !important;
+	background:none !important;
+	margin-right:0px !important;
+}
+
+.search_group{
+	width: 65%;
+    float: left;
+    margin-top: 14px;
+}
+span.small_brackets {
+    margin-left: 5px;
+    font-weight: lighter;
+    font-size: 9px;
+}
