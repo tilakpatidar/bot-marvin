@@ -5,6 +5,7 @@ var JSONX=proto.init;
 var fs=require('fs');
 var log=require(__dirname+"/lib/logger.js");
 var spawned={};
+var pool=require(__dirname+'/pool');
 process.starter_lock=false;
 function main(flag) {
 
@@ -39,9 +40,7 @@ function main(flag) {
 
 			
 
-			var pool=require(__dirname+'/pool');
-			var db_type=config.getConfig("db_type");
-			pool=pool.getDB(db_type).init();//choosing db type
+			
 			var collection;
 			var childs=parseInt(config.getConfig("childs"));//childs to spawn
 			var batchSize=parseInt(config.getConfig("batch_size"));
@@ -103,11 +102,7 @@ function main(flag) {
 
 			
 			var inlinks_pool=[];
-			var seed_links=pool.readSeedFile();//read the seed file
-			if(seed_links===undefined){
-				//empty file or file not exists
-				return;
-			}
+			
 			function createChild(results,hash){
 				process.active_childs+=1;
 				var botId=new Date().getTime()+""+parseInt(Math.random()*10000);
@@ -137,6 +132,7 @@ function main(flag) {
 				bot.on("message",childFeedback);
 
 			}
+
 			function childFeedback(data){
 				//log.put("Parent recieved from "+data["bot"],"info");
 					var t=data["setCrawled"];
@@ -179,34 +175,39 @@ function main(flag) {
 			tika.on("message",childFeedback);
 
 
-				function initConnection(){
-					pool.createConnection(function(){
-						pool.seed(seed_links,starter);
+				function initConnection(links){
+					
+						pool.seed(links,starter);
 
-					});
+					
 
 				}
 				var botObjs;
-				if(config.getConfig("allow_robots")){
-					log.put("downloading robots.txt this could take a while","info");
-					var robots=require(__dirname+'/robots.js').app;
-					robots.init(Object.keys(pool.links),function(err,obj){
-						if(!config.getConfig("verbose")){
-							log.put("Robots files parsed","no_verbose");
+				pool.readSeedFile(function(links){
+						if(config.getConfig("allow_robots")){
+							log.put("downloading robots.txt this could take a while","info");
+							var robots=require(__dirname+'/robots.js').app;
+							robots.init(Object.keys(pool.links),function(err,obj){
+								if(!config.getConfig("verbose")){
+									log.put("Robots files parsed","no_verbose");
+								}
+								log.put("robots.txt parsed","success");
+								botObjs=obj;
+								initConnection(links);
+								
+							});
 						}
-						log.put("robots.txt parsed","success");
-						botObjs=obj;
-						initConnection();
-						
-					});
-				}
-				else{
-					initConnection();
-				}
-				setInterval(starter,15000);
+						else{
+							initConnection(links);
+						}
+						setInterval(starter,15000);
 
 
-				tracker.init(pool);//starting crawler webapp
+						tracker.init(pool);//starting crawler webapp
+					
+
+				});
+				
 
 	//cleanup code
 	function cleanUp(close,fn){
@@ -253,15 +254,9 @@ function main(flag) {
 
 function updateJson(js){
 	try{
-		var pool=require(__dirname+'/pool');
-		var db_type=config.getConfig("db_type");
-		pool=pool.getDB(db_type).init();//choosing db type
 		var dic=JSON.parse(JSONX.stringify(js));
-		pool.createConnection(function(){
-			config.updateLocalConfig(js,false);//update fs copy too
-			pool.updateDbConfig(dic);//regex safe json update to db
-			
-		});
+		config.updateLocalConfig(js,false);//update fs copy too
+		app.pool.updateDbConfig(dic);//regex safe json update to db
 	}
 	catch(err){
 		console.log(err);
@@ -332,12 +327,9 @@ var app={
 		if(fn===undefined){
 			fn=function(){};
 		}
-		var pool=require(__dirname+'/pool');
-		var db_type=config.getConfig("db_type");
-		pool=pool.getDB(db_type).init();//choosing db type
-				pool.createConnection(function(){
+				
 						
-							pool.drop(function(){
+							app.pool.drop(function(){
 								log.put("db reset","success");
 								var files=fs.readdirSync(__dirname+'/robots/');
 								for (var i = 0; i < files.length; i++) {
@@ -360,23 +352,27 @@ var app={
 								};
 								log.put("pdf-store cache reset","success");
 								log.put("crawler reset","success");
-								app.clearSeed();
-								try{
-									pool.close();
-									fn();
-								}
-								catch(err){
-									console.log(err);
-									log.put("in pool.close","error");
-									return;
-								}
+								app.clearSeed(function(status){
+										try{
+												//app.pool.close();
+												fn();
+										}
+										catch(err){
+											console.log(err);
+											log.put("in pool.close","error");
+											return;
+										}
+
+
+								});
+								
 
 
 							});
 
 							
 
-				});
+				
 			return;
 	},
 	"crawl":function(){
@@ -414,8 +410,31 @@ var app={
 		}
 	},
 	"insertSeed":function(url,parseFile,phantomjs,fn){
+		url=url.replace("https://","http://");
 		app.isSeedPresent(url,function(present){
 			if(present){
+				fn(false);
+			}
+			else{
+				app.pool.insertSeed(url,parseFile,phantomjs,function(inserted){
+				
+					if(inserted){
+						fn(true);
+					}
+					else{
+						fn(false);
+					}
+				});
+			}
+
+
+		});
+		
+	},
+	"updateSeed":function(url,parseFile,phantomjs,fn){
+		url=url.replace("https://","http://");
+		app.isSeedPresent(url,function(present){
+			if(!present){
 				fn(false);
 			}
 			else{
@@ -431,64 +450,55 @@ var app={
 
 
 		});
+	},
+	"removeSeed":function(url,fn){
+		var url=url.replace("https://","http://");
+		app.pool.removeSeed(url,function(removed){
+					if(removed){
+						fn(true);
+					}
+					else{
+						fn(false);
+					}
+		});
 		
 	},
-	"updateSeed":function(url,parseFile,phantomjs){
-		var url=url.replace("https://","http://");
-		if(this.isSeedPresent(url)){
-			var data=fs.readFileSync(__dirname+"/seed").toString();
-			var re=new RegExp(url+".*?\\n","gi");
-			data=data.replace(re,"\n"+url+"\t"+parseFile+"\t"+""+phantomjs+"\n")
-			data=data.replace(/\n{2,}/gi,"\n");
-			fs.writeFileSync(__dirname+"/seed",data);
-			log.put((""+url+" updated"),"success");
-			return true;
-		}else{
-			log.put((""+url+" not exists"),"error");
-			return false;
-		}
-	},
-	"removeSeed":function(url){
-		var url=url.replace("https://","http://");
-		if(this.isSeedPresent(url)){
-			var data=fs.readFileSync(__dirname+"/seed").toString();
-			var re=new RegExp(url+".*?\\n","gi");
-			data=data.replace(re,"\n\n")
-			data=data.replace(/\n{2,}/gi,"\n");
-			fs.writeFileSync(__dirname+"/seed",data);
-			log.put((""+url+" removed"),"success");
-			return true;
-		}else{
-			log.put((""+url+" not exists"),"error");
-			return false;
-		}
-	},
-	"loadSeedFile":function(path){
+	"loadSeedFile":function(path,fn){
 		var data=fs.readFileSync(path).toString().split("\n");
+		var done=0;
 		for (var i = 0; i < data.length; i++) {
 			var d=data[i].split("\t");
-			app.insertSeed(d[0],d[1],JSON.parse(d[2]));
+			(function(a,b,c){
+				app.insertSeed(a,b,c,function(status){
+					if(status){
+						
+					}
+					done+=1;
+					if(done===data.length){
+						fn(true);
+					}
+				});
+			})(d[0],d[1],JSON.parse(d[2]));
+			
 		};
 	},
-	"clearSeed":function(){
-		try{
-			fs.unlinkSync(__dirname+"/seed");
-			fs.appendFileSync(__dirname+"/seed","");
-			log.put(("Seed file cleared"),"success");
-		}
-		catch(err){
-			console.log(err);
-			log.put(("Unable to clear seed file"),"error");
-			return false;
-		}
-		
-		return true;
+	"clearSeed":function(fn){
+		app.pool.clearSeed(function(cleared){
+			fn(cleared);
+		});
 	}
 };
 if(require.main === module){
 	try{
 		process.MODE='exec';
-		main();
+		var pool=require(__dirname+'/pool');
+		var db_type=config.getConfig("db_type");
+		pool=pool.getDB(db_type).init();//choosing db type
+		pool.createConnection(function(){
+				main();
+			
+		});
+		
 	}
 	catch(err){
 		//cleanup will run automatically as normal exit
@@ -500,19 +510,16 @@ if(require.main === module){
 	process.MODE='require';
 
 	exports.init=function(fn){
-		try{
-			var pool=require(__dirname+'/pool');
+		
+			
 			var db_type=config.getConfig("db_type");
 			pool=pool.getDB(db_type).init();//choosing db type
 			pool.createConnection(function(){
 					app.pool=pool;//set pool obj
 					fn(app);//return the app object when db connection is made
-
+				
 			});
-		}
-		catch(err){
-			fn(null);
-		}
+		
 
 	};
 }

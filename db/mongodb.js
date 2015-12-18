@@ -14,7 +14,9 @@ var collection1=config.getConfig("mongodb","bucket_collection");
 var collection2=config.getConfig("mongodb","bot_collection");
 var collection3=config.getConfig("mongodb","semaphore_collection");
 var collection4=config.getConfig("mongodb","cluster_info_collection");
+var collection5=config.getConfig("mongodb","parsers_collection");
 var bot=require(parent_dir+"/lib/bot.js");
+var fs=require('fs');
 //read seed file
 
 
@@ -22,49 +24,47 @@ var pool={
 	"seed":function(links,fn){
 		//this method runs first when crawler starts
 		pool.startBot(function(){
-
 			pool.checkIfNewCrawl(function(isNewCrawl){
-				if(isNewCrawl){
-
-					var stamp1=new Date().getTime()-2000;//giving less time
-					var stamp=stamp1+""+parseInt(Math.random()*10000);
-					process.bucket_collection.insert({"_id":stamp,"underProcess":false,"bot":config.getConfig("bot_name"),"recrawlAt":stamp1},function(err,results){
-						var done=0;
-						for (var i = 0; i < links.length; i++) {
-							var anon=(function(domain,stamp,url){
-								if(domain===""){
-									return;
-								}
-								if(url===undefined){
-									//not counter links
-									url=domain;
-								}
-								process.links_collection.insert({"_id":url,"hash":stamp,"domain":domain,"done":false},function(err,results){
-									if(err){
-									log.put("pool.init maybe seed is already added","error");
-									}
-										log.put(("Added  "+domain+" to initialize pool"),"success");
-										done+=1;
-										if(done===links.length-1){
-											fn(results);
+					pool.getParsers(function(){
+							var stamp1=new Date().getTime()-2000;//giving less time
+							var stamp=stamp1+""+parseInt(Math.random()*10000);
+							process.bucket_collection.insert({"_id":stamp,"underProcess":false,"bot":config.getConfig("bot_name"),"recrawlAt":stamp1},function(err,results){
+								var done=0;
+								for (var i = 0; i < links.length; i++) {
+									var anon=(function(domain,stamp,url){
+										if(domain===""){
+											return;
 										}
-										
-							
-								});
+										if(url===undefined){
+											//not counter links
+											url=domain;
+										}
+										process.links_collection.insert({"_id":url,"hash":stamp,"domain":domain,"done":false},function(err,results){
+											if(err){
+											log.put("pool.init maybe seed is already added","error");
+											}
+												log.put(("Added  "+domain+" to initialize pool"),"success");
+												done+=1;
+												if(done===links.length-1){
+													fn(results);
+												}
+												
+									
+										});
 
-							});
+									});
+									
+									anon(links[i],stamp);
+									
+									
+								};
+								
 							
-							anon(links[i].split('\t')[0],stamp);
-							
-							
-						};
-						
-						
-					});
-				}
-				else{
-					fn(null);
-				}
+						});
+			
+			});
+
+					
 
 			});
 				
@@ -122,8 +122,7 @@ var pool={
 	},
 	"verifyAccess":function(reqId,fn){
 		process.semaphore_collection.find({}, {"sort" : [['requestTime', 'asc']]}).each(function (err, docs) {
-			console.log(reqId);
-			console.log(docs);
+			
 			if(docs && docs["_id"].toString()===reqId.toString() && docs["bot_name"].toString()===config.getConfig("bot_name")){
 				log.put("Got access to queue reqId :"+reqId,"success");
 				fn(true);
@@ -287,33 +286,35 @@ var pool={
 			process.bot_collection=db.collection(collection2);
 			process.semaphore_collection=db.collection(collection3);
 			process.cluster_info=db.collection(collection4);
-			process.parsers=db.collection(collection5);
+			process.parsers_collection=db.collection(collection5);
 			fn(err,db);
+			
 		});
 	},
 	close:function(){
 		process.db.close();
 	},
-	"readSeedFile":function(){
-		var fs  = require("fs");
-		var dic={};
-		var links=[];
-		links=fs.readFileSync(parent_dir+"/seed").toString().replace(/\n{2,}/gi,"\n").replace(/^\n/gi,"").split('\n');
-			//parsing seed file
-			if(links[0]!==""){
-				//not if file is empty
-				for (var i = 0; i < links.length; i++) {
-					var k=links[i].split("\t");
-					dic[k[0]]={"phantomjs":JSON.parse(k[2]),"parseFile":k[1]};
-				};
+	"readSeedFile":function(fn){
+		process.cluster_info.find({"_id":config.getConfig("cluster_name")}).toArray(function(err,results){
+			var dic=results[0].seedFile;
+			pool.seed_db_copy=dic;//stored for future comparision
+			var links={};
+			var links1=[];
+			for(var key in dic){
+				var k={};
+				k["phantomjs"]=dic[key]['phantomjs'];
+				k['parseFile']=dic[key]['parseFile'];
+				links[key.replace(/#dot#/gi,".")]=k;
+				links1.push(key.replace(/#dot#/gi,"."));
 			}
-			else{
-				log.put("Empty seed file","error");
-				return undefined;
-			}
-		pool["links"]=dic;
-		pool["seedCount"]=links.length;
-		return links;
+
+			pool["links"]=links;
+			pool["seedCount"]=links1.length;
+			fn(links1);
+		});
+		
+		
+		
 	},
 	"batchFinished":function(hash){
 		var stamp1=new Date().getTime()+config.getConfig("recrawl_interval");
@@ -404,22 +405,74 @@ var pool={
 		fn();
 	},
 	"insertParseFile":function(filename,fn){
-
+	var data=fs.readFileSync(parent_dir+'/parsers/'+filename+".js");
+	var crypto = require('crypto');
+	var md5sum = crypto.createHash('md5');
+	md5sum.update(data.toString());
+	var hash=md5sum.digest('hex');
+	process.parsers_collection.update({"_id":filename},{"$set":{"data":data,"hash":hash}},{upsert:true},function(err,results){
+		if(err){
+			fn(false);
+		}
+		else{
+			fn(true);
+		}
+	});
 	},
-	"insertSeed":function(url,parseFile,phantomjs,fn){
+	"removeSeed":function(url,fn){
 		var cluster_name=config.getConfig("cluster_name");
-		var d={};
+		var org_url=url;
 		var url=url.replace(/\./gi,"#dot#");
-		d[url]={"phantomjs":phantomjs,"parseFile":parseFile};
-		process.cluster_info.update({"_id":cluster_name},{"$set":{"seedFile":d}},function(err,result){
-			
+		var k="seedFile."+url;
+		var d={};
+		d[k]="";
+		process.cluster_info.updateOne({"_id":cluster_name},{"$unset":d},function(err,result){
 			if(err){
 				fn(false);
 			}
 			else{
+				delete pool.links[org_url];
 				fn(true);
 			}
-		})
+		});
+	},
+	"clearSeed":function(fn){
+		process.cluster_info.updateOne({"_id":config.getConfig("cluster_name")},{"$set":{"seedFile":{}}},function(err,result){
+			if(err){
+				fn(false);
+			}
+			else{
+				pool.links={};
+				fn(true);
+			}
+		});
+	},
+	"insertSeed":function(url,parseFile,phantomjs,fn){
+		var cluster_name=config.getConfig("cluster_name");
+		var d={};
+		var org_url=url;
+		var url=url.replace(/\./gi,"#dot#");
+		d[url]={"phantomjs":phantomjs,"parseFile":parseFile};
+		var new_key="seedFile."+url;
+		var k={};
+		k[new_key]=d[url];
+		pool.insertParseFile(parseFile,function(parseFileUpdated){
+			if(parseFileUpdated){
+				process.cluster_info.update({"_id":cluster_name},{"$set":k},function(err,result){
+			
+					if(err){
+						fn(false);
+					}
+					else{
+						pool.links[org_url]={"phantomjs":phantomjs,"parseFile":parseFile};
+						fn(true);
+					}
+				});
+			}else{
+				fn(false);
+			}
+		});
+		
 	},
 	"checkIfBotActive":function(fn){
 		process.bot_collection.findOne({"_id":config.getConfig("bot_name"),"active":true},function(err,result){
@@ -511,7 +564,7 @@ var pool={
 		//console.log(n_dic);
 		process.bot_collection.update({"_id":config.getConfig('bot_name')},n_dic,function(err,results){
 			//console.log(results);
-			console.log(err);
+			//console.log(err);
 			if(err){
 				log.put("Error ocurred while updating bot info ","error");
 				if(fn!==undefined){
@@ -578,8 +631,8 @@ var pool={
 	"configReloader":function(){
 		pool.pullDbConfig(function(new_config){
 			if(new_config!==null){
-				console.log(new_config);
-				console.log(JSON.parse(JSONX.stringify(config.getConfig())));
+				//console.log(new_config);
+				//console.log(JSON.parse(JSONX.stringify(config.getConfig())));
 				if(!pool.isEquivalent(new_config,JSON.parse(JSONX.stringify(config.getConfig())))){
 					log.put("Config changed from db ","info");
 					//if local and db copy unmatches
@@ -592,8 +645,73 @@ var pool={
 			}
 		});
 	},
+	"getParsers":function(fn){
+		process.parsers_collection.find({}).toArray(function(err,docs){
+			for (var i = 0; i < docs.length; i++) {
+				var d=docs[i];
+				if(fs.existsSync(parent_dir+"/parsers/"+d["_id"]+".js")){
+					//exists now chech the hash
+					var data=d["data"].value();
+					var crypto = require('crypto');
+					var md5sum = crypto.createHash('md5');
+					md5sum.update(data);
+					var hash=md5sum.digest('hex');
+					if(hash!==d["hash"]){
+						console.log("thre");
+						fs.writeFileSync(parent_dir+"/parsers/"+d["_id"]+".js",d["data"].value());
+					}
+				}else{
+					//file not exists
+					fs.writeFileSync(parent_dir+"/parsers/"+d["_id"]+".js",d["data"].value());
+				}
+			};
+			fn();
+				
+		});
+	},
+	"pullSeedLinks":function(fn){
+		process.cluster_info.find({"_id":config.getConfig("cluster_name")}).toArray(function(err,results){
+			var seeds=results[0].seedFile;
+			if(!err){
+				fn(seeds);
+			}
+			else{
+				fn(null);
+			}
+
+		});
+	},
+	"seedReloader":function(){
+		pool.pullSeedLinks(function(new_config){
+			if(new_config!==null){
+				if(!pool.isEquivalent(new_config,pool.seed_db_copy)){
+					log.put("Seed Links changed from db ","info");
+					process.emit("restart");//will be caught by death and it will cause to restart
+				}
+				else{
+					log.put("No change in seed links","info");
+				}
+			}
+		});
+	},
+	"parserReloader":function(){
+		process.parsers_collection.find({}).toArray(function(err,results){
+			for (var i = 0; i < results.length; i++) {
+				var doc=results[i];
+				var data=fs.readFileSync(parent_dir+'/parsers/'+doc["_id"]+".js");
+				var crypto = require('crypto');
+				var md5sum = crypto.createHash('md5');
+				md5sum.update(data.toString());
+				var hash=md5sum.digest('hex');
+				if(hash!==doc["hash"]){
+					process.emit("restart");
+				}
+			};
+		});
+	},
 	"seedCount":0,
-	"cache":{}
+	"cache":{},
+	"links":{}
 };
 
 process.pool_check_mode=setInterval(function(){
@@ -604,6 +722,14 @@ process.pool_check_mode=setInterval(function(){
 		},10000);
 		setInterval(function(){
 			pool.configReloader();
+
+		},10000);
+		setInterval(function(){
+			pool.seedReloader();
+
+		},10000);
+		setInterval(function(){
+			pool.parserReloader();
 
 		},10000);
 		clearInterval(process.pool_check_mode);//once intervals are set clear the main interval

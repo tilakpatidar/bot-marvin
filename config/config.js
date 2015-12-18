@@ -6,8 +6,8 @@ var JSONX=proto.init;
 var config={
   "robot_agent": "*",
   "bot_name": "zaphod",
-  "cluster_name":"hitchiker",
-  "childs": 20,
+  "cluster_name": "hitchiker",
+  "childs": 5,
   "verbose": true,
   "logging": true,
   "env": "/usr/local/bin/nodejs",
@@ -21,7 +21,8 @@ var config={
     "bucket_collection": "bucket",
     "semaphore_collection": "queue",
     "bot_collection": "bots",
-    "cluster_info_collection": "cluster_info"
+    "cluster_info_collection": "cluster_info",
+    "parsers_collection": "parsers"
   },
   "mysql": {
     "mysql_host": "127.0.0.1",
