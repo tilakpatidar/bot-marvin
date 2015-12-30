@@ -9,25 +9,26 @@
 
 
 //global requires
+process.force_mode=false;//enables or disables the process.force_mode
+process.my_timers=[];
+process.reset=false;
+process.seedFile=null;
 var proto=require(__dirname+'/lib/proto.js');
 JSONX=proto["JSONX"];//JSON for regex support in .json files
 process.getAbsolutePath=proto.getAbsolutePath;
+var argv=require(__dirname+'/argv.js');
+var overriden_config=argv.init();//parses cmd line argv and perform required operations
 var config=require(__dirname+"/lib/config-reloader.js");
+config.setOverridenConfig(overriden_config);
 var fs=require('fs');
 var log=require(__dirname+"/lib/logger.js");
 var cluster;//stores the cluster obj to communicate with the other bots
-process.force_mode=false;//enables or disables the process.force_mode
-process.my_timers=[];
 
 
 
 function main(pool) {
 	//setting args
-	config.setDB(pool);
-	var argv=require(__dirname+'/argv.js');
-	argv.init();//parses cmd line argv and perform required operations
-	var bot=require(__dirname+'/lib/bot.js');
-	process.bot=new bot(cluster,pool);//making global so that bot stats can be updated in any module
+	
 	process.bot.startBot(process.force_mode,function(s){
 		if(s){
 			//bot was started successfully
@@ -407,32 +408,67 @@ var app={
 		app.pool.clearSeed(function(cleared){
 			fn(cleared);
 		});
+	},
+	"close":function(fn){
+		process.bot.stopBot(function(){
+			fn();
+		});
 	}
 };
 if(require.main === module){
 	try{
-		process.MODE='exec';
-		var pool=require(__dirname+'/pool');
-		var db_type=config.getConfig("db_type");
-		pool=pool.getDB(db_type).init();//choosing db type
-		pool.createConnection(function(){
-			require(__dirname+'/cluster.js').init(pool,function(c){
-
-			cluster=c;
-			cluster.send("zaphod",{"readLog":{"type":"tail","n":5}},function(status,response){
-				console.log(status);
-				console.log(response);
+		
+		function executeProgram(fn){
+			var pool=require(__dirname+'/pool');
+			var db_type=config.getConfig("db_type");
+			process.MODE='exec';
+			pool=pool.getDB(db_type).init();//choosing db type
+			pool.createConnection(function(){
+				require(__dirname+'/cluster.js').init(pool,function(c){
+				app.pool=pool;//set pool obj
+				cluster=c;
+				config.setDB(pool,overriden_config);
+				var bot=require(__dirname+'/lib/bot.js');
+				process.bot=new bot(cluster,pool);//making global so that bot stats can be updated in any module
+				fn(pool);
+				});			
 			});
-			main(pool);
+		}
+		if(process.reset){
+			executeProgram(function(){
+				app.reset(function(){
+					process.bot.stopBot(function(){
+						process.exit(0);
+					});
+					
+				});
+			});
+					
+		}
+		else if(process.seedFile!==null){
+			executeProgram(function(pool){
+				app.loadSeedFile(process.seedFile,function(){
+					log.put('Bot seeded start bot without seedFile now','success');
+					process.bot.stopBot(function(){
+						process.exit(0);
+					});
+				});
+			});
+		}
+		else{
+			executeProgram(function(pool){
+				main(pool);
+			});
 			
-			});			
-		});
+		}
+		
+		
 		
 	}
 	catch(err){
-		//cleanup will run automatically as normal exit
+		//cleanUp will run automatically as normal exit
 		console.log(err);
-		cleanup();
+		cleanUp();
 	}
 	
 }else{
@@ -448,6 +484,8 @@ if(require.main === module){
 					cluster=c;
 					app.pool=pool;//set pool obj
 					config.setDB(pool);
+					var bot=require(__dirname+'/lib/bot.js');
+					process.bot=new bot(cluster,pool);//making global so that bot stats can be updated in any module
 					fn(app);//return the app object when db connection is made
 				});
 			});

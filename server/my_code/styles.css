@@ -9,6 +9,9 @@
 	top: 7px;
 	left: auto;
 }
+.scroll-columns{
+	overflow: scroll !important;
+}
 .back_arrow{
 	float: left;
     font-size: 26px;
@@ -74,4 +77,22 @@ span.small_brackets {
 #datatable-responsive_wrapper{
 	margin-top:25px;
 }
-.
+.data_row{
+	overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 250px;
+    cursor:pointer;
+}
+.table>tbody>tr>th, .table>tfoot>tr>th, .table>thead>tr>th{
+
+    background-color: transparent !important;
+}
+.table>tbody>tr, .table>tfoot>tr, .table>thead>tr{
+
+    background-color: #f9fafe;
+}
+.table>tbody>tr:hover, .table>tfoot>tr:hover, .table>thead>tr:hover{
+
+    background-color: rgba(3, 169, 244, 0.14);
+}

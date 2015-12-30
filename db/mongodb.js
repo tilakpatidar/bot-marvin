@@ -270,6 +270,14 @@ var pool={
 	},
 	"readSeedFile":function(fn){
 		pool.cluster_info.find({"_id":config.getConfig("cluster_name")}).toArray(function(err,results){
+			if(results.length===0){
+				//empty seed file
+				log.put("Empty seed file","error");
+				process.bot.stopBot(function(){
+						process.exit(0);
+				});
+				return;
+			}
 			var dic=results[0].seedFile;
 			pool.seed_db_copy=dic;//stored for future comparision
 			var links={};
@@ -582,6 +590,114 @@ var pool={
 				}
 			};
 		});
+	},
+	"bot":{
+		"startBotGetBotActiveStatus":function(fn){
+			pool.bot_collection.findOne({"_id":config.getConfig("bot_name"),"active":true},function(err,results){
+				fn(err,results);
+			});
+		},
+		startBotAddNewBot:function(t,fn){
+			pool.bot_collection.findAndModify({"_id":config.getConfig("bot_name")},[],{"$set":{"registerTime":t,"active":true,"config":JSON.parse(JSONX.stringify(config.getConfig()))}},{remove:false,upsert:true},function(err,result){
+				fn(err,result);
+			});
+		},
+		updateBotInfo:function(n_dic,fn){
+			pool.bot_collection.update({"_id":config.getConfig('bot_name')},n_dic,function(err,results){
+				fn(err,results);
+
+			});
+		},
+		BotMarkInactive:function(fn){
+			pool.bot_collection.findAndModify({"_id":config.getConfig("bot_name")},[],{"$set":{"active":false}},{remove:false},function(err,result){
+				fn(err,result);
+			});
+		}
+	},
+	"cluster":{
+		"getBotConfig":function(bot_name,fn){
+			pool.bot_collection.findOne({"_id":bot_name},function(err,results){
+				fn(err,results);
+
+			});
+		}
+	},
+	"stats":{
+		cluster_info:function(id_name,fn){
+			pool.cluster_info.findOne({"_id":id_name},function(err,results){
+				fn(err,results);
+			});
+		},
+		"activeBots":function(fn){
+			pool.bot_collection.find({}).toArray(function(err,docs){
+				fn(err,docs);
+			});
+		},
+		"crawlStats":function(fn){
+			var dic={};
+			pool.bucket_collection.find({}).count(function(err,bucket_count){
+				dic["bucket_count"]=bucket_count;
+				pool.bucket_collection.find({"lastModified":{"$exists":true}}).count(function(err,lm){
+					dic["processed_buckets"]=lm;
+						pool.links_collection.find({"done":true}).count(function(err,crawled_count){
+							dic["crawled_count"]=crawled_count;
+							pool.links_collection.find({"done":true,"response":{"$ne":200}}).count(function(err,failed_count){
+								dic["failed_count"]=failed_count;
+								fn(dic);
+								return;
+
+
+							});
+
+						});
+				});
+
+
+			});
+		},
+		"getCrawledPages":function(d,len,i,sor,fn){
+			pool.links_collection.find(d,{},{limit:len,skip:i}).sort(sor).toArray(function(err,docs){
+				fn(err,docs);
+			});
+		},
+		"getFailedPages":function(d,len,i,sor,fn){
+			pool.links_collection.find(d,{},{limit:len,skip:i}).sort(sor).toArray(function(err,docs){
+				fn(err,docs);
+			});
+		},
+		"getTotalPages":function(d,len,i,sor,fn){
+			pool.bucket_collection.find(d,{},{limit:len,skip:i}).sort(sor).toArray(function(err,results){
+				fn(err,results);
+			});
+		},
+		"getProcessedBuckets":function(d,len,i,sor,fn){
+			pool.bucket_collection.find(d,{},{limit:len,skip:i}).sort(sor).toArray(function(err,docs){
+				fn(err,docs);
+			});
+		},
+		"updateConfig":function(bot_name,js,fn){
+			pool.bot_collection.update({"_id":bot_name},{"$set":{"config":js}},function(err,results){
+				fn(err,results);
+			});
+		}
+	},
+	"config_reloader":{
+		"pullDbConfig":function(idd,fn){
+					pool.bot_collection.findOne({"_id":idd},function(err,results){
+
+						var c=results.config;
+						if(err){
+							log.put("Error ocurred while pulling bot config from db ","error");
+							fn(null);
+							return;
+						}
+						else{
+							log.put("Bot config pulled from db","success");
+							fn(c);
+							return;
+						}
+					});
+		}
 	},
 	"seedCount":0,
 	"cache":{},

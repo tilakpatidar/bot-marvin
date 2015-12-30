@@ -90,7 +90,7 @@ var app={
 			});
 	},
 	"getBotConfig":function(bot_name,fn){
-		pool.bot_collection.findOne({"_id":bot_name},function(err,results){
+		pool.cluster.getBotConfig(bot_name,function(err,results){
 			
 			if(!err){
 				fn(results.config);

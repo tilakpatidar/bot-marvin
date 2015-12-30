@@ -1,32 +1,38 @@
-exports.init=function(app){
+exports.init=function(){
+	var args={};
 	var argv = require('minimist')(process.argv.slice(2));
 	if(argv["verbose"]!==undefined){
 		var item=JSON.parse(argv["verbose"]);
-		app.set("verbose",item);
-		app.setVerbose(item);
+		args['verbose']=item;
 	}
 	if(argv["logging"]!==undefined){
 		var item=JSON.parse(argv["logging"]);
-		app.set("logging",item);
-		app.setLogging(item);
+		args['logging']=item;
 	}
 	if(argv["childs"]!==undefined){
 		var item=argv["childs"];
-		app.set("childs",item);
+		args['childs']=item;
 	}
 	if(argv["max_concurrent_sockets"]!==undefined){
 		var item=argv["max_concurrent_sockets"];
-		app.set("max_concurrent_sockets",item);
+		args['max_concurrent_sockets']=item;
 	}
 	if(argv["batch_size"]!==undefined){
 		var item=argv["batch_size"];
-		app.set("batch_size",item);
+		args['batch_size']=item;
 	}
 	if(argv["db_type"]!==undefined){
 		var item=argv["db_type"];
-		app.set("db_type",item);
+		args['db_type']=item;
 	}
 	if(argv["force"]!==undefined){
 		process.force_mode=true;
 	}
+	if(argv['reset']!==undefined){
+		process.reset=true;
+	}
+	if(argv['seedFile']!==undefined){
+		process.seedFile=argv['seedFile'];
+	}
+	return args;
 };

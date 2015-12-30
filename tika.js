@@ -9,12 +9,12 @@ var config=require(__dirname+"/lib/config-reloader.js");
 var sqlite3 = require('sqlite3').verbose();
 var db = new sqlite3.Database(__dirname+'/db/tika_queue');
 db.serialize(function() {
-	db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,filename TEXT UNIQUE,parseFile TEXT,status INTEGER)");
+	db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,fileName TEXT UNIQUE,parseFile TEXT,status INTEGER)");
 });
 var queue={
-	enqueue:function (filename,parseFile,fn){
+	enqueue:function (fileName,parseFile,fn){
 		db.serialize(function() {
-			db.run("INSERT INTO q(fileName,parseFile,status) VALUES(?,?,0)",[filename,parseFile],function(err,row){
+			db.run("INSERT INTO q(fileName,parseFile,status) VALUES(?,?,0)",[fileName,parseFile],function(err,row){
 				//console.log(err+"pushQ");
 				//console.log(JSON.stringify(row)+"pushQ");
 				fn(row);
@@ -22,15 +22,31 @@ var queue={
 		});
 
 	},
-	dequeue:function (fn){
-		db.serialize(function() {
-			db.each("SELECT * FROM q WHERE status=0 LIMIT 1",function(err,row){
-				db.run("UPDATE q SET status=1 WHERE id=?",[row.id]);//mark as under process
-				//console.log(err+"popQ");
-				//console.log(JSON.stringify(row)+"popQ");
-				fn(row.filename,row.parseFile);
+	dequeue:function (fn,num){
+
+		if(num===undefined){
+			num=1;
+		}
+		var li=[];
+		var done=0;
+			db.serialize(function() {
+				db.each("SELECT * FROM q WHERE status=0 LIMIT 0,"+num,function(err,row){
+					//console.log(row);
+					db.run("UPDATE q SET status=1 WHERE id=?",[row.id],function(e,r){
+
+						li.push({fileName:row.fileName,parseFile:row.parseFile,uid:row.id});
+						++done;
+						if(done===num){
+							fn(li);
+						}
+
+					});//mark as under process
+					
+					
+				});
 			});
-		});
+		
+		
 
 	},
 	remove:function (idd,fn){
@@ -67,11 +83,10 @@ var app={
 		});
 	},
 	"submitFile":function(url,callback){
-		
 			var err;
 			//main function of the module
 			app.addFileToStore(url,function(err1){
-				//console.log(err1);
+				
 				if(err1){
 					err="tikaDownloadFailed";
 					callback(err,null);
@@ -127,8 +142,12 @@ var app={
 	"removeFile":function(url,cal){
 		
 			fs.unlink(app.getFileName(url),function(err){
+			
 				if(err){
 					cal("error here");
+				}
+				else{
+					cal(null);
 				}
 			});
 				
@@ -175,56 +194,67 @@ var app={
 
 	},
 	"processNext":function(){
-		if(active>config.getConfig('tika_batch_size')){
-			//console.log("BLOCKED");
+		if(active>=config.getConfig('tika_batch_size')){
 			return;//if greater than batch size leave
 		}
-		for(var i=0;i<(config.getConfig('tika_batch_size')-active);i++){
-			active+=1;//mark active before even initializing
+		var expected=(config.getConfig('tika_batch_size')-active);
+			active+=(config.getConfig('tika_batch_size')-active);//mark active before even initializing
 			queue.length(function(len){
 			//console.log(len+"LENGTH");
 			if(len!==0){
 				
-					queue.dequeue(function(filename,parseFile,uniqueId){
-						//console.log(filename+"POPPED");
-						try{
-							tika.submitFile(filename,function(err,body){
-								//console.log(body);
-							if(err){
-								log.put("error from fetchFile for "+filename,"error");
-								process.send({"bot":"tika","setCrawled":[filename,{},err]});
-							}else{
-							//	console.log(body);
-								var parser=require(__dirname+"/parsers/"+parseFile);
-								var dic=parser.init.parse(body,filename);//pluggable parser
-								log.put("fetchFile for "+filename,"success");
-								process.send({"bot":"tika","setCrawled":[filename,dic,200]});
+					queue.dequeue(function(li){
+						if(li.length!==expected){
+							active-=(expected-li.length);//reducing if less items are recieved
+						}
+						for (var i = li.length - 1; i >= 0; i--) {
+							var obj=li[i];
+								(function(fileName,parseFile,uniqueId){
+									try{
+											tika.submitFile(fileName,function(err,body){
+												//console.log(err);
+												//console.log(body);
+											if(err){
+												log.put("error from fetchFile for "+fileName,"error");
+												process.send({"bot":"tika","setCrawled":[fileName,{},err]});
+											}else{
+												//console.log(body);
+												var parser=require(__dirname+"/parsers/"+parseFile);
+												var dic=parser.init.parse(body,fileName);//pluggable parser
+												log.put("fetchFile for "+fileName,"success");
+												process.send({"bot":"tika","setCrawled":[fileName,dic[1],200]});
 
-							}
-							
-								
-							});
-						}
-						catch(err){
-							log.put("error from fetchFile for "+filename,"error");
-							process.send({"bot":"tika","setCrawled":[filename,{},"tikaUnknownError"]});
-							
-						}
-						finally{
-							active-=1;
-							queue.remove(uniqueId,function(err,row){
-							//	console.log(row);
-							});
-								
+											}
+											
+												
+											});
+									}
+									catch(err){
+										log.put("error from fetchFile for "+fileName,"error");
+										process.send({"bot":"tika","setCrawled":[fileName,{},"tikaUnknownError"]});
+										
+									}
+									finally{
+										active-=1;
+										queue.remove(uniqueId,function(err,row){
+										//	console.log(row);
+										});
+											
+									
+										setImmediate(function(){
+											tika.processNext();
+										});	
+									}
+
+
+								})(obj.fileName,obj.parseFile,obj.uid);
+						};
+					
 						
-							setImmediate(function(){
-								tika.processNext();
-							});	
-						}
 						
 
 
-				});//[[],[]]
+				},expected);//[[],[]]
 
 				
 				
@@ -232,10 +262,10 @@ var app={
 			}
 			else{
 				//if len is 0 then decrement the active counter
-				active-=1;
+				active-=(config.getConfig('tika_batch_size')-active);
 			}
 			});
-		}
+		
 		
 		
 	},
@@ -253,11 +283,11 @@ if(require.main === module){
 	 var url=require("url");
 	 var server = http.createServer(function(request, response) {
 	    var url_parts = url.parse(request.url.toString(),true);
-        var filename=url_parts.query.fileName;
+        var fileName=url_parts.query.fileName;
         var parseFile=url_parts.query.parseFile;
-        queue.enqueue(filename,parseFile,function(row){
-        	//console.log(filename+"PUSHED");
-        	log.put("Tika Got request for "+filename+" with parse file "+parseFile,"info");
+        queue.enqueue(fileName,parseFile,function(row){
+        	//console.log(fileName+"PUSHED");
+        	log.put("Tika Got request for "+fileName+" with parse file "+parseFile,"info");
 	        tika.processNext();
 	        
 	        

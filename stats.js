@@ -12,7 +12,7 @@ var cluster;
 var app={
 	"clusterInfo":function(fn){
 		var id_name=config.getConfig('cluster_name');
-		pool.cluster_info.findOne({"_id":id_name},function(err,results){
+		pool.stats.cluster_info(id_name,function(err,results){
 			fn(err,results);
 			return;
 		});
@@ -21,32 +21,16 @@ var app={
 		var d={};
 		d['db_type']=config.getConfig('db_type');
 		d['db']=config.getConfig(config.getConfig('db_type'));
-		pool.bot_collection.find({}).toArray(function(err,docs){
+		pool.stats.activeBots(function(err,docs){
 			fn([docs,d]);
 			return;
 		});
 	},
 	"crawlStats":function(fn){
-		var dic={};
-		pool.bucket_collection.find({}).count(function(err,bucket_count){
-			dic["bucket_count"]=bucket_count;
-			pool.bucket_collection.find({"lastModified":{"$exists":true}}).count(function(err,lm){
-				dic["processed_buckets"]=lm;
-					pool.links_collection.find({"done":true}).count(function(err,crawled_count){
-						dic["crawled_count"]=crawled_count;
-						pool.links_collection.find({"done":true,"response":{"$ne":200}}).count(function(err,failed_count){
-							dic["failed_count"]=failed_count;
-							fn(dic);
-							return;
-
-
-						});
-
-					});
-			});
-
-
+		pool.stats.crawlStats(function(dic){
+			fn(dic);
 		});
+		
 
 	},
 	"readLog":function(bot_name,type,lines,fn){
@@ -55,7 +39,7 @@ var app={
 			});
 	},
 	"getConfig":function(bot_name,fn){
-			pool.bot_collection.findOne({"_id":bot_name},function(err,results){
+			pool.cluster.getBotConfig(bot_name,function(err,results){
 			try{
 
 				fn(err,results.config);
@@ -80,7 +64,7 @@ var app={
 			else{
 				sor[sort_key]=sort_type;
 			}
-			pool.links_collection.find(d,{},{limit:len,skip:i}).sort(sor).toArray(function(err,results){
+			pool.stats.getCrawledPages(d,len,i,sor,function(err,results){
 			try{
 
 				fn(err,results);
@@ -104,7 +88,7 @@ var app={
 			}else{
 				sor[sort_key]=sort_type;
 			}
-			pool.links_collection.find(d,{},{limit:len,skip:i}).sort(sor).toArray(function(err,results){
+			pool.stats.getFailedPages(d,len,i,sor,function(err,results){
 			try{
 
 				fn(err,results);
@@ -128,7 +112,7 @@ var app={
 			}else{
 				sor[sort_key]=sort_type;
 			}
-			pool.bucket_collection.find(d,{},{limit:len,skip:i}).sort(sor).toArray(function(err,results){
+			pool.stats.getTotalBuckets(function(err,results){
 			try{
 
 				fn(err,results);
@@ -152,7 +136,7 @@ var app={
 			}else{
 				sor[sort_key]=sort_type;
 			}
-			pool.bucket_collection.find(d,{},{limit:len,skip:i}).sort(sor).toArray(function(err,results){
+			pool.stats.getProcessedBuckets(function(err,results){
 			try{
 
 				fn(err,results);
@@ -181,7 +165,7 @@ var app={
 			//updates the config changes done from local machine to db
 			console.log(bot_name);
 			console.log(js);
-		pool.bot_collection.update({"_id":bot_name},{"$set":{"config":js}},function(err,results){
+		pool.stats.updateConfig(bot_name,js,function(err,results){
 			fn(err,results);
 		});
 	}

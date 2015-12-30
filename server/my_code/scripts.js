@@ -14,20 +14,23 @@
 	["failed_pages", "failed-pages", {
 		"url": "250px",
 		"Domain": "134px",
+		"Content-type":"100px",
 		"Bucket Id": "100px",
 		"Cause": "44px",
 		"Last Modified": "90px",
 		"Reported By": "78px"
-	},["_id","domain","hash","response","lastModified","updatedBy"]],
+	},["_id","domain","data._source.mime","hash","response","lastModified","updatedBy"]],
 	['crawled_pages', 'crawled-pages', {
 		"url": "250px",
 		"Title": "100px",
 		"Domain": "134px",
+		"Content":"100px",
+		"Content-type":"100px",
 		"Bucket Id": "100px",
 		"Cause": "44px",
 		"Last Modified": "90px",
 		"Reported By": "78px"
-	},["_id","data.title","domain","hash","response","lastModified","updatedBy"]],
+	},["_id","data._source.title","domain","data._source.body","data._source.mime","hash","response","lastModified","updatedBy"]],
 	["processed_buckets", "processed-buckets", {
 		"Bucket id": "250px",
 		"Added By": "100px",
@@ -45,7 +48,7 @@
 		"Recrawl At": "44px"
 	},["_id","insertedBy","processingBot","numOfLinks","lastModified","recrawlAt"]]
 ];
-		var TABLE_RAW_DATA='<div class="row show_###REPLACE### extra_pages"> <div class="panel-body"> <h3 class="title-hero-show-###REPLACE1###"> </h3> <div id="datatable-responsive_wrapper" class= "###REPLACE###_table wrapper dataTables_wrapper form-inline"> <div class="row"> <div class="col-sm-6"> <div class="dataTables_length" id="datatable-responsive_length"> <label><select name="datatable-responsive_length" aria-controls= "datatable-responsive" class="form-control ###REPLACE###_length"> <option value="10"> 10 </option> <option value="25"> 25 </option> <option value="50"> 50 </option> <option value="100"> 100 </option> </select> records per page</label> </div> </div> <div class="col-sm-6"> <div id="datatable-responsive_filter" class="dataTables_filter"> <label><input type="search" class="form-control" placeholder="Search..." aria-controls="datatable-responsive" /></label> </div> </div> </div> <table class= "table table-striped table-bordered datatable-responsive responsive no-wrap dataTable" cellspacing="0" width="100%" role="grid" aria-describedby="datatable-responsive_info" style= "width: 100%;"> <thead> <tr class="head_row" role="row"> </tr> </thead> <tfoot class="###REPLACE###_results"> </tfoot> </table> <div class="row"> <div class="col-sm-6"> <div class="dataTables_info ###REPLACE###_table_info" id="datatable-responsive_info" role="status" aria-live="polite"> </div> </div> <div class="col-sm-6"> <div class="dataTables_paginate paging_bootstrap" id= "datatable-responsive_paginate"> <ul class="pagination pagination_###REPLACE###"> <li class="previous disabled"><a href="#">Previous</a></li> <li class="active ###REPLACE###_1"><a href="#">1</a></li> <li><a href="#">2</a></li> <li><a href="#">3</a></li> <li><a href="#">4</a></li> <li><a href="#">5</a></li> <li class="next"><a href="#">Next</a></li> </ul> </div> </div> </div> </div> </div></div>';
+		var TABLE_RAW_DATA='<div class="row show_###REPLACE### extra_pages"> <div class="panel-body"> <h3 class="title-hero-show-###REPLACE1###"> </h3> <div id="datatable-responsive_wrapper" class= "###REPLACE###_table wrapper dataTables_wrapper form-inline"> <div class="row"> <div class="col-sm-6"> <div class="dataTables_length" id="datatable-responsive_length"> <label><select name="datatable-responsive_length" aria-controls= "datatable-responsive" class="form-control ###REPLACE###_length"> <option value="10"> 10 </option> <option value="25"> 25 </option> <option value="50"> 50 </option> <option value="100"> 100 </option> </select> records per page</label> </div> </div> <div class="col-sm-6"> <div id="datatable-responsive_filter" class="dataTables_filter"> <label><input type="search" class="form-control" placeholder="Search..." aria-controls="datatable-responsive" /></label> </div> </div> </div> <div class="scroll-columns"><table class= "table table-striped table-bordered datatable-responsive responsive no-wrap dataTable" cellspacing="0" width="100%" role="grid" aria-describedby="datatable-responsive_info" style= "width: 100%;"> <thead> <tr class="head_row" role="row"> </tr> </thead> <tfoot class="###REPLACE###_results"> </tfoot> </table></div><div class="row"> <div class="col-sm-6"> <div class="dataTables_info ###REPLACE###_table_info" id="datatable-responsive_info" role="status" aria-live="polite"> </div> </div> <div class="col-sm-6"> <div class="dataTables_paginate paging_bootstrap" id= "datatable-responsive_paginate"> <ul class="pagination pagination_###REPLACE###"> <li class="previous disabled"><a href="#">Previous</a></li> <li class="active ###REPLACE###_1"><a href="#">1</a></li> <li><a href="#">2</a></li> <li><a href="#">3</a></li> <li><a href="#">4</a></li> <li><a href="#">5</a></li> <li class="next"><a href="#">Next</a></li> </ul> </div> </div> </div> </div> </div></div>';
 		var TABLE_HEAD='<th class="sorting sort_###REPLACE3### sort_key_###REPLACE4###" tabindex="0" aria-controls="datatable-responsive" rowspan="1" colspan="1" aria-sort="ascending" aria-label= "###LABEL###: activate to sort column ascending" style="width: ###WIDTH###;">###LABEL###</th>';
 		var editor;
 		for (var i = 0; i < TABLES.length; i++) {
@@ -219,7 +222,7 @@
 				      	for (var i = 0; i < js.length; i++) {
 				      		var obj=js[i];
 				      		console.log(obj);
-				      		var dum=$('<tr><th rowspan="1" colspan="1">'+obj['_id']+'</th><th rowspan="1" colspan="1">'+obj['insertedBy']+'</th><th rowspan="1" colspan="1">'+obj['processingBot']+'</th><th rowspan="1" colspan="1">'+obj['numOfLinks']+'</th><th rowspan="1" colspan="1">'+new Date(obj['lastModified'])+'</th><th rowspan="1" colspan="1">'+new Date(obj['recrawlAt'])+'</th> </tr>');
+				      		var dum=rowGenerator(obj,TABLES[2][3],"bucket");
 				      		fin=fin.add(dum);
 				      	};
 				      	$(".processed_buckets_results").html(fin);
@@ -236,7 +239,7 @@
 				      if(Object.keys(js)!==0){
 				      	for (var i = 0; i < js.length; i++) {
 				      		var obj=js[i];
-				      		var dum=$('<tr><th rowspan="1" colspan="1">'+obj['_id']+'</th><th rowspan="1" colspan="1">'+obj['domain']+'</th><th rowspan="1" colspan="1">'+obj['hash']+'</th><th rowspan="1" colspan="1">'+obj['response']+'</th><th rowspan="1" colspan="1">'+new Date(obj['lastModified'])+'</th><th rowspan="1" colspan="1">'+obj['updatedBy']+'</th> </tr>');
+				      		var dum=rowGenerator(obj,TABLES[0][3],"page");
 				      		fin=fin.add(dum);
 				      	};
 				      	$(".failed_pages_results").html(fin);
@@ -259,7 +262,7 @@
 				      		}catch(err){
 				      			var title=obj['data'][1]['_source']['meta_description'].substring(0,100);
 				      		}
-				      		var dum=$('<tr><th rowspan="1" colspan="1">'+obj['_id']+'</th><th rowspan="1" colspan="1">'+title+'</th><th rowspan="1" colspan="1">'+obj['domain']+'</th><th rowspan="1" colspan="1">'+obj['hash']+'</th><th rowspan="1" colspan="1">'+obj['response']+'</th><th rowspan="1" colspan="1">'+new Date(obj['lastModified'])+'</th><th rowspan="1" colspan="1">'+obj['updatedBy']+'</th> </tr>');
+				      		var dum=rowGenerator(obj,TABLES[1][3],"page");
 				      		fin=fin.add(dum);
 				      	};
 				      	$(".crawled_pages_results").html(fin);
@@ -283,7 +286,7 @@
 			      		if(!kk){
 			      			kk="Not processed yet";
 			      		}
-			      		var dum=$('<tr><th rowspan="1" colspan="1">'+obj['_id']+'</th><th rowspan="1" colspan="1">'+obj['insertedBy']+'</th></th><th rowspan="1" colspan="1">'+kk+'</th><th rowspan="1" colspan="1">'+obj['numOfLinks']+'</th><th rowspan="1" colspan="1">'+new Date(obj['lastModified'])+'</th><th rowspan="1" colspan="1">'+new Date(obj['recrawlAt'])+'</th>');
+			      		var dum=rowGenerator(obj,TABLES[3][3],"bucket");
 			      		fin=fin.add(dum);
 			      	};
 			      	$(".total_buckets_results").html(fin);
@@ -293,7 +296,37 @@
 				}
 			});
 		}
-		
+		function rowGenerator(obj,keys,dialog_type){
+			var dum=$();
+			for(var i=0;i<keys.length;i++){
+				var temp=$('<th class="data_row" rowspan="1" colspan="1"></th>');
+				if(keys[i].indexOf(".")>=0){
+					//nested object
+					var r=keys[i].split('.');
+					var o=obj;
+					for (var ii = 0; ii < r.length; ii++) {
+						o=o[r[ii]];
+					};
+						temp.text(o);
+				}
+				else{
+						temp.text(obj[keys[i]]);
+				}
+			
+				dum=dum.add(temp);
+			}
+			var cl="";
+			if(dialog_type==="bucket"){
+				cl="dialog_type_bucket unique_id_"+obj['_id'];
+			}
+			else if(dialog_type==="page"){
+				cl="dialog_type_page unique_id_"+obj['_id'];
+			}
+			var t=$('<tr class="'+cl+'"></tr>');
+			t.html(dum);
+			return t;
+
+		}
 		function showTable(bot_name,I_TOTAL_PAGES,LEN_TOTAL_PAGES,table_name,table_name1,replacer,heading,url,data,fn1,fn){
 
 			$(".main_stat_page").css("display","none");
