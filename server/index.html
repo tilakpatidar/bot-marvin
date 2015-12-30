@@ -559,6 +559,7 @@
                 </div>
             </div>
         </div>
+        <div class="glyph-icon refresh_indicator remove-border demo-icon tooltip-button icon-spin-3 icon-spin" title="" data-original-title="icon-spin-3"></div>
        
 
     </div><!-- #header-nav-right -->
@@ -598,7 +599,7 @@
     <div class="col-md-8">
         <div class="row">
             <div class="col-md-3">
-                <a href="#" title="Total Buckets" class="tile-box tile-box-shortcut btn-info">
+                <a href="#" title="Total Buckets" class="bot_name_show_total_buckets_master tile-box tile-box-shortcut btn-info">
                     <span class="bucket_count_badge bs-badge badge-absolute">0</span>
                     <div class="tile-header my-header">
                        Total Buckets
@@ -609,7 +610,7 @@
                 </a>
             </div>
             <div class="col-md-3">
-                <a href="#" title="Processed Buckets" class="tile-box tile-box-shortcut btn-success">
+                <a href="#" title="Processed Buckets" class="bot_name_show_processed_buckets_master tile-box tile-box-shortcut btn-success">
                 <span class="processed_buckets_badge bs-badge badge-absolute">0</span>
                     <div class="tile-header my-header">
                         Processed Buckets
@@ -620,7 +621,7 @@
                 </a>
             </div>
             <div class="col-md-3">
-                <a href="#" title="Crawled Pages" class="tile-box tile-box-shortcut btn-success">
+                <a href="#" title="Crawled Pages" class="bot_name_show_crawled_pages_master tile-box tile-box-shortcut btn-success">
                     <span class="crawled_count_badge bs-badge badge-absolute">0</span>
                     <div class="tile-header my-header">
                         Crawled Pages
@@ -631,7 +632,7 @@
                 </a>
             </div>
             <div class="col-md-3">
-                <a href="#" title="Failed Pages" class="tile-box tile-box-shortcut btn-danger">
+                <a href="#" title="Failed Pages" class="bot_name_show_failed_pages_master tile-box tile-box-shortcut btn-danger">
                 <span class="failed_count_badge bs-badge badge-absolute">0</span>
                     <div class="tile-header my-header">
                         Failed Pages
@@ -644,6 +645,7 @@
         </div>
         <div class="panel mrg20T">
             <div class="panel-body">
+
                 <h3 class="title-hero">
                   <i class="glyph-icon icon-signal"></i> Crawling speed
                 </h3>
@@ -680,6 +682,16 @@
         </div>
     </div>
 </div>
+
+<div class="row edit_config extra_pages">
+    <div class="panel-body">
+            <h3 class="title-hero-edit-config">
+                
+            </h3>
+        <div id="myEditor"></div><br/>
+        <button class="btn btn-primary update_json">Update</button> <button class="btn btn-warning reset_json">Reset</button>
+    </div>
+</div>
 <div class="row read_log extra_pages">
     <div class="panel-body">
         <h3 class="title-hero-read-log">
@@ -689,20 +701,29 @@
             <form class="form-horizontal bordered-row">
                 <div class="form-group">
                     <label class="col-sm-2 control-label">Command</label>
-                    <div class="col-sm-10">
-                        <div class="input-group">
-                                    <input type="text" class="form-control" value="head -n 6 test.log">
-                                    <span class="input-group-btn">
-                                        <button class="btn btn-primary" type="button">Go!</button>
-                                    </span>
-                                </div>
+                    <div class="col-sm-4">
+                                    <select class="form-control head_tails">
+                                        <option>head</option>
+                                        <option>tail</option>
+                                    </select>
+                                       
+                                  
+                    </div>
+                    <div class="col-sm-1">
+                    <label class="form-control">-n</label>
+                    </div>
+                    <div class="col-sm-2">
+                    <input class='form-control lines_input' placeholder="lines"/>
+                    </div>
+                    <div class="col-sm-1">
+                     <button class="btn btn-primary head_tail_btn" type="button">Go!</button>
                     </div>
                 </div>
                 
                 <div class="form-group">
                     <label class="col-sm-2 control-label">Log Data</label>
                     <div class="col-sm-10">
-                        <textarea name="" rows="3" class="form-control textarea-autosize"></textarea>
+                        <div contenteditable="false" name="" class="form-control textarea-autosize log_text_area"></div>
                     </div>
                 </div>
               
@@ -727,6 +748,7 @@
 <script type="text/javascript" src="../../assets-minified/admin-all-demo.js"></script>
 <script type="text/javascript" src="/my_code/scripts.js"></script>
 <link rel="stylesheet" type="text/css" href="/my_code/styles.css">
+  <script src="/my_code/aui-min.js"></script>
 </div>
 </body>
 </html>

@@ -1,3 +1,5 @@
+var proto=require(__dirname+"/lib/proto.js");
+process.getAbsolutePath=proto.getAbsolutePath;
 var request = require("request");
 var colors = require('colors');
 var urllib = require('url');

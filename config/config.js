@@ -1,8 +1,6 @@
-var temp=__dirname.split("/");
-temp.pop();
-var parent_dir=temp.join("/");
+var parent_dir=process.getAbsolutePath(__dirname);
 var proto=require(parent_dir+'/lib/proto.js');
-var JSONX=proto.init;
+var JSONX=proto.JSONX;
 var config={
   "robot_agent": "*",
   "bot_name": "zaphod",
@@ -10,6 +8,10 @@ var config={
   "childs": 5,
   "verbose": true,
   "logging": true,
+  "network_interface": "lo",
+  "network_host": "127.0.0.1",
+  "network_port": "2020",
+  "cluster_port": 5555,
   "env": "/usr/local/bin/nodejs",
   "headers": {
     "User-Agent": "Mozilla/5.0 (X11; Linux i686) AppleWebKit/535.7 (KHTML, like Gecko) Chrome/16.0.912.63 Safari/535.7",
@@ -50,11 +52,12 @@ var config={
   "tika_port": "9998",
   "tika": true,
   "tika_supported_files": "__REGEXP /\\.(ppt|doc|pdf|docx|pptx)$/gi",
+  "tika_batch_size": 5,
   "phantomjs_url": "http://127.0.0.1:9000/?q=",
   "allow_robots": true,
   "external_links": false,
   "max_concurrent_sockets": 10,
-  "batch_size": 100,
+  "batch_size": 1000,
   "db_type": "mongodb",
   "remove_tags": [
     "table",

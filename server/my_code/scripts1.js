@@ -1,7 +1,6 @@
 (function(){
 	$(document).ready(function(){
 		$(".extra_pages").css("display","none");
-		$(".refresh_indicator").hide();
 		var main_stats=[];
 		var REFRESH_INTERVAL=8000;
 		var NOTY_HIDE_DELAY=1500;
@@ -9,63 +8,13 @@
 		var HEAD_TAIL='head';
 		var HEAD_TAIL_LINES=0;
 		var BOT_NAME='';
-		var AJAX_ERROR=0;
-		var TABLES=[
-	["failed_pages", "failed-pages", {
-		"url": "250px",
-		"Domain": "134px",
-		"Bucket Id": "100px",
-		"Cause": "44px",
-		"Last Modified": "90px",
-		"Reported By": "78px"
-	},["_id","domain","hash","response","lastModified","updatedBy"]],
-	['crawled_pages', 'crawled-pages', {
-		"url": "250px",
-		"Title": "100px",
-		"Domain": "134px",
-		"Bucket Id": "100px",
-		"Cause": "44px",
-		"Last Modified": "90px",
-		"Reported By": "78px"
-	},["_id","data.title","domain","hash","response","lastModified","updatedBy"]],
-	["processed_buckets", "processed-buckets", {
-		"Bucket id": "250px",
-		"Added By": "100px",
-		"Processing Bot": "100px",
-		"Number of links": "134px",
-		"Last Modified": "100px",
-		"Recrawl At": "44px"
-	},["_id","insertedBy","processingBot","numOfLinks","lastModified","recrawlAt"]],
-	['total_buckets', 'total-buckets', {
-		"Bucket id": "250px",
-		"Added By": "100px",
-		"Processing Bot": "100px",
-		"Number of links": "134px",
-		"Last Modified": "100px",
-		"Recrawl At": "44px"
-	},["_id","insertedBy","processingBot","numOfLinks","lastModified","recrawlAt"]]
-];
-		var TABLE_RAW_DATA='<div class="row show_###REPLACE### extra_pages"> <div class="panel-body"> <h3 class="title-hero-show-###REPLACE1###"> </h3> <div id="datatable-responsive_wrapper" class= "###REPLACE###_table wrapper dataTables_wrapper form-inline"> <div class="row"> <div class="col-sm-6"> <div class="dataTables_length" id="datatable-responsive_length"> <label><select name="datatable-responsive_length" aria-controls= "datatable-responsive" class="form-control ###REPLACE###_length"> <option value="10"> 10 </option> <option value="25"> 25 </option> <option value="50"> 50 </option> <option value="100"> 100 </option> </select> records per page</label> </div> </div> <div class="col-sm-6"> <div id="datatable-responsive_filter" class="dataTables_filter"> <label><input type="search" class="form-control" placeholder="Search..." aria-controls="datatable-responsive" /></label> </div> </div> </div> <table class= "table table-striped table-bordered datatable-responsive responsive no-wrap dataTable" cellspacing="0" width="100%" role="grid" aria-describedby="datatable-responsive_info" style= "width: 100%;"> <thead> <tr class="head_row" role="row"> </tr> </thead> <tfoot class="###REPLACE###_results"> </tfoot> </table> <div class="row"> <div class="col-sm-6"> <div class="dataTables_info ###REPLACE###_table_info" id="datatable-responsive_info" role="status" aria-live="polite"> </div> </div> <div class="col-sm-6"> <div class="dataTables_paginate paging_bootstrap" id= "datatable-responsive_paginate"> <ul class="pagination pagination_###REPLACE###"> <li class="previous disabled"><a href="#">Previous</a></li> <li class="active ###REPLACE###_1"><a href="#">1</a></li> <li><a href="#">2</a></li> <li><a href="#">3</a></li> <li><a href="#">4</a></li> <li><a href="#">5</a></li> <li class="next"><a href="#">Next</a></li> </ul> </div> </div> </div> </div> </div></div>';
-		var TABLE_HEAD='<th class="sorting sort_###REPLACE3### sort_key_###REPLACE4###" tabindex="0" aria-controls="datatable-responsive" rowspan="1" colspan="1" aria-sort="ascending" aria-label= "###LABEL###: activate to sort column ascending" style="width: ###WIDTH###;">###LABEL###</th>';
+		var I_FAILED_PAGES=0;
+		var LEN_FAILED_PAGES=10;
+		var I_TOTAL_BUCKETS=0;
+		var LEN_TOTAL_BUCKETS=10;
+		var I_CRAWLED_PAGES=0;
+		var LEN_CRAWLED_PAGES=10;
 		var editor;
-		for (var i = 0; i < TABLES.length; i++) {
-			var obj=TABLES[i];
-			var temp=TABLE_RAW_DATA;
-			temp=temp.replace(/###REPLACE###/g,obj[0]).replace(/###REPLACE1###/g,obj[1]);
-			var t=$(temp);
-			var count=0;
-			for(var key in obj[2]){
-				var tt=TABLE_HEAD;
-				tt=tt.replace(/###REPLACE4###/g,obj[3][count]).replace(/###REPLACE3###/g,obj[0]).replace(/###LABEL###/g,key).replace(/###WIDTH###/g,obj[2][key]);
-				tt=$(tt);
-				console.log(t.find('.head_row'));
-				t.find('.head_row').append(tt);
-				++count;
-			}
-			$(".main_stat_page").after(t);
-			$(".extra_pages").css("display","none");
-		};
-		
 		function notification(msg,type){
 				var a=[];
 				msg='<i class="glyph-icon icon-refresh mrg5R"></i><span style="font-color:white;">'+msg+'</span>';
@@ -127,15 +76,15 @@
 				      	bots_side.find(".bot_submenu").append('<li><a href="#" title="Read Log" class="bot_name_read_log_'+element['_id']+'"><span>Read Log</span><span class="bot_stats_side"></span><i class="glyph-icon icon-file sub_glyph"></i></a></li>');
 				      	
 				      	bots_side.find(".bot_name_show_total_buckets_"+element["_id"]).on('click',function(){
-				      		showTotalBuckets(this,0,10);
+				      		showTotalBuckets(this,true);
 				      		return false;
 				      	});
 				      	bots_side.find(".bot_name_show_crawled_pages_"+element["_id"]).on('click',function(){
-				      		showCrawledPages(this,0,10);
+				      		showCrawledPages(this,true);
 				      		return false;
 				      	});
 				      	bots_side.find(".bot_name_show_failed_pages_"+element["_id"]).on('click',function(){
-				      		showFailedPages(this,0,10);
+				      		showFailedPages(this,true);
 				      		return false;
 				      	});
 				      	bots_side.find(".bot_name_read_log_"+element["_id"]).on('click',function(){
@@ -209,46 +158,24 @@
 			});
 
 		});
-		function showProcessedBuckets(t,i,j,sort_key,sort_type){
-			showTable(t,i,j,"processed_buckets","processed-buckets","bot_name_show_processed_buckets_","Processed Buckets by bot :","/ask/q?=get-processed-buckets",function(){return {bot_name:BOT_NAME,i:i,n:j,sort:sort_key,sort_type:sort_type};},showProcessedBuckets,function(data,ii,jj){
-				notification("Buckets fetched !","success");
-				      var js=JSON.parse(data);
-				      console.log(js);
-				      var fin=$();
-				      if(Object.keys(js)!==0){
-				      	for (var i = 0; i < js.length; i++) {
-				      		var obj=js[i];
-				      		console.log(obj);
-				      		var dum=$('<tr><th rowspan="1" colspan="1">'+obj['_id']+'</th><th rowspan="1" colspan="1">'+obj['insertedBy']+'</th><th rowspan="1" colspan="1">'+obj['processingBot']+'</th><th rowspan="1" colspan="1">'+obj['numOfLinks']+'</th><th rowspan="1" colspan="1">'+new Date(obj['lastModified'])+'</th><th rowspan="1" colspan="1">'+new Date(obj['recrawlAt'])+'</th> </tr>');
-				      		fin=fin.add(dum);
-				      	};
-				      	$(".processed_buckets_results").html(fin);
-				      	$(".processed_buckets_table_info").text("Showing "+ii+" to "+(ii+jj)+"");
-				      	$(".show_processed_buckets").css("display","inline");
-					}
-			});
-		}
-		function showFailedPages(t,i,j,sort_key,sort_type){
-			showTable(t,i,j,"failed_pages","failed-pages","bot_name_show_failed_pages_","Failed Pages reported by bot :","/ask/q?=get-failed-pages",function(){return {bot_name:BOT_NAME,i:i,n:j,sort:sort_key,sort_type:sort_type};},showFailedPages,function(data,ii,jj){
-				notification("Failed pages fetched !","success");
-				      var js=JSON.parse(data);
-				      var fin=$();
-				      if(Object.keys(js)!==0){
-				      	for (var i = 0; i < js.length; i++) {
-				      		var obj=js[i];
-				      		var dum=$('<tr><th rowspan="1" colspan="1">'+obj['_id']+'</th><th rowspan="1" colspan="1">'+obj['domain']+'</th><th rowspan="1" colspan="1">'+obj['hash']+'</th><th rowspan="1" colspan="1">'+obj['response']+'</th><th rowspan="1" colspan="1">'+new Date(obj['lastModified'])+'</th><th rowspan="1" colspan="1">'+obj['updatedBy']+'</th> </tr>');
-				      		fin=fin.add(dum);
-				      	};
-				      	$(".failed_pages_results").html(fin);
-				      	$(".failed_pages_table_info").text("Showing "+ii+" to "+(ii+jj)+"");
-				      	$(".show_failed_pages").css("display","inline");
-					}	
-				
-			});
-		}
-		function showCrawledPages(t,i,j,sort_key,sort_type){
-			showTable(t,i,j,"crawled_pages","crawled-pages","bot_name_show_crawled_pages_","Crawled Pages reported by bot :","/ask/q?=get-crawled-pages",function(){return {bot_name:BOT_NAME,i:i,n:j,sort:sort_key,sort_type:sort_type};},showCrawledPages,function(data,ii,jj){
-				notification("Crawled pages fetched !","success");
+		function showCrawledPages(bot_name,reset){
+			if(reset){
+				I_CRAWLED_PAGES=0;//reset global vars
+				LEN_CRAWLED_PAGES=10;
+			}
+			
+			$(".main_stat_page").css("display","none");
+			$(".back_arrow").css("display","inline");
+			$(".extra_pages").css("display","none");
+			BOT_NAME=$(bot_name).attr("class").split(' ')[0].replace("bot_name_show_crawled_pages_","");
+			$(".title-hero-show-crawled-pages").html("<span>Crawled Pages reported by bot :</span> <b>"+BOT_NAME+"</b>");
+			$.ajax({
+				  url: "/ask/q?=get-crawled-pages",
+				  data:{bot_name:BOT_NAME,i:I_CRAWLED_PAGES,n:LEN_CRAWLED_PAGES},
+				  crossDomain:true
+				})
+				  .done(function( data ) {
+				  	notification("Crawled pages fetched !","success");
 				      var js=JSON.parse(data);
 				      var fin=$();
 				      if(Object.keys(js)!==0){
@@ -263,106 +190,88 @@
 				      		fin=fin.add(dum);
 				      	};
 				      	$(".crawled_pages_results").html(fin);
-				      	$(".crawled_pages_table_info").text("Showing "+ii+" to "+(ii+jj)+"");
+				      	$(".crawled_pages_table_info").text("Showing "+I_CRAWLED_PAGES+" to "+(LEN_CRAWLED_PAGES+I_CRAWLED_PAGES)+"");
 				      	$(".show_crawled_pages").css("display","inline");
 							
 				      }
-				
-			});
+				   
+				  });
+			
 		}
-		function showTotalBuckets(t,i,j,sort_key,sort_type){
-			showTable(t,i,j,"total_buckets","total-buckets","bot_name_show_total_buckets_","Buckets added by bot :","/ask/q?=get-total-buckets",function(){return {bot_name:BOT_NAME,i:i,n:j,sort:sort_key,sort_type:sort_type};},showTotalBuckets,function(data,ii,jj){
-
-				notification("Buckets fetched !","success");
-			      var js=JSON.parse(data);
-			      var fin=$();
-			      if(Object.keys(js)!==0){
-			      	for (var i = 0; i < js.length; i++) {
-			      		var obj=js[i];
-			      		var kk=obj['processingBot'];
-			      		if(!kk){
-			      			kk="Not processed yet";
-			      		}
-			      		var dum=$('<tr><th rowspan="1" colspan="1">'+obj['_id']+'</th><th rowspan="1" colspan="1">'+obj['insertedBy']+'</th></th><th rowspan="1" colspan="1">'+kk+'</th><th rowspan="1" colspan="1">'+obj['numOfLinks']+'</th><th rowspan="1" colspan="1">'+new Date(obj['lastModified'])+'</th><th rowspan="1" colspan="1">'+new Date(obj['recrawlAt'])+'</th>');
-			      		fin=fin.add(dum);
-			      	};
-			      	$(".total_buckets_results").html(fin);
-			      	$(".total_buckets_table_info").text("Showing "+ii+" to "+(jj+ii)+"");
-			      	$(".show_total_buckets").css("display","inline");
-						
-				}
-			});
-		}
-		
-		function showTable(bot_name,I_TOTAL_PAGES,LEN_TOTAL_PAGES,table_name,table_name1,replacer,heading,url,data,fn1,fn){
-
+		function showTotalBuckets(bot_name,reset){
+			if(reset){
+				I_TOTAL_PAGES=0;//reset global vars
+				LEN_TOTAL_PAGES=10;
+			}
+			
 			$(".main_stat_page").css("display","none");
 			$(".back_arrow").css("display","inline");
 			$(".extra_pages").css("display","none");
-			BOT_NAME=$(bot_name).attr("class").split(' ')[0].replace(replacer,"");
-			$(".title-hero-show-"+table_name1).html("<span>"+heading+"</span> <b>"+BOT_NAME+"</b>");
+			BOT_NAME=$(bot_name).attr("class").split(' ')[0].replace("bot_name_show_total_buckets_","");
+			$(".title-hero-show-total-buckets").html("<span>Buckets added by bot :</span> <b>"+BOT_NAME+"</b>");
 			$.ajax({
-				  url: url,
-				  data:data(),
+				  url: "/ask/q?=get-total-buckets",
+				  data:{bot_name:BOT_NAME,i:I_TOTAL_BUCKETS,n:LEN_TOTAL_BUCKETS},
 				  crossDomain:true
 				})
 				  .done(function( data ) {
-				  	fn(data,I_TOTAL_PAGES,LEN_TOTAL_PAGES);
+				  	notification("Buckets fetched !","success");
+				      var js=JSON.parse(data);
+				      var fin=$();
+				      if(Object.keys(js)!==0){
+				      	for (var i = 0; i < js.length; i++) {
+				      		var obj=js[i];
+				      		var kk=obj['processingBot'];
+				      		if(!kk){
+				      			kk="Not processed yet";
+				      		}
+				      		var dum=$('<tr><th rowspan="1" colspan="1">'+obj['_id']+'</th><th rowspan="1" colspan="1">'+obj['insertedBy']+'</th></th><th rowspan="1" colspan="1">'+kk+'</th><th rowspan="1" colspan="1">'+obj['numOfLinks']+'</th><th rowspan="1" colspan="1">'+new Date(obj['lastModified'])+'</th><th rowspan="1" colspan="1">'+new Date(obj['recrawlAt'])+'</th>');
+				      		fin=fin.add(dum);
+				      	};
+				      	$(".total_buckets_results").html(fin);
+				      	$(".total_buckets_table_info").text("Showing "+I_TOTAL_BUCKETS+" to "+(LEN_TOTAL_BUCKETS+I_TOTAL_BUCKETS)+"");
+				      	$(".show_total_buckets").css("display","inline");
+							
+				      }
 				   
 				  });
-			$(".pagination_"+table_name).on('click','a',function(){
-				var p=parseInt($(this).text());
-				I_TOTAL_PAGES=(LEN_TOTAL_PAGES*p)-LEN_TOTAL_PAGES;
-				$(".pagination_"+table_name).find('.active').removeClass("active");
-				$(this).parent().addClass('active');
-				$(".pagination_"+table_name).unbind('click');
-				fn1($(".bot_name_show_"+table_name+"_"+BOT_NAME),I_TOTAL_PAGES,LEN_TOTAL_PAGES);
-			});
-			$('.'+table_name+'_length').on("change",function(){
-				LEN_TOTAL_PAGES=parseInt($( "."+table_name+"_length option:selected" ).text());
-				I_TOTAL_PAGES=0;
-				$(".pagination_"+table_name).find('.active').removeClass('active');
-				$("."+table_name+"_1").addClass('active');
-				$('.'+table_name+'_length').unbind('click');
-				fn1($(".bot_name_show_"+table_name+"_"+BOT_NAME),I_TOTAL_PAGES,LEN_TOTAL_PAGES);
-				
-			});
-
-			$('.sort_'+table_name).on('click',function(event){
-				var current_class=$(this).attr('class');
-				var type;
-				if(current_class.indexOf('sorting ')>=0){
-					//first time
-					current_class=current_class.replace('sorting ','sorting_asc ');
-					type="1";
-					
-				}else{
-					//already been set before
-					if(current_class.indexOf('sorting_asc')>=0){
-						current_class=current_class.replace('sorting_asc','sorting_desc');
-						type="-1";
-					}
-					else if(current_class.indexOf('sorting_desc')>=0){
-						current_class=current_class.replace('sorting_desc ','sorting ');
-						
-					}
-				}
-				var c=current_class;
-				$(this).attr('class',c);
-				current_class=current_class.replace('sorting','').replace('_asc','').replace('_desc','');
-				var items=current_class.split('sort_key_');
-				var key=items[1].trim();
-				if(type===undefined){
-					key=undefined;
-				}
-				var table_name=items[0].replace('sort_','').trim();
-				$('.sort_'+table_name).unbind('click');
-				fn1($(".bot_name_show_"+table_name+"_"+BOT_NAME),I_TOTAL_PAGES,LEN_TOTAL_PAGES,key,type);
-
-			});
 			
 		}
-		
+		function showFailedPages(bot_name,reset){
+			if(reset){
+				I_FAILED_PAGES=0;//reset global vars
+				LEN_FAILED_PAGES=10;
+			}
+			
+			$(".main_stat_page").css("display","none");
+			$(".back_arrow").css("display","inline");
+			$(".extra_pages").css("display","none");
+			BOT_NAME=$(bot_name).attr("class").split(' ')[0].replace("bot_name_show_failed_pages_","");
+			$(".title-hero-show-failed-pages").html("<span>Failed Pages reported by bot :</span> <b>"+BOT_NAME+"</b>");
+			$.ajax({
+				  url: "/ask/q?=get-failed-pages",
+				  data:{bot_name:BOT_NAME,i:I_FAILED_PAGES,n:LEN_FAILED_PAGES},
+				  crossDomain:true
+				})
+				  .done(function( data ) {
+				  	notification("Failed pages fetched !","success");
+				      var js=JSON.parse(data);
+				      var fin=$();
+				      if(Object.keys(js)!==0){
+				      	for (var i = 0; i < js.length; i++) {
+				      		var obj=js[i];
+				      		var dum=$('<tr><th rowspan="1" colspan="1">'+obj['_id']+'</th><th rowspan="1" colspan="1">'+obj['domain']+'</th><th rowspan="1" colspan="1">'+obj['hash']+'</th><th rowspan="1" colspan="1">'+obj['response']+'</th><th rowspan="1" colspan="1">'+new Date(obj['lastModified'])+'</th><th rowspan="1" colspan="1">'+obj['updatedBy']+'</th> </tr>');
+				      		fin=fin.add(dum);
+				      	};
+				      	$(".failed_pages_results").html(fin);
+				      	$(".failed_pages_table_info").text("Showing "+I_FAILED_PAGES+" to "+(LEN_FAILED_PAGES+I_FAILED_PAGES)+"");
+				      	$(".show_failed_pages").css("display","inline");
+							
+				      }
+				   
+				  });
+			
+		}
 		function readLog(bot_name){
 
 			$(".main_stat_page").css("display","none");
@@ -439,9 +348,7 @@
 				loadClusterLoad(js,function(){
 					speedGraph(function(){
 							$('#loading').fadeOut( 400, "linear" );
-							$(".refresh_indicator").fadeIn(400,'linear',function(){
-								$(this).fadeOut( 2000, "linear" );
-							});
+							notification("Refreshing . . .","");
 
 					});
 					
@@ -463,8 +370,30 @@
 			HEAD_TAIL=opt;//update the head_tail global value
 			
 		});
-	
-		
+		$('.failed_pages_length').on("change",function(){
+			LEN_FAILED_PAGES=parseInt($( ".failed_pages_length option:selected" ).text());
+			I_FAILED_PAGES=0;
+			$(".pagination_failed_pages").find('.active').removeClass('active');
+			$(".failed_pages_1").addClass('active');
+			showFailedPages($(".bot_name_show_failed_pages_"+BOT_NAME),false);
+			
+		});
+		$('.crawled_pages_length').on("change",function(){
+			LEN_CRAWLED_PAGES=parseInt($( ".crawled_pages_length option:selected" ).text());
+			I_CRAWLED_PAGES=0;
+			$(".pagination_crawled_pages").find('.active').removeClass('active');
+			$(".crawled_pages_1").addClass('active');
+			showCrawledPages($(".bot_name_show_crawled_pages_"+BOT_NAME),false);
+			
+		});
+		$('.total_buckets_length').on("change",function(){
+			LEN_TOTAL_BUCKETS=parseInt($( ".total_buckets_length option:selected" ).text());
+			I_TOTAL_BUCKETS=0;
+			$(".pagination_total_buckets").find('.active').removeClass('active');
+			$(".total_buckets_1").addClass('active');
+			showTotalBuckets($(".bot_name_show_total_buckets_"+BOT_NAME),false);
+			
+		});
 		$('.lines_input').on('focusout',function(){
 			try{
 				HEAD_TAIL_LINES=parseInt($('.lines_input').val());
@@ -493,8 +422,27 @@
 			    notification("Something went wrong !","error");
 			  });
 		})
-		
-		
+		$(".pagination_failed_pages").on('click','a',function(){
+			var p=parseInt($(this).text());
+			I_FAILED_PAGES=(LEN_FAILED_PAGES*p)-LEN_FAILED_PAGES;
+			$(".pagination_failed_pages").find('.active').removeClass("active");
+			$(this).parent().addClass('active');
+			showFailedPages($(".bot_name_show_failed_pages_"+BOT_NAME),false);
+		});
+		$(".pagination_crawled_pages").on('click','a',function(){
+			var p=parseInt($(this).text());
+			I_CRAWLED_PAGES=(LEN_CRAWLED_PAGES*p)-LEN_CRAWLED_PAGES;
+			$(".pagination_crawled_pages").find('.active').removeClass("active");
+			$(this).parent().addClass('active');
+			showCrawledPages($(".bot_name_show_crawled_pages_"+BOT_NAME),false);
+		});
+		$(".pagination_total_buckets").on('click','a',function(){
+			var p=parseInt($(this).text());
+			I_TOTAL_BUCKETS=(LEN_TOTAL_BUCKETS*p)-LEN_TOTAL_BUCKETS;
+			$(".pagination_total_buckets").find('.active').removeClass("active");
+			$(this).parent().addClass('active');
+			showTotalBuckets($(".bot_name_show_total_buckets_"+BOT_NAME),false);
+		});
 		$(".head_tail_btn").on("click",function(){
 			try{
 				HEAD_TAIL_LINES=parseInt($('.lines_input').val());
@@ -518,45 +466,16 @@
 				  });
 		});
 		$(".bot_name_show_crawled_pages_master").on('click',function(){
-			showCrawledPages(this,0,10);
+			showCrawledPages(this,true);
 			return false;
 		});
 		$(".bot_name_show_failed_pages_master").on('click',function(){
-			showFailedPages(this,0,10);
+			showFailedPages(this,true);
 			return false;
 		});
 		$(".bot_name_show_total_buckets_master").on('click',function(){
-			showTotalBuckets(this,0,10);
+			showTotalBuckets(this,true);
 			return false;
 		});
-		$(".bot_name_show_processed_buckets_master").on('click',function(){
-			showProcessedBuckets(this,0,10);
-			return false;
-		});
-		var AJAX_ERROR_ENCOUNTERED=false;
-		$(document).ajaxError(function( event, request, settings ) {
-        //When XHR Status code is 0 there is no connection with the server
-	        if (request.status == 0 && settings.url.indexOf('/ask/')>=0){ 
-	        	AJAX_ERROR_ENCOUNTERED=true;
-	           AJAX_ERROR+=1;
-	        } 
-	        if(AJAX_ERROR>=3){
-	        	notification("Disconnected from server. Trying to reconnect . . .",'error');
-	        	
-	        	
-	        }
-
-	    });
-	   $(document).ajaxSuccess(function( event, request, settings ) {
-        //When XHR Status code is 0 there is no connection with the server
-	        if (settings.url.indexOf('/ask/')>=0 && AJAX_ERROR_ENCOUNTERED===true){ 
-	        	AJAX_ERROR_ENCOUNTERED=false;
-	           AJAX_ERROR=0;
-	           notification("Reconnected to server. Connected . . .",'success');
-	        } 
-	        
-
-	    });
-			
 		});
 })();

@@ -1,21 +1,26 @@
 var cheerio = require('cheerio');
-var config=require("../config/config").load();
+var parent_dir=process.getAbsolutePath(__dirname);
+var config=require(parent_dir+"/lib/config-reloader.js");
 var app={
 	"parse":function(data,url){
 		var indexed={};
+		//console.log(data);
 		if(data===undefined){
 			data="";
 		}
 		
-		if(config["tika"]){
-			if(url.match(config["tika_supported_files"])!==null){
+		if(config.getConfig("tika")){
+			if(url.match(config.getConfig("tika_supported_files"))!==null){
+				//console.log('web0');
 				indexed=app.parseDocument(data,url);
 			}
 			else{
+				//console.log('web1');
 				indexed=app.parseWebPage(data,url);
 			}
 		}
 		else{
+			//console.log('web2');
 			indexed=app.parseWebPage(data,url);
 		}
 
@@ -71,8 +76,8 @@ var app={
 			data=data.replace(/\s+/g," ");
 		 $ = cheerio.load(data);
 		 //clear dom
-		 for (var i = 0; i < config["remove_tags"].length; i++) {
-		 	$(config["remove_tags"][i]).remove();
+		 for (var i = 0; i < config.getConfig("remove_tags").length; i++) {
+		 	$(config.getConfig("remove_tags")[i]).remove();
 		 };
 		 var ret={};
 		 ret["title"]=$('title').text();

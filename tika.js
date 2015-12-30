@@ -1,9 +1,62 @@
 //https://wiki.apache.org/tika/TikaJAXRS
+var proto=require(__dirname+'/lib/proto.js');
+process.getAbsolutePath=proto.getAbsolutePath;
 var exec = require('child_process').exec;
 var fs = require('fs');
 var request = require('request');
 var log=require(__dirname+"/lib/logger.js");
 var config=require(__dirname+"/lib/config-reloader.js");
+var sqlite3 = require('sqlite3').verbose();
+var db = new sqlite3.Database(__dirname+'/db/tika_queue');
+db.serialize(function() {
+	db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,filename TEXT UNIQUE,parseFile TEXT,status INTEGER)");
+});
+var queue={
+	enqueue:function (filename,parseFile,fn){
+		db.serialize(function() {
+			db.run("INSERT INTO q(fileName,parseFile,status) VALUES(?,?,0)",[filename,parseFile],function(err,row){
+				//console.log(err+"pushQ");
+				//console.log(JSON.stringify(row)+"pushQ");
+				fn(row);
+			});
+		});
+
+	},
+	dequeue:function (fn){
+		db.serialize(function() {
+			db.each("SELECT * FROM q WHERE status=0 LIMIT 1",function(err,row){
+				db.run("UPDATE q SET status=1 WHERE id=?",[row.id]);//mark as under process
+				//console.log(err+"popQ");
+				//console.log(JSON.stringify(row)+"popQ");
+				fn(row.filename,row.parseFile);
+			});
+		});
+
+	},
+	remove:function (idd,fn){
+		db.serialize(function() {
+			db.run("DELETE FROM q WHERE id=?",[idd],function(err,row){
+					//console.log(err+"QLength");
+					//console.log(JSON.stringify(row)+"QLength");
+					fn(err,row);
+				});
+			});
+	},
+	length:function (fn){
+		db.serialize(function() {
+			db.each("SELECT COUNT(*) AS `c` FROM q WHERE status=0",function(err,row){
+				//console.log(err+"QLength");
+				//console.log(JSON.stringify(row)+"QLength");
+				fn(row.c);
+			});
+		});
+	}
+
+}
+
+
+
+
 var app={
 	"startServer":function(){
 		exec('java -jar '+__dirname+'/lib/tika-server-1.11.jar -h '+config.getConfig("tika_host"), function(error, stdout, stderr) {
@@ -14,87 +67,177 @@ var app={
 		});
 	},
 	"submitFile":function(url,callback){
-		try{
+		
 			var err;
 			//main function of the module
-			app.addFileToStore(url,function(){
+			app.addFileToStore(url,function(err1){
+				//console.log(err1);
+				if(err1){
+					err="tikaDownloadFailed";
+					callback(err,null);
+					return;
+				}
 				log.put(("[SUCCESS] File "+url+" added to store"),"success");
-				app.extractText(url,function(err,body){
-					app.removeFile(url,function(){
+				app.extractText(url,function(err2,body){
+					//console.log(err2);
+					if(err2){
+						err="tikaExtractFailed";
+						callback(err,null);
+						return;
+					}
+					app.removeFile(url,function(err3){
+						//console.log(err3);
+						if(err3){
+							err="tikaRemoveDownloadedFailed";
+							callback(err,null);
+							return;
+						}
 						log.put(("[SUCCESS] File "+url+" removed from store"),"success");
 						callback(err,body);
 					});
 				})
 				
 			});
-		}
-		catch(err){
-				callback(err,null);
-		}
+		
 
 		
 	},
 	"addFileToStore":function(url,callback){
-			request({uri: url}).pipe(fs.createWriteStream(app.getFileName(url))).on('close',callback);
+		var st=fs.createWriteStream(app.getFileName(url)).on('error',function(err){
+				
+				callback("error here");
+		});
+			request({uri: url}).on('error',function(err){
+				
+				callback("error here");
+
+			}).pipe(st).on('error',function(err){
+				
+				callback("error here");
+			}).on('close',function(err){
+				if(!err){
+					callback(null);
+				}
+				
+			});
+		
 	
   	   
 	},
-	"removeFile":function(url,cal,sdfs){
-		fs.unlink(app.getFileName(url),cal);
+	"removeFile":function(url,cal){
+		
+			fs.unlink(app.getFileName(url),function(err){
+				if(err){
+					cal("error here");
+				}
+			});
+				
+		
 	
 	},
 	"extractText":function(url,callback){
-		var source = fs.createReadStream(app.getFileName(url));
-		var dic={};
-		source.pipe(request.put({url:'http://'+config.getConfig("tika_host")+':'+config.getConfig('tika_port')+'/tika',headers: {'Accept': 'text/plain'}},function(err, httpResponse, body){
-			dic["text"]=body;
-			source = fs.createReadStream(app.getFileName(url));
-			source.pipe(request.put({url:'http://'+config.getConfig("tika_host")+':'+config.getConfig('tika_port')+'/meta',headers: {'Accept': 'application/json'}},function(err1, httpResponse1, body1){
-				var err=null;
-				try{
-					log.put("tika.extractText for "+url,"success");
-					dic["meta"]=JSON.parse(body1);
-					callback(err,dic);
-				}catch(err){
-					log.put("tika.extractText for "+url,"error");
-					callback(err,dic);
-				}
+		var errr;
+		try{
+			var source = fs.createReadStream(app.getFileName(url));
+			source.on('error',function(err){
 				
-			}));
-		}));
+					callback("error here",{});
+			});
+			var dic={};
+			source.pipe(request.put({url:'http://'+config.getConfig("tika_host")+':'+config.getConfig('tika_port')+'/tika',headers: {'Accept': 'text/plain'}},function(err, httpResponse, body){
+				dic["text"]=body;
+				source = fs.createReadStream(app.getFileName(url)).on('error',function(err){
+				
+						callback("error here",{});
+				});;
+				source.pipe(request.put({url:'http://'+config.getConfig("tika_host")+':'+config.getConfig('tika_port')+'/meta',headers: {'Accept': 'application/json'}},function(err1, httpResponse1, body1){
+					var err=null;
+					try{
+						log.put("tika.extractText for "+url,"success");
+						dic["meta"]=JSON.parse(body1);
+						callback(err,dic);
+					}catch(err){
+						log.put("tika.extractText for "+url,"error");
+						callback(err,dic);
+					}
+					
+				}));
+			})).on('error',function(err){
+				
+					callback("error here",{});
+			});
+		}catch(err){
+			errr=err;
+			callback(errr,{});
+		}
+		
+		
 
 	},
 	"processNext":function(){
-		if(queue.length!==0){
-			underProcess=true;
-			var item=queue.splice(0,1);//dequeue
-			var filename=item[0][0];
-			var parseFile=item[0][1];
-			tika.submitFile(filename,function(err,body){
-				if(err){
-						log.put("error from fetchFile for "+filename,"error");
-						process.send({"bot":"tika","setCrawled":[filename,{},"tikaError"]});
-				}else{
-						var parser=require(__dirname+"/parsers/"+parseFile);
-						var dic=parser.init.parse(body,filename);//pluggable parser
-						log.put("fetchFile for "+filename,"success");
-						process.send({"bot":"tika","setCrawled":[filename,dic,200]});
+		if(active>config.getConfig('tika_batch_size')){
+			//console.log("BLOCKED");
+			return;//if greater than batch size leave
+		}
+		for(var i=0;i<(config.getConfig('tika_batch_size')-active);i++){
+			active+=1;//mark active before even initializing
+			queue.length(function(len){
+			//console.log(len+"LENGTH");
+			if(len!==0){
+				
+					queue.dequeue(function(filename,parseFile,uniqueId){
+						//console.log(filename+"POPPED");
+						try{
+							tika.submitFile(filename,function(err,body){
+								//console.log(body);
+							if(err){
+								log.put("error from fetchFile for "+filename,"error");
+								process.send({"bot":"tika","setCrawled":[filename,{},err]});
+							}else{
+							//	console.log(body);
+								var parser=require(__dirname+"/parsers/"+parseFile);
+								var dic=parser.init.parse(body,filename);//pluggable parser
+								log.put("fetchFile for "+filename,"success");
+								process.send({"bot":"tika","setCrawled":[filename,dic,200]});
 
-					}
-					underProcess=false;
+							}
+							
+								
+							});
+						}
+						catch(err){
+							log.put("error from fetchFile for "+filename,"error");
+							process.send({"bot":"tika","setCrawled":[filename,{},"tikaUnknownError"]});
+							
+						}
+						finally{
+							active-=1;
+							queue.remove(uniqueId,function(err,row){
+							//	console.log(row);
+							});
+								
+						
+							setImmediate(function(){
+								tika.processNext();
+							});	
+						}
+						
 
-					
-					
-						setImmediate(function(){
-							tika.processNext(filename,parseFile);
-						});
 
+				});//[[],[]]
+
+				
+				
 					
-					
-					
-					
+			}
+			else{
+				//if len is 0 then decrement the active counter
+				active-=1;
+			}
 			});
 		}
+		
+		
 	},
 	"getFileName":function(url){
 		return __dirname+"/pdf-store/"+url.replace(/\//gi,"##");
@@ -102,8 +245,7 @@ var app={
 
 };
 exports.init=app;
-var queue=[];
-var underProcess=false;
+var active=0;
 if(require.main === module){
 	var tika=app;
 	tika.startServer();
@@ -113,13 +255,15 @@ if(require.main === module){
 	    var url_parts = url.parse(request.url.toString(),true);
         var filename=url_parts.query.fileName;
         var parseFile=url_parts.query.parseFile;
-        queue.push([filename,parseFile]);
-        log.put("Tika Got request for "+filename+" with parse file "+parseFile,"info");
-        if(!underProcess){
-        	tika.processNext();
-        }
+        queue.enqueue(filename,parseFile,function(row){
+        	//console.log(filename+"PUSHED");
+        	log.put("Tika Got request for "+filename+" with parse file "+parseFile,"info");
+	        tika.processNext();
+	        
+	        
+	        response.end();
+        });
         
-        response.end();
 
   });
 	 server.on("listening",function(){
@@ -127,6 +271,7 @@ if(require.main === module){
 	 });
 server.listen(2030);
 server.on("error",function(e){
+	//console.log(e);
 	if(e.code==="EADDRINUSE"){
 		log.put("Tika port occupied maybe an instance is already running ","error");
 	}

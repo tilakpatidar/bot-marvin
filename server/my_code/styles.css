@@ -54,3 +54,24 @@ span.small_brackets {
     font-weight: lighter;
     font-size: 9px;
 }
+.edit_config{
+	width: 100%;
+	height: 100%;
+}
+.log_text_area,.failed_pages_text_area{
+	height: 50%;
+    overflow: scroll;
+}
+.success_log{
+	color:green;
+}
+.error_log{
+	color:red;
+}
+.info_log{
+	color: rgb(255, 161, 0);
+}
+#datatable-responsive_wrapper{
+	margin-top:25px;
+}
+.

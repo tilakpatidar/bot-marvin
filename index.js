@@ -1,262 +1,177 @@
 #!/usr/bin/env node
+/*
+
+	Index.js
+	Main js file of the crawler
+	@author Tilak Patidar
+
+*/
+
+
+//global requires
 var proto=require(__dirname+'/lib/proto.js');
+JSONX=proto["JSONX"];//JSON for regex support in .json files
+process.getAbsolutePath=proto.getAbsolutePath;
 var config=require(__dirname+"/lib/config-reloader.js");
-var JSONX=proto.init;
 var fs=require('fs');
 var log=require(__dirname+"/lib/logger.js");
-var spawned={};
-var pool=require(__dirname+'/pool');
-process.starter_lock=false;
-function main(flag) {
+var cluster;//stores the cluster obj to communicate with the other bots
+process.force_mode=false;//enables or disables the process.force_mode
+process.my_timers=[];
 
+
+
+function main(pool) {
 	//setting args
-	var argv = require('minimist')(process.argv.slice(2));
-	if(argv["verbose"]!==undefined){
-		var item=JSON.parse(argv["verbose"]);
-		app.set("verbose",item);
-		app.setVerbose(item);
-	}
-	if(argv["logging"]!==undefined){
-		var item=JSON.parse(argv["logging"]);
-		app.set("logging",item);
-		app.setLogging(item);
-	}
-	if(argv["childs"]!==undefined){
-		var item=argv["childs"];
-		app.set("childs",item);
-	}
-	if(argv["max_concurrent_sockets"]!==undefined){
-		var item=argv["max_concurrent_sockets"];
-		app.set("max_concurrent_sockets",item);
-	}
-	if(argv["batch_size"]!==undefined){
-		var item=argv["batch_size"];
-		app.set("batch_size",item);
-	}
-	if(argv["db_type"]!==undefined){
-		var item=argv["db_type"];
-		app.set("db_type",item);
-	}
-
-			
-
-			
-			var collection;
-			var childs=parseInt(config.getConfig("childs"));//childs to spawn
-			var batchSize=parseInt(config.getConfig("batch_size"));
-			process.active_childs=0;
-
-			//requires
-			var tracker=require(__dirname+"/server");
-			var child=require('child_process');
-			
-
-			function starter(){
-				if(process.starter_lock){
-					//locked 
-					log.put("Starter is locked ",'info');
-					return;
-				}
-				else{
-					log.put('lock release ','info');
-					//now locking
-					process.starter_lock=true;	
-				}
-				
-				log.put("Check if new child available","info");
-				log.put(("Current active childs "+process.active_childs),"info");
-				var counter=0;
-				var done=childs-process.active_childs;
-				if(done===0){
-					return;
-				}
-				function nextBatch(){
-					pool.getNextBatch(function(err,results,hash){
-					  		log.put("Got bucket "+hash,"info");
-							if(results.length!==0){
-								
-								createChild(results,hash);
-							}
-							else{
-								//push pool into db as childs are available but no buckets
-								var k=inlinks_pool.splice(0,batchSize);
-								pool.addToPool(k);
-							}
-							counter+=1;
-							if(counter===done){
-								//unlock starter now
-								process.starter_lock=false;
-								return;
-							}
-							else{
-								process.nextTick(function(){nextBatch();});
-							}
-								
-								
-							},batchSize);
-				}
-					  
-					nextBatch();
-			}
+	config.setDB(pool);
+	var argv=require(__dirname+'/argv.js');
+	argv.init();//parses cmd line argv and perform required operations
+	var bot=require(__dirname+'/lib/bot.js');
+	process.bot=new bot(cluster,pool);//making global so that bot stats can be updated in any module
+	process.bot.startBot(process.force_mode,function(s){
+		if(s){
+			//bot was started successfully
+			function startBotManager(links,botObjs){
 
 
-			
-			var inlinks_pool=[];
-			
-			function createChild(results,hash){
-				process.active_childs+=1;
-				var botId=new Date().getTime()+""+parseInt(Math.random()*10000);
-				var bot = child.fork(__dirname+"/spawn.js",[]);	
-				spawned[botId]=bot;//saving child process
-				log.put('Child process started '+botId,"success");
-				var args=[results,batchSize,pool.links,botObjs,hash];
-				bot.send({"init":args});
-				bot.on('close', function (code) {
-							//pushing the pool to db
-							var k=inlinks_pool.splice(0,batchSize);
-							pool.addToPool(k);
-					
-				
-				  if(code===0){
-				  	log.put(('Child process '+ botId+' exited with code ' + code),"success");
-				  }
-				  else{
-				  	log.put(('Child process '+ botId+' exited with code ' + code),"error");
-				  }
-				  process.active_childs-=1;
-				//  starter();
-				 delete spawned[botId];		
-				  
+				//function to start the child_manager
+				pool.seed(links,function(completed){
+					if(completed){
+						//create a child manager
+						process.child_manager=new require(__dirname+'/child_manager.js')(pool,botObjs,cluster);						
+					}
+
+
 				});
 
-				bot.on("message",childFeedback);
-
 			}
 
-			function childFeedback(data){
-				//log.put("Parent recieved from "+data["bot"],"info");
-					var t=data["setCrawled"];
-					var d=data["addToPool"];
-					var g=data["finishedBatch"];
-					if(t){
-						pool.setCrawled(t[0],t[1],t[2]);
-					}
-					else if(d){
-						inlinks_pool.push(d);
-						if(inlinks_pool.length>batchSize){
-							var k=inlinks_pool.splice(0,batchSize);
-							pool.addToPool(k);
-							
-							
+			pool.readSeedFile(function(links){
 
-						}
+				//reading the seed links from db
 
-					
-					}
-					else if(g){
-						pool.batchFinished(g);//set batch finished
-					}
-			}
+						var botObjs={};//will store robots.txt data for seed links
 
-			//starting child process for tika
-			var tika = child.fork(__dirname+"/tika.js",[]);
-			spawned["tika"]=tika;
-			tika.on('close',function(code){
-
-				if(code===0){
-
-				}
-				else{
-	 
-					log.put("Tika port occupied maybe an instance is already running ","error");
-
-				}
-			});
-			tika.on("message",childFeedback);
-
-
-				function initConnection(links){
-					
-						pool.seed(links,starter);
-
-					
-
-				}
-				var botObjs;
-				pool.readSeedFile(function(links){
 						if(config.getConfig("allow_robots")){
+
+							/*	
+								if robots.txt has to be followed
+								we have to download all robots.txt files
+							*/
+
 							log.put("downloading robots.txt this could take a while","info");
 							var robots=require(__dirname+'/robots.js').app;
 							robots.init(Object.keys(pool.links),function(err,obj){
-								if(!config.getConfig("verbose")){
-									log.put("Robots files parsed","no_verbose");
+								console.log(obj);
+								if(obj){
+									log.put("robots.txt parsed","success");
 								}
-								log.put("robots.txt parsed","success");
+								else{
+									log.put("robots.txt parsing failed","error");
+								}
 								botObjs=obj;
-								initConnection(links);
+								startBotManager(links,botObjs);
 								
 							});
 						}
 						else{
-							initConnection(links);
+							startBotManager(links,null);
 						}
-						setInterval(starter,15000);
 
 
-						tracker.init(pool);//starting crawler webapp
+				
 					
 
 				});
+		}
+		else{
+			process.exit(0);
+		}
+	});
+				
 				
 
-	//cleanup code
-	function cleanUp(close,fn){
-		log.put("Performing cleanUp ","info");
-			process.starter_lock=true;
-			for(var key in spawned){
-				spawned[key].kill();//kill the childs before exit
-			}
-		pool.stopBot(function(){
-			log.put("cleanUp done","success");
-		
 
-			if(close===undefined || close){
+	function cleanUp(fn){
+		log.put("Performing cleanUp ","info");
+			process.child_manager.setManagerLocked(true);
+			process.child_manager.flushAllInlinks(function(status){
+				//flush all the inlinks into db before exit
+					process.child_manager.killWorkers();//kill all the workers before quiting
+					//clear all moduele references
+					//console.log(process.bot);
+					process.bot.stopBot(function (err) {
+						  //if (err) throw err;
+						
+						log.put("cleanUp done","success");
+					
+						//flushing the log
+						log.flush(function(){
+							//clear timers
+							for (var i = 0; i < process.my_timers.length; i++) {
+								clearInterval(process.my_timers[i]);
+							};
+							pool.close();
+								fn(true);
+							
+							
+							
+							
+							
+						});
+					
+					
+					});				
+			});
+
+	}
+	function deathCleanUp(){
+		log.put('Termination request processing','info');
+		cleanUp(function(done){
+			if(done){
 				process.exit(0);
 			}
-			if(fn!==undefined){
-				fn();
-			}
-			
 		});
 	}
 	var death=require("death");
-	death(cleanUp);
+	death(deathCleanUp);
 	process.on('restart',function(){
-		if(process.MODE==='exec'){
-				cleanUp(false,function(){
-				var spawn = require('child_process').spawn;
-	    		var file_path=__dirname+'/index.js';
-				var ls    = spawn('/usr/bin/xterm', ['-hold','-e',config.getConfig("env")+" "+file_path+"; bash"]);
-				ls.stdout.pipe(process.stdout);
-				process.exit(0);
+				cleanUp(function(done){
+				if(done){
+					var spawn = require('child_process').spawn;
+		    		var file_path=__dirname+'/index.js';
+					var ls    = spawn('/usr/bin/xterm', ['-hold','-e',config.getConfig("env")+" "+file_path+"; bash"]);
+					ls.stdout.pipe(process.stdout);
+					process.exit(0);				
+				}
+
 
 
 			});
-		}
+		
 	
 		
 	});
+	process.on('grace_exit',function(){
+				cleanUp(function(done){
+					if(done){
+
+						process.exit(0);
+					}
+					
+				});
+		
+	});
 			
-	}
 
-
+}
 
 
 function updateJson(js){
 	try{
 		var dic=JSON.parse(JSONX.stringify(js));
 		config.updateLocalConfig(js,false);//update fs copy too
-		app.pool.updateDbConfig(dic);//regex safe json update to db
+		config.updateDbConfig(dic);//regex safe json update to db
 	}
 	catch(err){
 		console.log(err);
@@ -375,10 +290,16 @@ var app={
 				
 			return;
 	},
-	"crawl":function(){
+	"crawl":function(force){
+		if(force===undefined || force === false){
+			process.force_mode=false;
+		}
+		else{
+			process.force_mode=true;
+		}
 		try{
-			process.MODE='exec';
-			main();
+			process.MODE='exec';//will now run the crawler change the mode
+			main(app.pool);
 		}
 		catch(err){
 			console.log(err);
@@ -495,8 +416,16 @@ if(require.main === module){
 		var db_type=config.getConfig("db_type");
 		pool=pool.getDB(db_type).init();//choosing db type
 		pool.createConnection(function(){
-				main();
+			require(__dirname+'/cluster.js').init(pool,function(c){
+
+			cluster=c;
+			cluster.send("zaphod",{"readLog":{"type":"tail","n":5}},function(status,response){
+				console.log(status);
+				console.log(response);
+			});
+			main(pool);
 			
+			});			
 		});
 		
 	}
@@ -511,13 +440,16 @@ if(require.main === module){
 
 	exports.init=function(fn){
 		
-			
+			var pool=require(__dirname+'/pool');
 			var db_type=config.getConfig("db_type");
 			pool=pool.getDB(db_type).init();//choosing db type
 			pool.createConnection(function(){
+				require(__dirname+'/cluster.js').init(pool,function(c){
+					cluster=c;
 					app.pool=pool;//set pool obj
+					config.setDB(pool);
 					fn(app);//return the app object when db connection is made
-				
+				});
 			});
 		
 

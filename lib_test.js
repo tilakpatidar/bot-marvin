@@ -7,14 +7,15 @@ require('./index.js').init(function(b){
 	//insert a url to crawl
 	bot.insertSeed("http://www.geeksforgeeks.org/","nutch",false,function(status){
 		console.log(status);
+		//remove url
+		bot.removeSeed("http://www.geeksforgeeks.org/",function(status){
+			console.log(status);
+
+		});
 
 	});
 
-	//remove url
-	bot.removeSeed("http://www.geeksforgeeks.org/",function(status){
-		console.log(status);
-
-	});
+	
 
 	bot.set("headers",{"User-Agent":"Mozilla/5.0 (X11; Linux i686) AppleWebKit/535.7 (KHTML, like Gecko) Chrome/16.0.912.63 Safari/535.7",
 			"Accept-Language":"en-us,en-gb,en;"
