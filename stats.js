@@ -50,6 +50,17 @@ var app={
 			}
 		});
 	},
+	"getSeed":function(fn){
+			pool.cluster.getSeed(function(err,results){
+			try{
+				fn(err,results);
+			}
+			catch(err){
+
+				fn(err,{});
+			}
+		});
+	},
 	"getCrawledPages":function(bot_name,i,len,sort_key,sort_type,fn){
 			if(bot_name==="master"){
 				var d={done:true,"response":{$eq:200}};
@@ -112,7 +123,7 @@ var app={
 			}else{
 				sor[sort_key]=sort_type;
 			}
-			pool.stats.getTotalBuckets(function(err,results){
+			pool.stats.getTotalBuckets(d,len,i,sor,function(err,results){
 			try{
 
 				fn(err,results);
@@ -136,7 +147,7 @@ var app={
 			}else{
 				sor[sort_key]=sort_type;
 			}
-			pool.stats.getProcessedBuckets(function(err,results){
+			pool.stats.getProcessedBuckets(d,len,i,sor,function(err,results){
 			try{
 
 				fn(err,results);
@@ -166,6 +177,13 @@ var app={
 			console.log(bot_name);
 			console.log(js);
 		pool.stats.updateConfig(bot_name,js,function(err,results){
+			fn(err,results);
+		});
+	},
+	"setSeed":function(js,fn){
+			//updates the seed changes done from local machine to db
+			
+		pool.stats.updateSeed(js,function(err,results){
 			fn(err,results);
 		});
 	}

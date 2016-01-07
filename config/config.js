@@ -24,16 +24,21 @@ var config={
     "semaphore_collection": "queue",
     "bot_collection": "bots",
     "cluster_info_collection": "cluster_info",
-    "parsers_collection": "parsers"
+    "parsers_collection": "parsers",
+    "sitemap_collection": "sitemap_data"
   },
   "mysql": {
     "mysql_host": "127.0.0.1",
     "mysql_user": "root",
-    "mysql_password": "#brainse",
+    "mysql_password": "1",
     "mysql_db": "crawl",
     "mysql_collection": "links",
     "bucket_collection": "bucket",
-    "mysql_connection_pool": 100
+    "semaphore_collection": "queue",
+    "bot_collection": "bots",
+    "cluster_info_collection": "cluster_info",
+    "parsers_collection": "parsers",
+    "mysql_pool": 100
   },
   "elasticsearch": {
     "elasticsearch_uri": ""
@@ -47,7 +52,14 @@ var config={
     "follow_redirect": true
   },
   "log_buffer_lines": 10,
-  "recrawl_interval": 2592000000,
+  "recrawl_intervals": {
+    "monthly": 2592000000,
+    "daily": 86400000,
+    "weekly": 604800000,
+    "yearly": 31536000000
+  },
+  "default_recrawl_interval": "monthly",
+  "override_recrawl_interval_of_sitesmap_file": false,
   "tika_host": "0.0.0.0",
   "tika_port": "9998",
   "tika": true,

@@ -7,7 +7,7 @@ var request = require('request');
 var log=require(__dirname+"/lib/logger.js");
 var config=require(__dirname+"/lib/config-reloader.js");
 var sqlite3 = require('sqlite3').verbose();
-var db = new sqlite3.Database(__dirname+'/db/tika_queue');
+var db = new sqlite3.Database(__dirname+'/db/sqlite/tika_queue');
 db.serialize(function() {
 	db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,fileName TEXT UNIQUE,parseFile TEXT,status INTEGER)");
 });

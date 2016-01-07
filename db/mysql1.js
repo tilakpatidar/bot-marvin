@@ -1,167 +1,74 @@
 //global connection to mongodb
+//https://github.com/DrBenton/Node-DBI
 //mongodb connection file
-var MongoClient = require('mongodb').MongoClient;
+var MySQLClient = require('mysql');
 var parent_dir=process.getAbsolutePath(__dirname);
 var log=require(parent_dir+"/lib/logger.js");
 var config=require(parent_dir+"/lib/config-reloader.js");
-var mongodb=config.getConfig("mongodb","mongodb_uri");
+var fs=require('fs');
+var cluster;
 var proto=require(parent_dir+'/lib/proto.js');
 var JSONX=proto.JSONX;
 var ObjectX=proto.ObjectX;
-var StringX=proto.StringX;
-var mongodb_collection=config.getConfig("mongodb","mongodb_collection");
-var bucket_collection=config.getConfig("mongodb","bucket_collection");
-var bot_collection=config.getConfig("mongodb","bot_collection");
-var semaphore_collection=config.getConfig("mongodb","semaphore_collection");
-var cluster_info_collection=config.getConfig("mongodb","cluster_info_collection");
-var parsers_collection=config.getConfig("mongodb","parsers_collection");
-var sitemap_collection=config.getConfig("mongodb","sitemap_collection");
-var fs=require('fs');
-var urllib=require('url');
-var cluster;
-var sitemap = require('sitemapper');
+var mysql_collection=config.getConfig("mysql","mysql_collection");
+var bucket_collection=config.getConfig("mysql","bucket_collection");
+var bot_collection=config.getConfig("mysql","bot_collection");
+var semaphore_collection=config.getConfig("mysql","semaphore_collection");
+var cluster_info_collection=config.getConfig("mysql","cluster_info_collection");
+var parsers_collection=config.getConfig("mysql","parsers_collection");
+
 //read seed file
-var sqlite3 = require('sqlite3').verbose();
-var sqlite_db={};
 
-
-var queue={
-	enqueue:function (url,domain,parent,fn){
-		var that=this;
-		//console.log(that.db_name)
-		//console.log(url,domain,parent);
-		that.db.parallelize(function() {
-			that.db.run("INSERT INTO "+StringX.urlHashCode(domain)+"(url,parent) VALUES(?,?)",[url,parent],function(err,row){
-			//console.log(this.lastID,"insert",StringX.urlHashCode(domain));
-				//console.log(JSON.stringify(row)+"pushQ");
-				fn(row);
-			});
-		});
-
-	},
-	dequeue:function (domain,num,fn){
-		var that=this;
-		if(num===undefined){
-			num=1;
-		}
-		var li=[];
-		var delIds=[];
-			that.db.parallelize(function() {
-				//console.log("SELECT * FROM "+StringX.urlHashCode(domain)+" LIMIT 0,"+num)
-				//console.log(that.db);
-				that.db.all("SELECT * FROM "+StringX.urlHashCode(domain)+" LIMIT 0,"+num,function(err,rows){
-					console.log(err,rows);
-					num=rows.length;
-					var d=domain;
-					var mask=[];
-					if(rows.length===0){
-						fn([]);
-						return;
-					}
-					for (var i = 0; i < rows.length; i++) {
-						var row=rows[i];
-						var id=row.id;
-						var parent=row.parent;
-						var url=row.url;
-						delIds.push(id);
-						li.push([url,d,parent]);
-						mask.push("?");
-							
-												
-					};
-					//console.log(delIds);
-					//console.log(li);
-					//console.log('remove '+id+" "+d+" "+parent+" "+url);
-					that.remove(delIds,d,mask.join(","),function(){
-						
-							//++done;
-							//console.log(done,"  ",num);
-							//if(done===num){
-								fn(li);
-							//}
-					});
-
-					
-					
-				});
-			});
-		
-		
-
-	},
-	remove:function (idd,domain,mask,fn){
-		var that=this;
-		that.db.parallelize(function() {
-			that.db.run("DELETE FROM "+StringX.urlHashCode(domain)+" WHERE id IN ("+mask+")",idd,function(err,row){
-					//console.log(err+"QLength");
-					//console.log(JSON.stringify(row)+"QLength");
-					fn(err,row);
-				});
-			});
-	},
-	length:function (domain,fn){
-		var that=this;
-		that.db.parallelize(function() {
-			that.db.each("SELECT COUNT(*) AS `c` FROM "+StringX.urlHashCode(domain)+" WHERE 1",function(err,row){
-				//console.log(err+"QLength");
-				//console.log(JSON.stringify(row)+"QLength");
-				fn(row.c);
-			});
-		});
-	}
-
-};
-function createSQLiteDB(k){
-	sqlite_db[k]={};
-	sqlite_db[k]["db_name"]=k;
-	sqlite_db[k]["db"]=new sqlite3.Database(parent_dir+'/db/sqlite/links_queue_'+k);
-	sqlite_db[k]["queue"]=ObjectX.clone(queue);
-	sqlite_db[k]["queue"]["db_name"]=sqlite_db[k]["db_name"];
-	sqlite_db[k]["queue"]["db"]=sqlite_db[k]["db"];
-}
-
-function createSQLiteCache(url,fn){
-	var intervals=config.getConfig("recrawl_intervals");
-	for(var k in intervals){
-		sqlite_db[k].db.parallelize(function() {
-			//console.log("CREATE TABLE IF NOT EXISTS "+StringX.urlHashCode(url)+"  (id INTEGER PRIMARY KEY AUTOINCREMENT,url TEXT UNIQUE)")
-			sqlite_db[k].db.run("CREATE TABLE IF NOT EXISTS "+StringX.urlHashCode(url)+"  (id INTEGER PRIMARY KEY AUTOINCREMENT,url TEXT UNIQUE,parent TEXT,status TINYINT DEFAULT(0))");
-			pool.cache[url]=true;
-		});
-	}
-	fn();
+function mysql_real_escape_string (str) {
+    return str.replace(/[\0\x08\x09\x1a\n\r"'\\\%]/g, function (char) {
+        switch (char) {
+            case "\0":
+                return "\\0";
+            case "\x08":
+                return "\\b";
+            case "\x09":
+                return "\\t";
+            case "\x1a":
+                return "\\z";
+            case "\n":
+                return "\\n";
+            case "\r":
+                return "\\r";
+            case "\"":
+            case "'":
+            case "\\":
+            case "%":
+                return "\\"+char; // prepends a backslash to backslash, percent,
+                                  // and double/single quotes
+        }
+    });
 }
 
 
+function getConnection(query,values,fn){
+	process.mysql_pool.getConnection(function(err,connection){
+		connection.query(query,values,function(err, rows, fields){
+			fn(err,rows);
+		});
+				
+	});
+}
 var pool={
 	"seed":function(links,fn){
 		//this method runs first when crawler starts
 		var that=this;
 		that.checkIfNewCrawl(function(isNewCrawl){
 					that.getParsers(function(){
-
-						var intervals=config.getConfig("recrawl_intervals");
-						for(var k in intervals){
-							
-							createSQLiteDB(k);
-							
-						}
 							var stamp1=new Date().getTime()-2000;//giving less time
 							var stamp=stamp1+""+parseInt(Math.random()*10000);
-							that.bucket_collection.insert({"_id":stamp,"recrawlLabel":config.getConfig("default_recrawl_interval"),"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":links.length},function(err,results){
-								if(err){throw err;}else{console.log("Inserted "+stamp)};
+							getConnection("INSERT INTO "+bucket_collection+" SET",{"_id":stamp,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":links.length},function(err,results){
 								var done=0;
 								for (var i = 0; i < links.length; i++) {
 									var anon=(function(domain,stamp){
 										if(domain===""){
 											return;
 										}
-										log.put("Seeding from sitemap.xml this could take some minutes ","info");
-										//that.getLinksFromSiteMap(domain,function(){
-										//});
-										createSQLiteCache(domain,function(){
-											
-											that.mongodb_collection.insert({"_id":domain,"hash":stamp,"domain":domain,"done":false},function(err,results){
+										getConnection("INSERT INTO "+mongodb_collection+" SET",{"_id":domain,"hash":stamp,"domain":domain,"done":false},function(err,results){
 												if(err){
 													log.put("pool.init maybe seed is already added","error");
 												}
@@ -176,10 +83,7 @@ var pool={
 												}
 												
 									
-											});
 										});
-										
-										
 
 									});
 									
@@ -198,53 +102,6 @@ var pool={
 			});
 
 	},
-	"getLinksFromSiteMap":function(domain,fn){
-		var that=this;
-		var abs=urllib.resolve(domain,"sitemap.xml");
-		that.sitemap_collection.findOne({"_id":domain},function(err,docs){
-			if(err || !docs){
-				log.put("Sitemap not present for "+domain+" in db",'info');
-				log.put("Downloading sitemap index for "+domain,"info");
-				//insert sitemap urls
-				sitemap.getSites(abs, function(err, sites) {
-				    if(!err) {
-				    	sites=JSON.parse(JSON.stringify(sites).replace(/https:/g,"http:"));
-				        that.updateSiteMap(domain,sites,function(){
-				        	fn();
-				        	return;
-				        });
-				    }
-				    else {
-				       	log.put("Sitemap could not be downloaded for "+domain,"error");
-				    }
-				});
-			}
-
-		});
-	},
-	"updateSiteMap":function(domain,sites,fn){
-		var that=this;
-		that.sitemap_collection.insert({"_id":domain,"sites":sites},function(err,results){
-			if(err){
-				log.put("Unable to insert sites into sitemap collection","error");
-			}else{
-				log.put("Sitemap file updated in db for "+domain,"success");
-				for (var k in sites) {
-					(function(abs,domain,lastmod,freq){
-						var url=urllib.resolve(domain,"sitemap.xml");
-						that.addToPool([[abs,domain,url,freq]],function(){
-
-						});
-
-					})(k,domain,sites[k].lastmod,sites[k].changefreq);
-					
-				};
-				
-				fn();
-				return;
-			}
-		})
-	},
 	"addToPool":function(li,fn){
 		var that=this;
 		//urls we will be getting will be absolute
@@ -253,67 +110,43 @@ var pool={
 			fn(false);
 			return;
 		}
-		//console.log("herere 1");
-		that.generatePool(li,function(hashes){
-			//console.log("herere 2");
-			if(hashes===null){
+		that.addLinksToDB(li,function(hash){
+			if(hash===null){
 				fn(false);
 				return;
 			}
-			var done=0;
-			var counter=Object.keys(hashes).length;
-			//console.log("hashes",hashes);
-			for(var key in hashes){
-				(function(key){
-					//first links are added to the db to avoid same links
-					that.addLinksToDB(hashes[key],key,function(hash,numOfLinks){
-						//uniform pool of urls are generated
-						console.log("numOfLinks "+numOfLinks+" "+key);
-						if(numOfLinks===undefined || numOfLinks===0){
-							//fn(false);
-							++done;
-							if(done===counter){
-								fn(true);
-							}
+			//first links are added to the db to avoid same links
+			that.generatePool(function(numOfLinks){
+				//uniform pool of urls are generated
+				if(numOfLinks===undefined || numOfLinks===0){
+					fn(false);
+					return;
+				}
+					var stamp1=new Date().getTime();
+					getConnection("INSERT INTO "+bucket_collection+" SET",{"_id":hash,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":numOfLinks},function(err,results){
+						if(err){
+
+							log.put(("pool.addToPool"+err),"error");
+							fn(false);
 							return;
 						}
-							var stamp1=new Date().getTime();
-							//console.log({"_id":hash,"recrawlLabel":key,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":numOfLinks});
-							that.bucket_collection.insert({"_id":hash,"recrawlLabel":key,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":numOfLinks},function(err,results){
-								if(err){
-									console.log("function fucker");
-									log.put(("pool.addToPool"+err),"error");
-									//fn(false);
-									//return;
-								}
-								else{
-									log.put(("Updated bucket "+hash),"success");
-									process.bot.updateStats("createdBuckets",1);
-									//fn(true);
-									//return;
-								}
-								++done;
-								if(done===counter){
-									fn(true);
-								}
-													
-													
-							});
-					});		
-				})(key);
-					
-
-			}
-			
-
-		
+						else{
+							log.put(("Updated bucket "+hash),"success");
+							process.bot.updateStats("createdBuckets",1);
+							fn(true);
+							return;
+						}
+											
+											
+					});
+			});
 		});
 			
 	},
 	"requestAccess":function(fn){
 		var k=new Date();
 		var that=this;
-		that.semaphore_collection.insert({"bot_name":config.getConfig("bot_name"),"requestTime":k},function(err,results){
+		getConnection("INSERT INTO "+semaphore_collection+" SET",{"bot_name":config.getConfig("bot_name"),"requestTime":k},function(err,results){
 			var reqId=results["ops"][0]["_id"];
 
 			if(!err){
@@ -330,9 +163,10 @@ var pool={
 	},
 	"verifyAccess":function(reqId,fn){
 		var that=this;
-		that.semaphore_collection.find({}, {"sort" : [['requestTime', 'asc']]}).each(function (err, docs) {
-			
-			if(docs && docs["_id"].toString()===reqId.toString() && docs["bot_name"].toString()===config.getConfig("bot_name")){
+		getConnection("SELECT * FROM "+semaphore_collection+" ORDER BY requestTime asc",{},function(err,results){
+		for (var i = 0; i < results.length; i++) {
+			var obj=results[i];
+			if(obj && obj["_id"].toString()===reqId.toString() && obj["bot_name"].toString()===config.getConfig("bot_name")){
 				log.put("Got access to queue reqId :"+reqId,"success");
 				fn(true);
 				return;
@@ -342,14 +176,18 @@ var pool={
 				fn(false);
 				return;
 			}
-			return false;
+			
+		};
+			fn(false);
+			return;
+			
 
 		});
 
 	},
 	"removeRequest":function(reqId,fn){
 		var that=this;
-		that.semaphore_collection.remove({"_id":reqId},function(err,results){
+		getConnection("DELETE FROM "+semaphore_collection+" WHERE _id=:id",{id:reqId},function(err,results){
 			if(err){
 				log.put("Unable to remove request_id "+reqId,"error");
 				fn(false);
@@ -381,7 +219,6 @@ var pool={
 													that.bucket_collection.findAndModify({"underProcess":false,"recrawlAt":{$lte:stamp1}},[],{"$set":{"underProcess":true,"processingBot":config.getConfig("bot_name")}},{"remove":false},function(err,object){
 														if(object.value!==null){
 																var hash=object["value"]["_id"];
-																var refresh_label=object["value"]["recrawlLabel"];
 																that.removeRequest(reqId,function(removed){
 																			if(removed){
 																				//console.log(hash);
@@ -393,7 +230,7 @@ var pool={
 																						else{
 																							//console.log(docs);
 																							log.put(("Got "+docs.length+" for next Batch"),"success");
-																							result(err,docs,hash,refresh_label);		
+																							result(err,docs,hash);		
 																						}
 
 
@@ -444,6 +281,7 @@ var pool={
 		if(status===undefined){
 			status="0";//no error
 		}
+		getConnection()
 		that.mongodb_collection.updateOne({"_id":url},{$set:{"done":true,"data":data,"response":status,"lastModified":stamp1,"updatedBy":config.getConfig("bot_name")}},function(err,results){
 			if(status!==200){
 				process.bot.updateStats("failedPages",1);
@@ -457,26 +295,6 @@ var pool={
 			}
 			
 		});
-	},
-	"createConnection":function(fn){
-		var that=this;
-		process.mongo=MongoClient.connect(mongodb, function(err, db) {
-			that.db=db;
-			that.mongodb_collection=db.collection(mongodb_collection);
-			that.bucket_collection=db.collection(bucket_collection);
-			that.bot_collection=db.collection(bot_collection);
-			that.semaphore_collection=db.collection(semaphore_collection);
-			that.cluster_info_collection=db.collection(cluster_info_collection);
-			that.parsers_collection=db.collection(parsers_collection);
-			that.sitemap_collection=db.collection(sitemap_collection);
-			fn(err,db);
-			return;
-			
-		});
-	},
-	close:function(){
-		var that=this;
-		that.db.close();
 	},
 	"readSeedFile":function(fn){
 		var that=this;
@@ -510,11 +328,10 @@ var pool={
 		
 		
 	},
-	"batchFinished":function(hash,refresh_label){
+	"batchFinished":function(hash){
 		var that=this;
-		var stamp1=new Date().getTime()+config.getConfig("recrawl_intervals",refresh_label);
+		var stamp1=new Date().getTime()+config.getConfig("recrawl_interval");
 		var lm=new Date().getTime();
-		console.log("batchFinished "+hash);
 		that.bucket_collection.findAndModify({"_id":hash},[],{$set:{"underProcess":false,"recrawlAt":stamp1,"lastModified":lm}},{"remove":false},function(err,object){
 			if(object.value!==null){
 					var hash=object["value"]["_id"];
@@ -548,125 +365,63 @@ var pool={
 		});
 
 	},
-	"addLinksToDB":function(hashes_obj,freqType,fn){
+	"addLinksToDB":function(li,fn){
 		var that=this;
+		var stamp=new Date().getTime()+""+parseInt(Math.random()*10000);
 		var done=0;
-		var li=hashes_obj["links"];
 		if(li.length===0){
 			fn(null);
 			return;
 		}
-		var success=0;
 		for (var i = 0; i < li.length; i++) {
 			var key=li[i][1];
 			var item=li[i][0];
-			var parent=li[i][2];
-			
-			(function(url,domain,parent,hash){
-				that.mongodb_collection.insert({"_id":url,"done":false,"domain":domain,"parent":parent,"data":"","hash":hash},function(err,results){
+			(function(url,domain,hash){
+				that.mongodb_collection.insert({"_id":url,"done":false,"domain":domain,"data":"","hash":hash},function(err,results){
 						if(err){
 							//link is already present
 							//console.log("pool.addToPool");
 						}
 						else{
-							//console.log(sqlite_db[refresh_time]);
-							success+=1;
-
+							//console.log("Discovered "+url);
+							if(that.cache[domain]){
+								that.cache[domain].push(url);
+							}
+							else{
+								that.cache[domain]=[];
+								that.cache[domain].push(url);
+							}
 						}
 						done+=1;
 						if(done===li.length-1){
-							fn(hash,success);
+							fn(stamp);
 							return;
 						}				
 				});
-			})(item,key,parent,hashes_obj["id"]);
+			})(item,key,stamp);
 
 
 			
 		};
 		
 	},
-	"generatePool":function(li,fn){
+	"generatePool":function(fn){
 		var that=this;
-		for (var i = 0; i < li.length; i++) {
-			//inserting new links in cache
-			var domain=li[i][1];
-			var url=li[i][0];
-			var parent=li[i][2];
-			var refresh_time=li[i][3];
-			if(that.cache[domain]){
-				sqlite_db[refresh_time].queue.enqueue(url,domain,parent,function(){});
-			}
-			else{
-				//domain not in cache create cache table for it
-				createSQLiteCache(domain,function(){
-
-					sqlite_db[refresh_time].queue.enqueue(url,domain,parent,function(){
-
-
-					});
-				});
-		
-
-					
-			}
-		};
-
-		//generating new buckets based on refresh interval and uniformity
-		var hashes={};
-		var intervals=config.getConfig("recrawl_intervals");
-
-		for(var k in intervals){
-			
-			hashes[k]={};
-			hashes[k]["id"]=new Date().getTime()+""+parseInt(Math.random()*10000);
-			hashes[k]["links"]=[];
-			
-		}
 		var re=[];
 		var n_domains=Object.keys(that.cache).length;
 		var eachh=config.getConfig("batch_size")/n_domains;
-		var done=0;
-		var limit=n_domains*Object.keys(intervals).length;
-		for(var k in intervals){
-			for (var key in that.cache) {
-				(function(key,k){
-					var eachh=parseInt(config.getConfig("batch_size")/n_domains);
-					sqlite_db[k].queue.dequeue(key,eachh,function(l){
-						//console.log(l);
-							for (var i = 0; i < l.length; i++) {
-								var urldata=l[i];
-								hashes[k]["links"].push(urldata);
-							};
-							++done;
-							console.log("donnnee "+done);
-							if(done===limit){
-								fn(hashes);
-							}
-					});						
-
-				})(key,k);
-
-				
+		var len=0;
+		for (var key in that.cache) {
+			var l=that.cache[key].splice(0,eachh);
+			len+=l.length;
+			for (var i = 0; i < l.length; i++) {
+				var url=l[i];
+				re.push([url,key]);
 			};
-		}
-		
+		};
+		fn(len);
 		return;
 
-	},
-	"drop":function(fn){
-		var that=this;
-		that.db.dropDatabase();
-		try{
-			fs.unlinkSync(parent_dir+'/db/tika_queue');
-		}
-		finally{
-			fn();
-			return;
-		}
-		
-		
-		
 	},
 	"insertParseFile":function(filename,fn){
 		var that=this;
@@ -675,7 +430,8 @@ var pool={
 	var md5sum = crypto.createHash('md5');
 	md5sum.update(data.toString());
 	var hash=md5sum.digest('hex');
-	that.parsers_collection.update({"_id":filename},{"$set":{"data":data,"hash":hash}},{upsert:true},function(err,results){
+	getConnection("UPDATE "+parsers_collection+" SET data="+data+",hash='"+hash+"' WHERE _id='"+filename+"'",function(err,results){
+		console.log(err,results);
 		if(err){
 			fn(false);
 			return;
@@ -684,7 +440,9 @@ var pool={
 			fn(true);
 			return;
 		}
+
 	});
+	
 	},
 	"removeSeed":function(url,fn){
 		var that=this;
@@ -708,7 +466,7 @@ var pool={
 	},
 	"clearSeed":function(fn){
 		var that=this;
-		that.cluster_info_collection.updateOne({"_id":config.getConfig("cluster_name")},{"$set":{"seedFile":{}}},function(err,result){
+		getConnection("UPDATE "+cluster_info_collection+" SET ? WHERE _id='"+config.getConfig("cluster_name")+"'",{"seedFile":"{}"},function(err,result){
 			if(err){
 				fn(false);
 				return;
@@ -807,7 +565,7 @@ var pool={
 					md5sum.update(data);
 					var hash=md5sum.digest('hex');
 					if(hash!==d["hash"]){
-						//console.log("thre");
+						console.log("thre");
 						fs.writeFileSync(parent_dir+"/parsers/"+d["_id"]+".js",d["data"].value());
 					}
 				}else{
@@ -901,45 +659,37 @@ var pool={
 	"cluster":{
 		"getBotConfig":function(bot_name,fn){
 			var that=this.parent;
-			that.bot_collection.findOne({"_id":bot_name},function(err,results){
+			getConnection("SELECT * FROM "+bot_collection+" WHERE _id=:id",{id:bot_name},function(err,results){
 				fn(err,results);
-
 			});
-		},
-		"getSeed":function(fn){
-			var that=this.parent;
-			that.cluster_info_collection.find({"_id":config.getConfig("cluster_name")}).toArray(function(err,results){
-					var seeds=results[0].seedFile;
-					fn(err,seeds);
-
-			});
+			
 		}
 	},
 	"stats":{
 		cluster_info:function(id_name,fn){
 			var that=this.parent;
-			that.cluster_info_collection.findOne({"_id":id_name},function(err,results){
+			getConnection("SELECT * FROM "+cluster_info_collection+" WHERE _id=:id",{id:id_name},function(err,results){
 				fn(err,results);
 			});
 		},
 		"activeBots":function(fn){
 			var that=this.parent;
-			
-			that.bot_collection.find({},{}).toArray(function(err,docs){
-				
+			getConnection("SELECT * FROM "+bot_collection,{},function(err,docs){
 				fn(err,docs);
+
 			});
+			
 		},
 		"crawlStats":function(fn){
 			var dic={};
 			var that=this.parent;
-			that.bucket_collection.find({},{}).count(function(err,bucket_count){
+			getConnection("SELECT count(*) FROM "+bucket_collection,{},function(err,bucket_count){
 				dic["bucket_count"]=bucket_count;
-				that.bucket_collection.find({"lastModified":{"$exists":true}}).count(function(err,lm){
+				getConnection("SELECT count(*) FROM "+bucket_collection+" WHERE NOT lastModified=:lmm",{lmm:null},function(err,lm){
 					dic["processed_buckets"]=lm;
-						that.mongodb_collection.find({"done":true}).count(function(err,crawled_count){
+					getConnection("SELECT count(*) FROM "+mongodb_collection+" WHERE done=:done",{done:1},function(err,crawled_count){
 							dic["crawled_count"]=crawled_count;
-							that.mongodb_collection.find({"done":true,"response":{"$ne":200}}).count(function(err,failed_count){
+							getConnection("SELECT count(*) FROM "+mongodb_collection+" WHERE done=:done AND NOT response=:res",{done:1,res:200},function(err,failed_count){
 								dic["failed_count"]=failed_count;
 								fn(dic);
 								return;
@@ -988,12 +738,6 @@ var pool={
 			that.bot_collection.update({"_id":bot_name},{"$set":{"config":js}},function(err,results){
 				fn(err,results);
 			});
-		},
-		"updateSeed":function(js,fn){
-			var that=this.parent;
-			that.cluster_info_collection.update({"_id":config.getConfig("cluster_name")},{"$set":{"seedFile":js}},function(err,results){
-				fn(err,results);
-			});
 		}
 	},
 	"config_reloader":{
@@ -1014,6 +758,79 @@ var pool={
 						}
 					});
 		}
+	},
+	"createConnection":function(fn){
+		var err;
+		try{
+			process.connection = MySQLClient.createConnection({
+			  host     : config.getConfig("mysql","mysql_host"),
+			  user     : config.getConfig("mysql","mysql_user"),
+			  password : config.getConfig("mysql","mysql_password"),
+			  multipleStatements:true
+			});
+			process.connection.connect();
+			pool.setupTables(function(){
+
+				
+				fn(err,process.mysql_pool);
+			});
+
+		}catch(err){
+			fn(err,null);
+		}
+		
+		
+	
+	},
+	"setupTables":function(fn){
+		process.connection.query('CREATE DATABASE '+config.getConfig("mysql","mysql_db" ),function(err, rows, fields) {
+			 
+			  process.mysql_pool = MySQLClient.createPool({
+			  connectionLimit : config.getConfig("mysql","mysql_pool"),
+			  host     : config.getConfig("mysql","mysql_host"),
+			  user     : config.getConfig("mysql","mysql_user"),
+			  password : config.getConfig("mysql","mysql_password"),
+			  database : config.getConfig("mysql","mysql_db"),
+			  multipleStatements:true
+			});
+			process.mysql_pool.getConnection(function(err,connection){
+				connection.query("CREATE TABLE "+config.getConfig("mysql","mysql_collection")+" ( _id VARCHAR(767) PRIMARY KEY,done TINYINT(1),domain VARCHAR(767),data LONGTEXT,hash VARCHAR(25),response VARCHAR(20),lastModified VARCHAR(25))", function(err, rows, fields) {
+			  		connection.query("CREATE TABLE "+config.getConfig("mysql","bucket_collection")+" ( _id VARCHAR(100) PRIMARY KEY,underProcess TINYINT(1),bot VARCHAR(25),recrawlAt BIGINT(25),lastModified TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)", function(err, rows, fields) {
+			  			connection.query("CREATE TABLE "+config.getConfig("mysql","semaphore_collection")+" ( _id INT(100) PRIMARY KEY AUTO_INCREMENT,bot_name VARCHAR(25),requestTime DATE)", function(err, rows, fields) {
+				  			connection.query("CREATE TABLE "+config.getConfig("mysql","bot_collection")+" ( _id VARCHAR(25) PRIMARY KEY,registerTime INT(20),active TINYINT(1),config LONGTEXT,createdBuckets INT(20),processedBuckets INT(20),crawledPages INT(20),failedPages INT(20))", function(err, rows, fields) {
+						  			connection.query("CREATE TABLE "+config.getConfig("mysql","cluster_info_collection")+" ( _id VARCHAR(25) PRIMARY KEY,createdAt DATE,registerTime INT(20),webapp_host VARCHAR(20),webapp_port VARCHAR(20),initiatedBy VARCHAR(20),seedFile LONGTEXT)", function(err, rows, fields) {
+							  			
+										connection.query("CREATE TABLE "+config.getConfig("mysql","parsers_collection")+" ( _id VARCHAR(25) PRIMARY KEY,data LONGBLOB,hash VARCHAR(100))", function(err, rows, fields) {
+							  			
+	
+								  			connection.release();
+								  			fn();
+							
+										});
+						
+									});
+								});
+						});
+			
+					});
+		
+				});
+
+			}); 
+			  
+		
+		});
+	},
+	"close":function(){
+		process.connection.end();
+		process.mysql_pool.end();
+	},
+	"drop":function(fn){
+		process.connection.query("DROP DATABASE "+config.getConfig("mysql","mysql_db"),function(err,rows,fields){
+			fn();
+
+
+		});
 	},
 	"seedCount":0,
 	"cache":{},
@@ -1039,15 +856,8 @@ process.pool_check_mode=setInterval(function(){
 
 
 
-//prototype
-
-
-
 function init(){
 	return pool;
 }
+//console.log(pool);
 exports.init=init;
-
-exports.getDic=function(){
-	return pool;
-}

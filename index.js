@@ -257,6 +257,15 @@ var app={
 									var data=fs.unlinkSync(__dirname+'/robots/'+files[i]);
 								};
 								log.put("robots cache reset","success");
+								var files=fs.readdirSync(__dirname+'/db/sqlite');
+								for (var i = 0; i < files.length; i++) {
+									if(files[i].indexOf(".")===0){
+										//do not take hidden files
+										continue;
+									}
+									var data=fs.unlinkSync(__dirname+'/db/sqlite/'+files[i]);
+								};
+								log.put("SQLite db reset","success");
 								var files=fs.readdirSync(__dirname+'/pdf-store/');
 								for (var i = 0; i < files.length; i++) {
 									if(files[i].indexOf(".")===0){

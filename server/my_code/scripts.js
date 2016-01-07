@@ -188,7 +188,10 @@
 				      	}
 				      }
 				      $(".cluster_info_update").remove();
-				      var b=$('<li class="cluster_info_update"><a class="cluster_name_a" href="javascript:void(0);" title=""><i class="glyph-icon icon-database"></i><span class="cluster_name">'+js['_id']+'</span><span class="small_brackets">(cluster name)</span></a></li><li class="cluster_info_update"><a class="cluster_creation_date_a" href="javascript:void(0);" title=""><i class="glyph-icon icon-calendar"></i><span class="cluster_creation_date">'+new Date(js['createdAt']).toDateString()+'</span><span class="small_brackets">(creation date)</span></a></li><li class="cluster_info_update"><a class="cluster_initiated_by_a" href="javascript:void(0);" title=""><i class="glyph-icon icon-flash"></i><span class="cluster_initiated_by">'+js['initiatedBy']+'</span><span class="small_brackets">(created by)</span></a></li>');
+				      var b=$('<li class="cluster_info_update"><a class="cluster_name_a" href="javascript:void(0);" title=""><i class="glyph-icon icon-database"></i><span class="cluster_name">'+js['_id']+'</span><span class="small_brackets">(cluster name)</span></a></li><li class="cluster_info_update"><a class="cluster_creation_date_a" href="javascript:void(0);" title=""><i class="glyph-icon icon-calendar"></i><span class="cluster_creation_date">'+new Date(js['createdAt']).toDateString()+'</span><span class="small_brackets">(creation date)</span></a></li><li class="cluster_info_update"><a class="cluster_initiated_by_a" href="javascript:void(0);" title=""><i class="glyph-icon icon-flash"></i><span class="cluster_initiated_by">'+js['initiatedBy']+'</span><span class="small_brackets">(created by)</span></a></li><li class="cluster_info_update"><a class="cluster_add_seed_links_a" href="javascript:void(0);" title=""><i class="glyph-icon icon-plus"></i><span class="cluster_add_seed_links">Add seed links</span></a></li>');
+				      b.find(".cluster_add_seed_links_a").on('click',function(){
+				      	editSeed();
+				      });
 				      $(".cluster_info").after(b);
 				      if(fn!==undefined){
 				      	fn();
@@ -405,6 +408,44 @@
 			$(".title-hero-read-log").html("<span>Read the log data for bot :</span> <b>"+BOT_NAME+"</b>");
 			$(".read_log").css("display","inline"); 
 		}
+		function editSeed(bot_name){
+			$(".main_stat_page").css("display","none");
+			$(".back_arrow").css("display","inline");
+			$(".extra_pages").css("display","none");
+			$(".title-hero-edit-seed").html("");
+			$.ajax({
+				  url: "/ask/q?=get-seed",
+				  crossDomain:true
+				})
+				  .done(function( data ) {
+				  	notification("Seed Links fetched !","success");
+				      var js=JSON.parse(data);
+				      if(Object.keys(js)!==0){
+				      	
+				      		YUI().use(
+							  'aui-ace-editor',
+							  function(Y) {
+							    editor = new Y.AceEditor(
+							      {
+							        boundingBox: '#myEditor1',
+							        height: '200',
+							        mode: 'json',
+							        value: '{}'
+							      }
+							    ).render();
+							        editor.set('value',JSON.stringify(js, null, 2).replace(/#dot#/gi,"."));
+							     	
+
+							   
+							    
+							  }
+							);
+							$(".edit_seed").css("display","inline"); 
+				      }
+				   
+				  });
+			
+		}	
 		function editConfig(bot_name){
 			$(".main_stat_page").css("display","none");
 			$(".back_arrow").css("display","inline");
@@ -509,6 +550,9 @@
 		$('.reset_json').on('click',function(){
 			editConfig($(".bot_name_edit_config_"+BOT_NAME));
 		});
+		$('.seed_reset_json').on('click',function(){
+			editSeed();
+		});
 		$(".update_json").on('click',function(){
 			var editor = ace.edit("myEditor");
 			var js=editor.getValue();
@@ -521,6 +565,23 @@
 			$.post( "/ask/q?=put-config",{data:js,bot_name:BOT_NAME})
 			  .done(function() {
 			  	notification("Config updated !","success");
+			  })
+			  .fail(function() {
+			    notification("Something went wrong !","error");
+			  });
+		})
+		$(".seed_update_json").on('click',function(){
+			var editor = ace.edit("myEditor1");
+			var js=editor.getValue().replace(/\./gi,"#dot#");
+			try{
+				JSON.parse(js);
+			}catch(err){
+				notification("Invalid JSON !","error");
+				return;
+			}
+			$.post( "/ask/q?=put-seed",{data:js})
+			  .done(function() {
+			  	notification("Seed updated !","success");
 			  })
 			  .fail(function() {
 			    notification("Something went wrong !","error");

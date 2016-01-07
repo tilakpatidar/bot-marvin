@@ -61,12 +61,12 @@ function nextBatch(){
 		encapsulated function which checks for an available 
 		bucket and starts a new worker
 	*/
-		pool.getNextBatch(function(err,results,hash){
+		pool.getNextBatch(function(err,results,hash,refresh_label){
 		  		
 				if(results.length!==0 && hash!==null){
 					//if bucket is not empty 
 					log.put("Got bucket "+hash,"info");
-					createChild(results,hash);
+					createChild(results,hash,refresh_label);
 				}
 				else{
 					//inlinks_pool into db as childs are available but no buckets
@@ -86,13 +86,13 @@ function nextBatch(){
 				},batchSize);
 	}
 		
-function createChild(bucket_links,hash){
+function createChild(bucket_links,hash,refresh_label){
 	active_childs+=1;
 	var botId=new Date().getTime()+""+parseInt(Math.random()*10000);//generate a random bot id
 	var bot = child.fork(__dirname+"/spawn.js",[]);	
 	spawned[botId]=bot;//saving child process for killing later in case of cleanup
 	log.put('Child process started '+botId,"success");
-	var args=[bucket_links,batchSize,pool.links,botObjs,hash];
+	var args=[bucket_links,batchSize,pool.links,botObjs,hash,refresh_label];
 	//not sending args with child process as char length limitation on bash
 
 	//bot waits for this "init" msg which assigns the details of the task
@@ -132,12 +132,15 @@ function childFeedback(data){
 		case "addToPool":
 			inlinks_pool.push(data["addToPool"]);
 			if(inlinks_pool.length>batchSize){
-				app.flushInlinks(function(){});
+				app.flushInlinks(function(){
+					console.log("fucker completed");
+
+				});
 			}
 			break;
 		case "finishedBatch":
 			var g=data["finishedBatch"];
-			pool.batchFinished(g);//set batch finished
+			pool.batchFinished(g[0],g[1]);//set batch finished
 			break;
 	}
 		

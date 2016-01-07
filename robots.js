@@ -73,7 +73,8 @@ var app={
 			};
 		
 	},
-	"bots":{}
+	"bots":{},
+	"sites":{}
 
 
 };

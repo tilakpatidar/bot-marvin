@@ -14,6 +14,7 @@ var bot={
 	"batch":{},
 	"batchSize":0,
 	"batchId":0,
+	"refresh_label":"monthly",
 	"links":[],
 	"botObjs":{},
 	"lastAccess":{},
@@ -27,6 +28,7 @@ var bot={
 				bot.links=k[2];
 				bot.botObjs=k[3];
 				bot.batchId=k[4];
+				bot.refresh_label=k[5];
 				//prepare regexes
 				
 				fn(bot.batch);
@@ -124,7 +126,7 @@ var bot={
 		for (var i = 0; i < linksFromParsers.length; i++) {
 			var q=linksFromParsers[i];
 			try{
-			process.send({"bot":"spawn","addToPool":[q,config.getConfig("counter_domain")]});
+			process.send({"bot":"spawn","addToPool":[q,q,url,config.getConfig("default_recrawl_interval")]});
 			}
 							catch(err){
 							log.put("Child killed","error")
@@ -176,7 +178,7 @@ var bot={
 					};
 					
 									try{
-											process.send({"bot":"spawn","addToPool":[abs,domain]});
+											process.send({"bot":"spawn","addToPool":[abs,domain,url,config.getConfig("default_recrawl_interval")]});
 										}catch(err){
 											log.put("Child killed","error")
 										}
@@ -190,7 +192,7 @@ var bot={
 				bot.queued+=1;
 				if(bot.queued===bot.batch.length){
 					try{
-								process.send({"bot":"spawn","finishedBatch":bot.batchId});
+								process.send({"bot":"spawn","finishedBatch":[bot.batchId,bot.refresh_label]});
 								setTimeout(function(){process.exit(0);},2000);
 						}catch(err){
 											log.put("Child killed","error")

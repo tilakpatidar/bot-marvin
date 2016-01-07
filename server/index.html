@@ -682,7 +682,15 @@
         </div>
     </div>
 </div>
-
+<div class="row edit_seed extra_pages">
+    <div class="panel-body">
+            <h3 class="title-hero-edit-seed">
+                
+            </h3>
+        <div id="myEditor1"></div><br/>
+        <button class="btn btn-primary seed_update_json">Update</button> <button class="btn btn-warning seed_reset_json">Reset</button>
+    </div>
+</div>
 <div class="row edit_config extra_pages">
     <div class="panel-body">
             <h3 class="title-hero-edit-config">
@@ -690,6 +698,46 @@
             </h3>
         <div id="myEditor"></div><br/>
         <button class="btn btn-primary update_json">Update</button> <button class="btn btn-warning reset_json">Reset</button>
+    </div>
+</div>
+<div class="row read_log extra_pages">
+    <div class="panel-body">
+        <h3 class="title-hero-read-log">
+            
+        </h3>
+        <div class="example-box-wrapper">
+            <form class="form-horizontal bordered-row">
+                <div class="form-group">
+                    <label class="col-sm-2 control-label">Command</label>
+                    <div class="col-sm-4">
+                                    <select class="form-control head_tails">
+                                        <option>head</option>
+                                        <option>tail</option>
+                                    </select>
+                                       
+                                  
+                    </div>
+                    <div class="col-sm-1">
+                    <label class="form-control">-n</label>
+                    </div>
+                    <div class="col-sm-2">
+                    <input class='form-control lines_input' placeholder="lines"/>
+                    </div>
+                    <div class="col-sm-1">
+                     <button class="btn btn-primary head_tail_btn" type="button">Go!</button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="col-sm-2 control-label">Log Data</label>
+                    <div class="col-sm-10">
+                        <div contenteditable="false" name="" class="form-control textarea-autosize log_text_area"></div>
+                    </div>
+                </div>
+              
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 <div class="row read_log extra_pages">
@@ -748,8 +796,7 @@
 <script type="text/javascript" src="../../assets-minified/admin-all-demo.js"></script>
 <script type="text/javascript" src="/my_code/scripts.js"></script>
 <link rel="stylesheet" type="text/css" href="/my_code/styles.css">
-  <script src="/my_code/aui-min.js"></script>
-  
+  <script src="http://cdn.alloyui.com/3.0.1/aui/aui-min.js"></script>
 </div>
 
 </body>

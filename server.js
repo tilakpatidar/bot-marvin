@@ -28,6 +28,12 @@ function init(pool,cluster){
                         response.end();
             });          
         }
+        else if(urlparts.query[""]==="put-seed"){
+          stats.setSeed(js,function(err,results){
+                response.write(JSON.stringify(results));
+                response.end();
+          });
+        }
 
       });      
     }
@@ -61,7 +67,13 @@ function init(pool,cluster){
             });
             break;
         case "get-config":
-            stats.getConfig(urlparts['query']['bot_name'],function(err,results){
+            stats.getConfig(function(err,results){
+                response.write(JSON.stringify(results));
+                response.end();
+            });
+            break;
+         case "get-seed":
+            stats.getSeed(function(err,results){
                 response.write(JSON.stringify(results));
                 response.end();
             });
