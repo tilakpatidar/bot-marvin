@@ -313,13 +313,9 @@ var bot={
 	},
 	"fetchFile":function(url,domain){
 		//files will be downloaded by seperate process
-		bot.active_sockets+=1;
-		var req_url="http://localhost:2030/";
 		var p=bot.links[domain]["parseFile"];
-			request({uri:req_url,qs:{fileName:url,parseFile:p},pool:{maxSockets: Infinity}},function(err,response,html){
-				bot.active_sockets-=1;
-				bot.isLinksFetched();
-			});
+		process.send({"bot":"spawn","tika":[url,p]});
+		bot.isLinksFetched();
 					
 
 	}

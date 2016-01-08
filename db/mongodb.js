@@ -22,16 +22,19 @@ var cluster;
 var sitemap = require('sitemapper');
 //read seed file
 var sqlite3 = require('sqlite3').verbose();
-var sqlite_db={};
+var sqlite_db;
 
 
 var queue={
-	enqueue:function (url,domain,parent,fn){
-		var that=this;
+	enqueue:function (data,mask,fn){
+		
 		//console.log(that.db_name)
 		//console.log(url,domain,parent);
-		that.db.parallelize(function() {
-			that.db.run("INSERT INTO "+StringX.urlHashCode(domain)+"(url,parent) VALUES(?,?)",[url,parent],function(err,row){
+		sqlite_db.parallelize(function() {
+			//console.log(data);
+			//console.log("INSERT INTO links (url,domain,parent,freq) VALUES"+mask);
+			sqlite_db.run("INSERT INTO links (url,domain,parent,freq) VALUES"+mask,data,function(err,row){
+			//console.log(err,row);
 			//console.log(this.lastID,"insert",StringX.urlHashCode(domain));
 				//console.log(JSON.stringify(row)+"pushQ");
 				fn(row);
@@ -39,18 +42,18 @@ var queue={
 		});
 
 	},
-	dequeue:function (domain,num,fn){
-		var that=this;
+	dequeue:function (domain,num,freq,fn){
 		if(num===undefined){
 			num=1;
 		}
 		var li=[];
 		var delIds=[];
-			that.db.parallelize(function() {
+		var that=this;
+			sqlite_db.parallelize(function() {
 				//console.log("SELECT * FROM "+StringX.urlHashCode(domain)+" LIMIT 0,"+num)
-				//console.log(that.db);
-				that.db.all("SELECT * FROM "+StringX.urlHashCode(domain)+" LIMIT 0,"+num,function(err,rows){
-					console.log(err,rows);
+				//console.log(sqlite_db);
+				sqlite_db.all("SELECT * FROM links WHERE domain=? AND freq=? LIMIT 0,"+num,[domain,freq],function(err,rows){
+					//console.log(err,rows);
 					num=rows.length;
 					var d=domain;
 					var mask=[];
@@ -72,7 +75,7 @@ var queue={
 					//console.log(delIds);
 					//console.log(li);
 					//console.log('remove '+id+" "+d+" "+parent+" "+url);
-					that.remove(delIds,d,mask.join(","),function(){
+					that.remove(delIds,mask.join(","),function(){
 						
 							//++done;
 							//console.log(done,"  ",num);
@@ -89,20 +92,18 @@ var queue={
 		
 
 	},
-	remove:function (idd,domain,mask,fn){
-		var that=this;
-		that.db.parallelize(function() {
-			that.db.run("DELETE FROM "+StringX.urlHashCode(domain)+" WHERE id IN ("+mask+")",idd,function(err,row){
+	remove:function (idd,mask,fn){
+		sqlite_db.parallelize(function() {
+			sqlite_db.run("DELETE FROM links WHERE id IN ("+mask+")",idd,function(err,row){
 					//console.log(err+"QLength");
 					//console.log(JSON.stringify(row)+"QLength");
 					fn(err,row);
 				});
 			});
 	},
-	length:function (domain,fn){
-		var that=this;
-		that.db.parallelize(function() {
-			that.db.each("SELECT COUNT(*) AS `c` FROM "+StringX.urlHashCode(domain)+" WHERE 1",function(err,row){
+	length:function (domain,freq,fn){
+		sqlite_db.parallelize(function() {
+			sqlite_db.each("SELECT COUNT(*) AS `c` FROM links WHERE domain=? AND freq=?",[domain,freq],function(err,row){
 				//console.log(err+"QLength");
 				//console.log(JSON.stringify(row)+"QLength");
 				fn(row.c);
@@ -111,24 +112,12 @@ var queue={
 	}
 
 };
-function createSQLiteDB(k){
-	sqlite_db[k]={};
-	sqlite_db[k]["db_name"]=k;
-	sqlite_db[k]["db"]=new sqlite3.Database(parent_dir+'/db/sqlite/links_queue_'+k);
-	sqlite_db[k]["queue"]=ObjectX.clone(queue);
-	sqlite_db[k]["queue"]["db_name"]=sqlite_db[k]["db_name"];
-	sqlite_db[k]["queue"]["db"]=sqlite_db[k]["db"];
+function createSQLiteDB(){
+	sqlite_db=new sqlite3.Database(parent_dir+'/db/sqlite/links_queue');
 }
 
-function createSQLiteCache(url,fn){
-	var intervals=config.getConfig("recrawl_intervals");
-	for(var k in intervals){
-		sqlite_db[k].db.parallelize(function() {
-			//console.log("CREATE TABLE IF NOT EXISTS "+StringX.urlHashCode(url)+"  (id INTEGER PRIMARY KEY AUTOINCREMENT,url TEXT UNIQUE)")
-			sqlite_db[k].db.run("CREATE TABLE IF NOT EXISTS "+StringX.urlHashCode(url)+"  (id INTEGER PRIMARY KEY AUTOINCREMENT,url TEXT UNIQUE,parent TEXT,status TINYINT DEFAULT(0))");
-			pool.cache[url]=true;
-		});
-	}
+function createSQLiteCache(fn){
+	sqlite_db.run("CREATE TABLE IF NOT EXISTS links (id INTEGER PRIMARY KEY AUTOINCREMENT,url TEXT UNIQUE,parent TEXT,status TINYINT DEFAULT(0),domain VARCHAR(100),freq VARCHAR(25))");
 	fn();
 }
 
@@ -140,12 +129,7 @@ var pool={
 		that.checkIfNewCrawl(function(isNewCrawl){
 					that.getParsers(function(){
 
-						var intervals=config.getConfig("recrawl_intervals");
-						for(var k in intervals){
-							
-							createSQLiteDB(k);
-							
-						}
+						createSQLiteDB();
 							var stamp1=new Date().getTime()-2000;//giving less time
 							var stamp=stamp1+""+parseInt(Math.random()*10000);
 							that.bucket_collection.insert({"_id":stamp,"recrawlLabel":config.getConfig("default_recrawl_interval"),"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":links.length},function(err,results){
@@ -159,7 +143,7 @@ var pool={
 										log.put("Seeding from sitemap.xml this could take some minutes ","info");
 										//that.getLinksFromSiteMap(domain,function(){
 										//});
-										createSQLiteCache(domain,function(){
+										createSQLiteCache(function(){
 											
 											that.mongodb_collection.insert({"_id":domain,"hash":stamp,"domain":domain,"done":false},function(err,results){
 												if(err){
@@ -268,7 +252,7 @@ var pool={
 					//first links are added to the db to avoid same links
 					that.addLinksToDB(hashes[key],key,function(hash,numOfLinks){
 						//uniform pool of urls are generated
-						console.log("numOfLinks "+numOfLinks+" "+key);
+						//console.log("numOfLinks "+numOfLinks+" "+key);
 						if(numOfLinks===undefined || numOfLinks===0){
 							//fn(false);
 							++done;
@@ -281,7 +265,6 @@ var pool={
 							//console.log({"_id":hash,"recrawlLabel":key,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":numOfLinks});
 							that.bucket_collection.insert({"_id":hash,"recrawlLabel":key,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":numOfLinks},function(err,results){
 								if(err){
-									console.log("function fucker");
 									log.put(("pool.addToPool"+err),"error");
 									//fn(false);
 									//return;
@@ -514,7 +497,6 @@ var pool={
 		var that=this;
 		var stamp1=new Date().getTime()+config.getConfig("recrawl_intervals",refresh_label);
 		var lm=new Date().getTime();
-		console.log("batchFinished "+hash);
 		that.bucket_collection.findAndModify({"_id":hash},[],{$set:{"underProcess":false,"recrawlAt":stamp1,"lastModified":lm}},{"remove":false},function(err,object){
 			if(object.value!==null){
 					var hash=object["value"]["_id"];
@@ -588,29 +570,23 @@ var pool={
 	},
 	"generatePool":function(li,fn){
 		var that=this;
+		var mask=[];
+		var data=[];
 		for (var i = 0; i < li.length; i++) {
 			//inserting new links in cache
 			var domain=li[i][1];
 			var url=li[i][0];
 			var parent=li[i][2];
 			var refresh_time=li[i][3];
-			if(that.cache[domain]){
-				sqlite_db[refresh_time].queue.enqueue(url,domain,parent,function(){});
-			}
-			else{
-				//domain not in cache create cache table for it
-				createSQLiteCache(domain,function(){
+			that.cache[domain]=true;
+			mask.push("(?,?,?,?)");
+			data=data.concat(li[i]);
 
-					sqlite_db[refresh_time].queue.enqueue(url,domain,parent,function(){
-
-
-					});
-				});
-		
-
-					
-			}
 		};
+		queue.enqueue(data,mask.join(","),function(){
+				console.log("INserted enqueue");
+
+		});
 
 		//generating new buckets based on refresh interval and uniformity
 		var hashes={};
@@ -632,14 +608,13 @@ var pool={
 			for (var key in that.cache) {
 				(function(key,k){
 					var eachh=parseInt(config.getConfig("batch_size")/n_domains);
-					sqlite_db[k].queue.dequeue(key,eachh,function(l){
+					queue.dequeue(key,eachh,k,function(l){
 						//console.log(l);
 							for (var i = 0; i < l.length; i++) {
 								var urldata=l[i];
 								hashes[k]["links"].push(urldata);
 							};
 							++done;
-							console.log("donnnee "+done);
 							if(done===limit){
 								fn(hashes);
 							}

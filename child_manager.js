@@ -128,12 +128,12 @@ function childFeedback(data){
 		case "setCrawled":
 			var t=data["setCrawled"];
 			pool.setCrawled(t[0],t[1],t[2]);//mark as crawled
+			lucene.send({url:t[0],data_json:t[1]});
 			break;
 		case "addToPool":
 			inlinks_pool.push(data["addToPool"]);
 			if(inlinks_pool.length>batchSize){
 				app.flushInlinks(function(){
-					console.log("fucker completed");
 
 				});
 			}
@@ -142,6 +142,11 @@ function childFeedback(data){
 			var g=data["finishedBatch"];
 			pool.batchFinished(g[0],g[1]);//set batch finished
 			break;
+		case "tika":
+			var dat=data["tika"];
+			tika.send(dat);
+			break;
+
 	}
 		
 }
@@ -157,6 +162,17 @@ tika.on('close',function(code){
 	}
 });
 
+
+//starting child process for lucene
+var lucene = child.fork(__dirname+"/lucene-indexer.js",[]);
+spawned["lucene"]=lucene;
+lucene.on('close',function(code){
+	if(code!==0){
+
+		log.put("Lucene shut down","error");
+
+	}
+});
 setInterval(starter,15000);
 
 

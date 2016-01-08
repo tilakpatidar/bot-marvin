@@ -198,12 +198,13 @@ var app={
 			return;//if greater than batch size leave
 		}
 		var expected=(config.getConfig('tika_batch_size')-active);
-			active+=(config.getConfig('tika_batch_size')-active);//mark active before even initializing
+			active+=(expected);//mark active before even initializing
 			queue.length(function(len){
 			//console.log(len+"LENGTH");
 			if(len!==0){
 				
 					queue.dequeue(function(li){
+						console.log("wokring");
 						if(li.length!==expected){
 							active-=(expected-li.length);//reducing if less items are recieved
 						}
@@ -262,7 +263,7 @@ var app={
 			}
 			else{
 				//if len is 0 then decrement the active counter
-				active-=(config.getConfig('tika_batch_size')-active);
+				active-=(expected);
 			}
 			});
 		
@@ -279,33 +280,18 @@ var active=0;
 if(require.main === module){
 	var tika=app;
 	tika.startServer();
-	 var http = require("http");
-	 var url=require("url");
-	 var server = http.createServer(function(request, response) {
-	    var url_parts = url.parse(request.url.toString(),true);
-        var fileName=url_parts.query.fileName;
-        var parseFile=url_parts.query.parseFile;
-        queue.enqueue(fileName,parseFile,function(row){
-        	//console.log(fileName+"PUSHED");
-        	log.put("Tika Got request for "+fileName+" with parse file "+parseFile,"info");
-	        tika.processNext();
-	        
-	        
-	        response.end();
-        });
-        
+	process.on("message",function(data){
+		(function(data){
+	        queue.enqueue(data[0],data[1],function(row){
+	        	//console.log(fileName+"PUSHED");
+	        	log.put("Tika Got request for "+data[0]+" with parse file "+data[1],"info");
+		        tika.processNext();
+		     
+	        });
+		})(data);
 
-  });
-	 server.on("listening",function(){
-	 	log.put("TIka server is listening","success");
-	 });
-server.listen(2030);
-server.on("error",function(e){
-	//console.log(e);
-	if(e.code==="EADDRINUSE"){
-		log.put("Tika port occupied maybe an instance is already running ","error");
-	}
+	});
 
-});
-  
+ 
+
 }

@@ -10,7 +10,9 @@ import java.net.URLDecoder;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.Map;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.HashSet;
 import java.util.concurrent.ConcurrentMap;
 import com.mongodb.util.JSON;
 import com.mongodb.*;
@@ -62,6 +64,7 @@ public class Lucene_Indexer {
     static class InitHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange t) throws IOException{
+            System.out.println("[INFO] /init requested");
             JSONObject obj = new JSONObject();
             obj.put("init",true);
             String response=obj.toString();
@@ -75,6 +78,7 @@ public class Lucene_Indexer {
     static class IndexHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange t) throws IOException {
+            System.out.println("[INFO] /index requested");
             try{
                 MyIndexer indexer=new MyIndexer(getPostData(t));
             }catch(Exception e){
@@ -91,13 +95,14 @@ public class Lucene_Indexer {
     static class SearchHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange t) throws IOException {
-            
+            System.out.println("[INFO] /search requested "+t.getRequestURI().toString() );
             List<String> query=getQueryParams(t.getRequestURI().toString()).get("q");
             List<String> type=getQueryParams(t.getRequestURI().toString()).get("field");
             MyReader read =new MyReader();
             String response = query.get(0)+" "+type.get(0);
+            //System.out.println(response);
             try{
-                read.searchDocument(query.get(0),type.get(0));
+                read.searchDocument(query.get(0),type.get(0).replaceAll("\\.","#dot#"));
                 t.sendResponseHeaders(200, response.length());
             }catch(Exception e){
                 System.out.println(e);
@@ -115,12 +120,12 @@ public class Lucene_Indexer {
     static class ResetHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange t) throws IOException {
+            System.out.println("[INFO] /reset requested");
             String response ="";
             try{
                 MyIndexer.resetIndex();
                 t.sendResponseHeaders(200, response.length());
             }catch(Exception e){
-                System.out.println("heree tialk");
                 System.out.println(e);  
                 t.sendResponseHeaders(404, response.length());
             }finally{
@@ -135,6 +140,7 @@ public class Lucene_Indexer {
         }
     }
     public static Map<String, List<String>> getQueryParams(String url) {
+        //System.out.println(URLDecoder.decode(url));
         try {
             Map<String, List<String>> params = new HashMap<String, List<String>>();
             String[] urlParts = url.split("\\?");
@@ -267,6 +273,7 @@ private void setProperty(JSONObject js1, String keys, String valueNew) throws JS
         // lucene directory
         Directory dir = new MapDirectory(store);
         StandardAnalyzer analyzer = new StandardAnalyzer(Version.LUCENE_4_9);
+        System.out.println("[INFO] /search for \""+query+"\" in \""+field+"\"");
         Query q = new QueryParser(Version.LUCENE_4_9,field, analyzer).parse(query);
         IndexReader reader = IndexReader.open(dir);
         IndexSearcher searcher = new IndexSearcher(reader);
@@ -357,6 +364,7 @@ class MyIndexer{
             JSONObject object=jsonObjects.getJSONObject(i);
             JSONObject new_js=new JSONObject();
             this.getLinearJSON(object,new_js,"");
+            System.out.println(new_js);
             Document doc=this.JSONtoDOC(new_js);
             System.out.println(new_js);
             System.out.println(doc);
@@ -380,11 +388,19 @@ class MyIndexer{
             providing each an id to map in query later.
         */
         Document doc = new Document();
+        String[] indexed_fields=object.get("indexed_fields").toString().split(",");
+        HashSet<String> hash=new HashSet<String>(Arrays.asList(indexed_fields));
+        System.out.println(Arrays.toString(indexed_fields));
         for(String field : (Set<String>) object.keySet()){
+            if(field.equals("indexed_fields")){
+                continue;
+            }
+            if(hash.contains(field)){
+                System.out.println("heree s tilak "+field);
                 Class type = object.get(field).getClass();
                 doc.add(new LongField("_id", (long)object.get(field).toString().hashCode(), Field.Store.YES));
                 if(type.equals(String.class)){
-                    doc.add(new StringField(field, (String)object.get(field), Field.Store.YES));
+                    doc.add(new TextField(field, (String)object.get(field), Field.Store.YES));
                 }else if(type.equals(Long.class)){
                     doc.add(new LongField(field, (long)object.get(field), Field.Store.YES));
                 }else if(type.equals(Double.class)){
@@ -392,6 +408,7 @@ class MyIndexer{
                 }else if(type.equals(Boolean.class)){
                     doc.add(new StringField(field, object.get(field).toString(), Field.Store.YES));
                 }
+            }
                 
         }
         return doc;
