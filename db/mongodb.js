@@ -969,7 +969,7 @@ var pool={
 	"seedReloader":function(){
 		var that=this;
 		that.pullSeedLinks(function(new_config){
-			if(new_config!==null){
+			if(check.assigned(new_config)){
 				if(!ObjectX.isEquivalent(new_config,that.seed_db_copy)){
 					log.put("Seed Links changed from db ","info");
 					process.emit("restart");//will be caught by death and it will cause to restart
