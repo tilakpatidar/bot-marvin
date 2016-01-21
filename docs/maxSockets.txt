@@ -1,0 +1,14 @@
+Check ulimit, which is the # of open file allow if you are in LInux system.  Increase ulimit by editing :
+	$ vi /etc/security/limits.conf
+and put this:
+	httpd soft nofile 10240
+	httpd hard nofile 10240
+
+
+
+You may need to increase the heap and optimize your node server.  see this: http://blog.caustik.com/2012/04/11/escape-the-1-4gb-v8-heap-limit-in-node-js/
+	$ sudo node –max-old-space-size=1700 myNode.js 
+
+When running your code again, check netstat and count if the socket increase and goes back to default level when server stop sending out requests.
+
+Tip:set the batchSize wisely as it will be the number of concurrent connections

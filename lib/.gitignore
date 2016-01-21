@@ -1,0 +1,5 @@
+./jars
+./org
+./*.java
+./*.class
+!.gitignore
