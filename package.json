@@ -8,7 +8,7 @@
     "man": "./docs/man"
   },
   "scripts" :{ 
-    "postinstall" : "sudo bot-marvin --reset"
+    "postinstall" : "bot-marvin --reset"
    }
 ,
   "bin": {
