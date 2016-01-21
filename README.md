@@ -169,3 +169,4 @@ API is underconstruction.
  * [phantomjs](https://www.npmjs.com/package/phantomjs) for dynamic rendering
  * [phantom](https://www.npmjs.com/package/phantom) interface for phantomjs
  * [progress](https://www.npmjs.com/package/progress) for download progress bars
+ * [node-static](https://www.npmjs.com/package/node-static) server for web app
