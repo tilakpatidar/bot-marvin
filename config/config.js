@@ -24,22 +24,6 @@ var config={
     "parsers_collection": "parsers",
     "sitemap_collection": "sitemap_data"
   },
-  "mysql": {
-    "mysql_host": "127.0.0.1",
-    "mysql_user": "root",
-    "mysql_password": "1",
-    "mysql_db": "crawl",
-    "mysql_collection": "links",
-    "bucket_collection": "bucket",
-    "semaphore_collection": "queue",
-    "bot_collection": "bots",
-    "cluster_info_collection": "cluster_info",
-    "parsers_collection": "parsers",
-    "mysql_pool": 100
-  },
-  "elasticsearch": {
-    "elasticsearch_uri": ""
-  },
   "http": {
     "timeout": 10000,
     "max_content_length": 10485760,
