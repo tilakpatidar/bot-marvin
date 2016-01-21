@@ -147,13 +147,13 @@ var app={
 					done_len+=chunk.length;
 				 	var t=new Date().getTime();
 				 	if((t-init_time)>config.getConfig("tika_timeout")){
-				 		console.log((t-init_time)+"ContentTimeOut");
+				 		//console.log((t-init_time)+"ContentTimeOut");
 						log.put("Connection timedout change tika_timeout setting in config","error");
 						callback("TikaContentTimeout");
 						return;
 				 	}
 				 	if(done_len>config.getConfig("tika_content_length")){
-						console.log(done_len+"ContentOverflowTka");
+						//console.log(done_len+"ContentOverflowTka");
 						log.put("content-length is more than specified","error");
 						callback("TikaContentOverflow");
 						return;
@@ -239,7 +239,7 @@ var app={
 		busy=true;
 				
 					queue.dequeue(function(li){
-						console.log(li);
+						//console.log(li);
 						if(li.length===0){
 							busy=false;
 							setImmediate(function(){tika.processNext();});
