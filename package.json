@@ -8,7 +8,7 @@
     "man": "./docs/man"
   },
   "scripts": {
-    "postinstall": "bot-marvin --reset"
+    "postinstall": "bot-marvin --reset && nodejs ./lib/download.js"
   },
   "bin": {
     "bot-marvin": "./index.js"
@@ -51,6 +51,7 @@
     "sqlite3": "3.1.1",
     "underscore": "1.8.3",
     "webpage": "0.3.0",
-    "xml2js": "0.4.15"
+    "xml2js": "0.4.15",
+    "download":"4.4.3"
   }
 }
