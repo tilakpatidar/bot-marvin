@@ -38,8 +38,14 @@ var app={
 				fn(status,response);
 			});
 	},
+	"readTerminal":function(bot_name,fn){
+		cluster.send(bot_name,{"readTerminal":true},function(status,response){
+				fn(status,response);
+		});
+	},
 	"getConfig":function(bot_name,fn){
 			pool.cluster.getBotConfig(bot_name,function(err,results){
+
 			try{
 
 				fn(err,results.config);
@@ -75,10 +81,10 @@ var app={
 			else{
 				sor[sort_key]=sort_type;
 			}
-			pool.stats.getCrawledPages(d,len,i,sor,function(err,results){
+			pool.stats.getCrawledPages(d,len,i,sor,function(err,results,c){
 			try{
 
-				fn(err,results);
+				fn(err,results,c);
 			}
 			catch(err){
 
@@ -99,10 +105,10 @@ var app={
 			}else{
 				sor[sort_key]=sort_type;
 			}
-			pool.stats.getFailedPages(d,len,i,sor,function(err,results){
+			pool.stats.getFailedPages(d,len,i,sor,function(err,results,c){
 			try{
 
-				fn(err,results);
+				fn(err,results,c);
 			}
 			catch(err){
 
@@ -123,10 +129,10 @@ var app={
 			}else{
 				sor[sort_key]=sort_type;
 			}
-			pool.stats.getTotalBuckets(d,len,i,sor,function(err,results){
+			pool.stats.getTotalBuckets(d,len,i,sor,function(err,results,c){
 			try{
 
-				fn(err,results);
+				fn(err,results,c);
 			}
 			catch(err){
 
@@ -147,10 +153,10 @@ var app={
 			}else{
 				sor[sort_key]=sort_type;
 			}
-			pool.stats.getProcessedBuckets(d,len,i,sor,function(err,results){
+			pool.stats.getProcessedBuckets(d,len,i,sor,function(err,results,c){
 			try{
 
-				fn(err,results);
+				fn(err,results,c);
 			}
 			catch(err){
 
@@ -186,6 +192,16 @@ var app={
 		pool.stats.updateSeed(js,function(err,results){
 			fn(err,results);
 		});
+	},
+	"getPage":function(url,fn){
+		pool.stats.getPage(url,function(err,data){
+			fn(err,data);
+		});
+	},
+	"search":function(query,i,fn){
+		pool.stats.search(query,i,function(err,results){
+			fn(err,results);
+		})
 	}
 };
 module.exports=function(init,clstr){

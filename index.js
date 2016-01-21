@@ -10,18 +10,24 @@
 
 //global requires
 process.force_mode=false;//enables or disables the process.force_mode
-process.my_timers=[];
+process.my_timers=[];//stores all the timers used to remove all timers for graceful exit
 process.reset=false;
 process.seedFile=null;
 var proto=require(__dirname+'/lib/proto.js');
+var check = require('check-types');
+var _=require("underscore")
 JSONX=proto["JSONX"];//JSON for regex support in .json files
 process.getAbsolutePath=proto.getAbsolutePath;
 var argv=require(__dirname+'/argv.js');
-var overriden_config=argv.init();//parses cmd line argv and perform required operations
+var new_opts=argv.init();
+console.log(argv.init())
+var log=require(__dirname+"/lib/logger.js");
+log.put(JSON.stringify(new_opts,null,2),"info");
+var overriden_config=new_opts;//parses cmd line argv and perform required operations
 var config=require(__dirname+"/lib/config-reloader.js");
 config.setOverridenConfig(overriden_config);
 var fs=require('fs');
-var log=require(__dirname+"/lib/logger.js");
+
 var cluster;//stores the cluster obj to communicate with the other bots
 
 
@@ -29,8 +35,8 @@ var cluster;//stores the cluster obj to communicate with the other bots
 function main(pool) {
 	//setting args
 	
-	process.bot.startBot(process.force_mode,function(s){
-		if(s){
+	process.bot.startBot(process.force_mode,function(status){
+		if(status){
 			//bot was started successfully
 			function startBotManager(links,botObjs){
 
@@ -63,7 +69,7 @@ function main(pool) {
 							log.put("downloading robots.txt this could take a while","info");
 							var robots=require(__dirname+'/robots.js').app;
 							robots.init(Object.keys(pool.links),function(err,obj){
-								console.log(obj);
+								//console.log(obj);
 								if(obj){
 									log.put("robots.txt parsed","success");
 								}
@@ -86,6 +92,7 @@ function main(pool) {
 				});
 		}
 		else{
+			//unable to start bot exit gracefully
 			process.exit(0);
 		}
 	});
@@ -95,7 +102,7 @@ function main(pool) {
 
 	function cleanUp(fn){
 		log.put("Performing cleanUp ","info");
-			process.child_manager.setManagerLocked(true);
+			process.child_manager.setManagerLocked(true); //lock the manager so no new childs are spawned
 			process.child_manager.flushAllInlinks(function(status){
 				//flush all the inlinks into db before exit
 					process.child_manager.killWorkers();//kill all the workers before quiting
@@ -185,57 +192,44 @@ function updateJson(js){
 
 var app={
 	"getConfig":function(){
+		//return the json config of the bot
 		return config.getConfig();
 	},
-	"set":function(key,value,oldKey){
+	"set":function(){
 		//for recursive json objects
 		var config1=config.getConfig();
-		if(Object.prototype.toString.call(value) === '[object Object]'){
-			for(var key1 in value){
-				app.set(key1,value[key1],key);
+		var t="";
+		var val;
+		for (var i = 0; i < arguments.length; i++) {
+			if(i===arguments.length-1){
+				val=arguments[i]
+			}else{
+				check.assert.assigned(arguments[i],"key value pairs cannot be undefined")
+				check.assert.string(arguments[i],"key value should be a string")
+				t+="['"+arguments[i]+"']"
 			}
-			return true;
-		}
-		if(this.isProperty(key)){
-			if(oldKey!==undefined){
-				if(value===null){
-					delete config1[oldKey][key];
-				}
-				else{
-					config1[oldKey][key]=value;
-				}
-				
-			}
-			else{
-				if(value===null){
-					delete config1[key];
-				}
-				else{
-					config1[key]=value;
-				}
-				
-			}
-			
-			if(updateJson(config1)){
-				log.put((""+key+" updated"),"success");
+		};
+		eval("config1"+t+"=val");
+		var log_key=t.replace(/'/g,"").replace("\[|\]"," ");
+		if(updateJson(config1)){
+				log.put((""+log_key+" updated"),"success");
 				return true;
 			}
 			else{
-				log.put((""+key+" update failed"),"error");
+				log.put((""+log_key+" update failed"),"error");
+				throw new Error(""+log_key+" update failed");
 				return false;
 			}
 			
-		}
-		else{
-			log.put((""+key+" invalid"),"error");
-			return false;
-		}
+		
 	},
 	"get":function(args){
+		check.assert.assigned(args,"atleast one arg expected")
 		return config.getConfig.apply(null,arguments);
 
 	},
 	"isProperty":function(args){
+		check.assert.assigned(args,"atleast one arg expected")
 		return app.get.apply(null,arguments)!==undefined;
 	},
 	"reset":function(fn){
@@ -247,6 +241,8 @@ var app={
 						
 							app.pool.drop(function(){
 								log.put("db reset","success");
+
+								//drop robots.txt cache
 								var files=fs.readdirSync(__dirname+'/robots/');
 								for (var i = 0; i < files.length; i++) {
 									if(files[i].indexOf(".")===0){
@@ -257,6 +253,8 @@ var app={
 									var data=fs.unlinkSync(__dirname+'/robots/'+files[i]);
 								};
 								log.put("robots cache reset","success");
+
+								//drop temp dbs
 								var files=fs.readdirSync(__dirname+'/db/sqlite');
 								for (var i = 0; i < files.length; i++) {
 									if(files[i].indexOf(".")===0){
@@ -266,6 +264,9 @@ var app={
 									var data=fs.unlinkSync(__dirname+'/db/sqlite/'+files[i]);
 								};
 								log.put("SQLite db reset","success");
+
+
+								//drop pdf store
 								var files=fs.readdirSync(__dirname+'/pdf-store/');
 								for (var i = 0; i < files.length; i++) {
 									if(files[i].indexOf(".")===0){
@@ -276,6 +277,8 @@ var app={
 									var data=fs.unlinkSync(__dirname+'/pdf-store/'+files[i]);
 								};
 								log.put("pdf-store cache reset","success");
+
+
 								log.put("crawler reset","success");
 								app.clearSeed(function(status){
 										try{
@@ -301,7 +304,7 @@ var app={
 			return;
 	},
 	"crawl":function(force){
-		if(force===undefined || force === false){
+		if(check.assigned(force) || force === false){
 			process.force_mode=false;
 		}
 		else{
@@ -319,6 +322,11 @@ var app={
 		return undefined;
 	},
 	"isSeedPresent":function(url,fn){
+		check.assert.assigned(url,"seed url cannot be undefined")
+		if(fn===undefined){
+			fn=function(){};
+		}
+
 		try{
 				app.pool.checkIfNewCrawl(function(newCrawl,cluster_info){
 				if(newCrawl){
@@ -340,14 +348,21 @@ var app={
 			fn(false);
 		}
 	},
-	"insertSeed":function(url,parseFile,phantomjs,fn){
+	"insertSeed":function(url,parseFile,phantomjs,priority,fetch_interval,fn){
+		if(fn===undefined){
+			fn=function(){}
+		}
+		if(_.size(arguments)<5){
+			throw new SyntaxError("atleast 5 args expected");
+			fn(false);
+		}
 		url=url.replace("https://","http://");
 		app.isSeedPresent(url,function(present){
 			if(present){
 				fn(false);
 			}
 			else{
-				app.pool.insertSeed(url,parseFile,phantomjs,function(inserted){
+				app.pool.insertSeed(url,parseFile,phantomjs,priority,fetch_interval,function(inserted){
 				
 					if(inserted){
 						fn(true);
@@ -362,14 +377,21 @@ var app={
 		});
 		
 	},
-	"updateSeed":function(url,parseFile,phantomjs,fn){
+	"updateSeed":function(url,parseFile,phantomjs,priority,fetch_interval,fn){
+		if(fn===undefined){
+			fn=function(){}
+		}
+		if(_.size(arguments)<5){
+			throw new SyntaxError("atleast 5 args expected");
+			fn(false);
+		}
 		url=url.replace("https://","http://");
 		app.isSeedPresent(url,function(present){
 			if(!present){
 				fn(false);
 			}
 			else{
-				app.pool.insertSeed(url,parseFile,phantomjs,function(inserted){
+				app.pool.insertSeed(url,parseFile,phantomjs,priority,fetch_interval,function(inserted){
 					if(inserted){
 						fn(true);
 					}
@@ -383,6 +405,10 @@ var app={
 		});
 	},
 	"removeSeed":function(url,fn){
+		if(fn===undefined){
+			fn=function(){}
+		}
+		check.assert.assigned(url,"seed url cannot be undefined")
 		var url=url.replace("https://","http://");
 		app.pool.removeSeed(url,function(removed){
 					if(removed){
@@ -395,12 +421,16 @@ var app={
 		
 	},
 	"loadSeedFile":function(path,fn){
+		if(fn===undefined){
+			fn=function(){}
+		}
+		check.assert.assigned(path,"file path cannot be undefined")
 		var data=fs.readFileSync(path).toString().split("\n");
 		var done=0;
 		for (var i = 0; i < data.length; i++) {
 			var d=data[i].split("\t");
-			(function(a,b,c){
-				app.insertSeed(a,b,c,function(status){
+			(function(a,b,c,dd,ee){
+				app.insertSeed(a,b,c,dd,ee,function(status){
 					if(status){
 						
 					}
@@ -409,19 +439,52 @@ var app={
 						fn(true);
 					}
 				});
-			})(d[0],d[1],JSON.parse(d[2]));
+			})(d[0],d[1],JSON.parse(d[2]),d[3],d[4]);
 			
 		};
 	},
 	"clearSeed":function(fn){
+		if(fn===undefined){
+			fn=function(){}
+		}
 		app.pool.clearSeed(function(cleared){
-			fn(cleared);
+			if(fn!==undefined){
+				fn(cleared);
+			}
 		});
 	},
 	"close":function(fn){
+		if(fn===undefined){
+			fn=function(){}
+		}
 		process.bot.stopBot(function(){
-			fn();
+			if(fn!==undefined){
+				fn();
+			}
 		});
+	},
+	"setParser":function(parser_name,fn_webpage,fn_files,fn){
+		if(fn===undefined){
+			fn=function(){}
+		}
+		var webpage="var user_defined_fn="+fn_webpage.toString()+";\nuser_defined_fn(ret,data,$)";
+		var fn_files="var user_defined_fn="+fn_files.toString()+";\nuser_defined_fn(ret,data)";
+		var code=fs.readFileSync(__dirname+"/lib/parse_template.js").toString();
+		
+		code=code.replace("###REPLACE_HTML###",fn_webpage).replace("###REPLACE_DOC###",fn_files);
+		fs.writeFileSync(__dirname+"/parsers/"+parser_name+".js",code);
+		app.pool.insertParseFile(parser_name,function(bool){
+			if(bool===true){
+				log.put("Parse File inserted","success");
+			}
+			else{
+				log.put("Parse File insert failed","error");
+			}
+			if(fn!==undefined){
+				fn();
+			}
+			
+		})
 	}
 };
 if(require.main === module){

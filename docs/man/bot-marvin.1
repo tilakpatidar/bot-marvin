@@ -1,0 +1,45 @@
+.\" Manpage for bot_marvin.
+.\" Contact tilakpatidar@gmail.com to correct errors or typos.
+.TH man 8 "13 Jan 2016" "1.0" "bot_marvin man page"
+.SH NAME
+bot_marvin \- crawler
+.SH DESCRIPTION
+Bot Marvin is a highly scalable open source web crawler software project.
+.SH OPTIONS
+Ex usage --option=value
+.IP --seedFile\ <Absolute\ path\ to\ seed\ file>
+Loading the seedFile
+.IP --force
+Start the bot in force mode
+.IP --childs\ <number\ of\ spawned\ process\ for\ this\ bot>
+Spawns new workers for crawling.
+.IP --max_concurrent_sockets\ <Integer>
+Concurrent sockets for crawling per spawned child.
+.IP --batch_size\ <Integer>
+Number of urls to process per child node.
+.IP --db_type\ <mongodb/mysql>
+Type of database to use for storing bot crawled information.
+.IP --verbose\ <true/false>
+Enable/Disable bot verbosing.
+.IP --logging\ <true/false>
+Enable/Disable bot logging.
+.IP --webapp
+Does not start the bot but webapp will run.
+.IP --reset
+Reset bot data drops the entire crawled data.
+.SH SAMPLE CMDS
+.IP bot-marvin
+Starts the web crawler
+.IP bot-marvin\ --seedFile\ /home/marvin/seedfile
+Seeds the crawler with the give file.
+.IP bot-marvin\ --force
+If you see warnings like bot already exists. Use this command. But,it will kill any bot with same name in cluster.
+.IP bot-marvin\ --db_type=mongodb\ --childs=5\ --max_concurrent_sockets=10
+Starts bot with 5 fetcher processes and each using 10 concurrent sockets to fetch.Will use mongodb as default db.
+.IP bot-marvin\ --webapp
+Starts webapp
+.SH NODEJS API
+.SH BUGS
+No known bugs.
+.SH AUTHOR
+Tilak Patidar (tilakpatidar@gmail.com)

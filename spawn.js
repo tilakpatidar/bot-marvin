@@ -4,7 +4,10 @@ var request = require("request");
 var colors = require('colors');
 var urllib = require('url');
 var config=require(__dirname+"/lib/config-reloader.js");
+var separateReqPool = {maxSockets: config.getConfig("http","max_sockets_per_host")};
 var log=require(__dirname+"/lib/logger.js");
+var proto=require(__dirname+"/lib/proto.js");
+var URL=proto["URL"];
 var regex_urlfilter={};
 regex_urlfilter["accept"]=config.getConfig("accept_regex");
 regex_urlfilter["reject"]=config.getConfig("reject_regex");
@@ -55,7 +58,7 @@ var bot={
 	},
 	"processLink":function(url,domain){
 		var bot=this;//inside setTimeout no global access
-		if(bot.active_sockets>config.getConfig("max_concurrent_sockets")){
+		if(bot.active_sockets>config.getConfig("http","max_concurrent_sockets")){
 			//pooling to avoid socket hanging
 			(function(url,domain){
 					setTimeout(function(){ bot.processLink(url,domain); }, 1000); //to avoid recursion
@@ -178,7 +181,7 @@ var bot={
 					};
 					
 									try{
-											process.send({"bot":"spawn","addToPool":[abs,domain,url,config.getConfig("default_recrawl_interval")]});
+											process.send({"bot":"spawn","addToPool":[URL.normalize(abs),URL.normalize(domain),URL.normalize(url),config.getConfig("default_recrawl_interval")]});
 										}catch(err){
 											log.put("Child killed","error")
 										}
@@ -277,39 +280,93 @@ var bot={
 		var req_url=url;
 		if(bot.links[domain]["phantomjs"]){
 			//new url if phantomjs is being used
-			req_url=config.getConfig("phantomjs_url")+req_url;
+			req_url="http://127.0.0.1:"+config.getConfig("phantomjs_port")+"/?q="+req_url;
 		}
 		bot.active_sockets+=1;
-		request({uri:req_url,pool:{maxSockets: Infinity}},function(err,response,html){
-			bot.active_sockets-=1;
-			if(html===undefined){
-				//some error with the request return silently
-				log.put("Max sockets reached read docs/maxSockets.txt","error");
-				try{
-					process.send({"bot":"spawn","setCrawled":[url,{},-1]});
-				}catch(err){
-					log.put("Child killed","error")
-				}
-				
-				bot.isLinksFetched();
-				return;
+		
+		var req=request({uri:req_url,pool:separateReqPool});
+		var html="";
+		var done_len=0;
+		var init_time=new Date().getTime();
+		req.on("response",function(res){
+			var len = parseInt(res.headers['content-length'], 10);
+			if(len===undefined || len ===null || len ===NaN){
+				len=0;
 			}
-					var parser=require(__dirname+"/parsers/"+bot.links[domain]["parseFile"]);
-					var dic=parser.init.parse(html,url);//pluggable parser
-					//dic[0] is cheerio object
-					//dic[1] is dic to be inserted
-					//dic[2] inlinks suggested by custom parser
-					bot.grabInlinks(dic[0],url,domain,dic[2]);
-					var code=response.statusCode;
+			if(len>config.getConfig("http","max_content_length")){
+					log.put("content-length is more than specified","error");
 					try{
-					process.send({"bot":"spawn","setCrawled":[url,dic[1],code]});
+						process.send({"bot":"spawn","setCrawled":[url,{},"ContentOverflow"]});
 					}catch(err){
-					log.put("Child killed","error")
+						log.put("Child killed","error")
 					}
+					
 					bot.isLinksFetched();
+					return;
+			}
+			res.on("data",function(chunk){
+				done_len+=chunk.length;
+				var c=chunk.toString();
+			 	html += c;
+			 	var t=new Date().getTime();
+			 	if((t-init_time)>config.getConfig("http","timeout")){
+			 		console.log((t-init_time)+"ContentTimeOut");
+					log.put("Connection timedout change http.timeout setting in config","error");
+					try{
+						process.send({"bot":"spawn","setCrawled":[url,{},"ContentTimeOut"]});
+					}catch(err){
+						log.put("Child killed","error")
+					}
 					
+					bot.isLinksFetched();
+					return;
+			 	}
+			 	if(done_len>config.getConfig("http","max_content_length")){
+					console.log(done_len+"ContentOverflow");
+					log.put("content-length is more than specified","error");
+					try{
+						process.send({"bot":"spawn","setCrawled":[url,{},"ContentOverflow"]});
+					}catch(err){
+						log.put("Child killed","error")
+					}
 					
-				});
+					bot.isLinksFetched();
+					return;
+				}
+			});
+			res.on("end",function(){
+				bot.active_sockets-=1;
+				if(html===undefined){
+					//some error with the request return silently
+					log.put("Max sockets reached read docs/maxSockets.txt","error");
+					try{
+						process.send({"bot":"spawn","setCrawled":[url,{},-1]});
+					}catch(err){
+						log.put("Child killed","error")
+					}
+					
+					bot.isLinksFetched();
+					return;
+				}
+				var parser=require(__dirname+"/parsers/"+bot.links[domain]["parseFile"]);
+				var dic=parser.init.parse(html,url);//pluggable parser
+				//dic[0] is cheerio object
+				//dic[1] is dic to be inserted
+				//dic[2] inlinks suggested by custom parser
+				bot.grabInlinks(dic[0],url,domain,dic[2]);
+				var code=res.statusCode;
+				try{
+				process.send({"bot":"spawn","setCrawled":[url,dic[1],code]});
+				}catch(err){
+				log.put("Child killed","error")
+				}
+				bot.isLinksFetched();
+					
+
+			});
+		});
+
+					
 	},
 	"fetchFile":function(url,domain){
 		//files will be downloaded by seperate process

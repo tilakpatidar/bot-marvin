@@ -52,8 +52,10 @@ function starter(){
 	if(done===0){
 		return;//no available childs
 	}
-		  
-	nextBatch();//call nextBatch to obtain a new bucket and start a worker
+	if(!process.webappOnly){
+			nextBatch();//call nextBatch to obtain a new bucket and start a worker
+	}
+	
 };//end of starter
 
 function nextBatch(){
@@ -128,7 +130,8 @@ function childFeedback(data){
 		case "setCrawled":
 			var t=data["setCrawled"];
 			pool.setCrawled(t[0],t[1],t[2]);//mark as crawled
-			lucene.send({url:t[0],data_json:t[1]});
+			
+			
 			break;
 		case "addToPool":
 			inlinks_pool.push(data["addToPool"]);
@@ -144,26 +147,35 @@ function childFeedback(data){
 			break;
 		case "tika":
 			var dat=data["tika"];
-			tika.send(dat);
+			tika.send(dat)
 			break;
 
 	}
 		
 }
+if(!process.webappOnly){
+	//starting child process for tika
+	var tika = child.fork(__dirname+"/tika.js",[]);
+	spawned["tika"]=tika;
+	tika.on('close',function(code){
+		if(code!==0){
 
-//starting child process for tika
-var tika = child.fork(__dirname+"/tika.js",[]);
-spawned["tika"]=tika;
-tika.on('close',function(code){
-	if(code!==0){
+			log.put("Tika port occupied maybe an instance is already running ","error");
 
-		log.put("Tika port occupied maybe an instance is already running ","error");
-
+		}
+	});
+	function tikaPing(){
+		tika.send(["ping"]);
 	}
-});
+	setInterval(tikaPing,5000);	
+	setInterval(starter,15000);
+	tika.on("message",childFeedback);
+}
+
 
 
 //starting child process for lucene
+/*
 var lucene = child.fork(__dirname+"/lucene-indexer.js",[]);
 spawned["lucene"]=lucene;
 lucene.on('close',function(code){
@@ -173,10 +185,11 @@ lucene.on('close',function(code){
 
 	}
 });
-setInterval(starter,15000);
+*/
 
 
-tika.on("message",childFeedback);
+
+
 var app={
 
 	getActiveChilds:function(){
@@ -202,6 +215,7 @@ var app={
 			In case of clean up,flushInlinks into the db
 		*/
 		var k=inlinks_pool.splice(0,batchSize);
+		//console.log(k);
 		pool.addToPool(k,fn);
 
 	},

@@ -6,6 +6,7 @@ var fs = require('fs');
 var request = require('request');
 var log=require(__dirname+"/lib/logger.js");
 var config=require(__dirname+"/lib/config-reloader.js");
+var separateReqPool = {maxSockets: config.getConfig("tika_max_sockets_per_host")};
 var sqlite3 = require('sqlite3').verbose();
 var db = new sqlite3.Database(__dirname+'/db/sqlite/tika_queue');
 db.serialize(function() {
@@ -14,7 +15,7 @@ db.serialize(function() {
 var queue={
 	enqueue:function (fileName,parseFile,fn){
 		db.serialize(function() {
-			db.run("INSERT INTO q(fileName,parseFile,status) VALUES(?,?,0)",[fileName,parseFile],function(err,row){
+			db.run("INSERT OR IGNORE INTO q(fileName,parseFile,status) VALUES(?,?,0)",[fileName,parseFile],function(err,row){
 				//console.log(err+"pushQ");
 				//console.log(JSON.stringify(row)+"pushQ");
 				fn(row);
@@ -88,7 +89,12 @@ var app={
 			app.addFileToStore(url,function(err1){
 				
 				if(err1){
-					err="tikaDownloadFailed";
+					if(err1==="error"){
+						err="tikaDownloadFailed";
+					}else{
+						err=err1;
+					}
+					
 					callback(err,null);
 					return;
 				}
@@ -120,21 +126,53 @@ var app={
 	"addFileToStore":function(url,callback){
 		var st=fs.createWriteStream(app.getFileName(url)).on('error',function(err){
 				
-				callback("error here");
+				callback("TikeFileStreamError");
 		});
-			request({uri: url}).on('error',function(err){
-				
-				callback("error here");
-
-			}).pipe(st).on('error',function(err){
-				
-				callback("error here");
-			}).on('close',function(err){
-				if(!err){
-					callback(null);
+			var req=request({uri: url,pool:separateReqPool});
+			var done_len=0;
+			var init_time=new Date().getTime();
+			req.on("response",function(res){
+				var len = parseInt(res.headers['content-length'], 10);
+				if(len===undefined || len ===null || len ===NaN){
+					len=0;
 				}
-				
+				if(len>config.getConfig("tika_content_length")){
+						log.put("content-length is more than specified","error");
+						callback("TikaContentOverflow");
+						
+						return;
+				}
+				res.on("data",function(chunk){
+					done_len+=chunk.length;
+				 	var t=new Date().getTime();
+				 	if((t-init_time)>config.getConfig("tika_timeout")){
+				 		console.log((t-init_time)+"ContentTimeOut");
+						log.put("Connection timedout change tika_timeout setting in config","error");
+						callback("TikaContentTimeout");
+						return;
+				 	}
+				 	if(done_len>config.getConfig("tika_content_length")){
+						console.log(done_len+"ContentOverflowTka");
+						log.put("content-length is more than specified","error");
+						callback("TikaContentOverflow");
+						return;
+					}
+				});
+					res.on('error',function(err){
+									
+						callback("TikaDownloadFailed");
+
+					}).pipe(st).on('error',function(err){
+						
+						callback("TikaFileStoreWriteError");
+					}).on('close',function(err){
+						if(!err){
+							callback(null);
+						}
+						
+					});
 			});
+			
 		
 	
   	   
@@ -144,7 +182,7 @@ var app={
 			fs.unlink(app.getFileName(url),function(err){
 			
 				if(err){
-					cal("error here");
+					cal("TikaStoreRemoveError");
 				}
 				else{
 					cal(null);
@@ -160,14 +198,14 @@ var app={
 			var source = fs.createReadStream(app.getFileName(url));
 			source.on('error',function(err){
 				
-					callback("error here",{});
+					callback("TikaFileStoreReadError",{});
 			});
 			var dic={};
 			source.pipe(request.put({url:'http://'+config.getConfig("tika_host")+':'+config.getConfig('tika_port')+'/tika',headers: {'Accept': 'text/plain'}},function(err, httpResponse, body){
 				dic["text"]=body;
 				source = fs.createReadStream(app.getFileName(url)).on('error',function(err){
 				
-						callback("error here",{});
+						callback("TikaFileStoreReadError",{});
 				});;
 				source.pipe(request.put({url:'http://'+config.getConfig("tika_host")+':'+config.getConfig('tika_port')+'/meta',headers: {'Accept': 'application/json'}},function(err1, httpResponse1, body1){
 					var err=null;
@@ -176,6 +214,7 @@ var app={
 						dic["meta"]=JSON.parse(body1);
 						callback(err,dic);
 					}catch(err){
+						err="TikaServerResponseError";
 						log.put("tika.extractText for "+url,"error");
 						callback(err,dic);
 					}
@@ -183,30 +222,27 @@ var app={
 				}));
 			})).on('error',function(err){
 				
-					callback("error here",{});
+					callback("TikaServerResponseError",{});
 			});
 		}catch(err){
-			errr=err;
-			callback(errr,{});
+			callback("TikaExtractFailed",{});
 		}
 		
 		
 
 	},
 	"processNext":function(){
-		if(active>=config.getConfig('tika_batch_size')){
-			return;//if greater than batch size leave
+		if(busy){
+			return;
 		}
-		var expected=(config.getConfig('tika_batch_size')-active);
-			active+=(expected);//mark active before even initializing
-			queue.length(function(len){
-			//console.log(len+"LENGTH");
-			if(len!==0){
+		busy=true;
 				
 					queue.dequeue(function(li){
-						console.log("wokring");
-						if(li.length!==expected){
-							active-=(expected-li.length);//reducing if less items are recieved
+						console.log(li);
+						if(li.length===0){
+							busy=false;
+							setImmediate(function(){tika.processNext();});
+							return;
 						}
 						for (var i = li.length - 1; i >= 0; i--) {
 							var obj=li[i];
@@ -236,15 +272,14 @@ var app={
 										
 									}
 									finally{
-										active-=1;
+										
 										queue.remove(uniqueId,function(err,row){
 										//	console.log(row);
 										});
+										busy=false;
+										setImmediate(function(){tika.processNext();});
 											
 									
-										setImmediate(function(){
-											tika.processNext();
-										});	
 									}
 
 
@@ -255,17 +290,12 @@ var app={
 						
 
 
-				},expected);//[[],[]]
+				},config.getConfig("tika_batch_size"));//[[],[]]
 
 				
 				
 					
-			}
-			else{
-				//if len is 0 then decrement the active counter
-				active-=(expected);
-			}
-			});
+		
 		
 		
 		
@@ -276,19 +306,23 @@ var app={
 
 };
 exports.init=app;
-var active=0;
+var busy=false;
+var tika=app;
 if(require.main === module){
-	var tika=app;
 	tika.startServer();
 	process.on("message",function(data){
-		(function(data){
+		//console.log(data);
+		if(data[0]==="ping"){
+			//occasional pings to keep queue working
+			tika.processNext();
+			return;
+		}
 	        queue.enqueue(data[0],data[1],function(row){
 	        	//console.log(fileName+"PUSHED");
 	        	log.put("Tika Got request for "+data[0]+" with parse file "+data[1],"info");
 		        tika.processNext();
 		     
 	        });
-		})(data);
 
 	});
 

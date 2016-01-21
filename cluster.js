@@ -22,6 +22,10 @@ var server = require('http').createServer(function (request, response) {
 					words.slice(js["readLog"]["n"]*(-1)).pipe(response);
 				}
 			break;
+		case "readTerminal":
+			response.write(JSON.stringify(log.getTerminalData()));
+			response.end();
+			break;
 		case "command":
 			if(js["command"]==="exit"){
 				console.log(js);
@@ -53,6 +57,44 @@ var server = require('http').createServer(function (request, response) {
 });
 var app={
 	"send":function(to,msg,fn){
+		if(config.getConfig("bot_name")===to){
+			//loopback request to same bot which is processing
+			var m=Object.keys(msg)[0];
+			switch(m){
+				case "readLog":
+					if(msg["readLog"]["type"]==="head"){
+						var words=sf(__dirname+"/log/test.log");
+						var st=words.slice(0,msg["readLog"]["n"]);
+						var data="";
+						st.on("data",function(chunk){
+							data+=chunk.toString();
+						});
+						st.on("end",function(){
+							fn(true,data);
+							return;
+						});
+						
+					}
+					else if(msg['readLog']['type']==="tail"){
+						var words=sf(__dirname+"/log/test.log");
+						var data="";
+						var st=words.slice(msg["readLog"]["n"]*(-1));
+						st.on("data",function(chunk){
+							data+=chunk.toString();
+						});
+						st.on("end",function(){
+							fn(true,data);
+							return;
+						});
+					}
+					break;
+				case "readTerminal":
+					fn(true,JSON.stringify(log.getTerminalData()));
+					break;
+			}
+			
+			return;
+		}
 		if(cluster_info[to]){
 			//bot exists
 			var host_name="http://"+cluster_info[to]["config"]["network_host"]+":"+cluster_info[to]["config"]["cluster_port"]+"/?msg="+JSON.stringify(msg);

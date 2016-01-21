@@ -34,5 +34,8 @@ exports.init=function(){
 	if(argv['seedFile']!==undefined){
 		process.seedFile=argv['seedFile'];
 	}
+	if(argv['webapp']!==undefined){
+		process.webappOnly=true;
+	}
 	return args;
 };

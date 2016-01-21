@@ -12,9 +12,9 @@ db.serialize(function() {
 });
 var queue={
 	enqueue:function (url,data_json,fn){
-		db.serialize(function() {
+		db.parallelize(function() {
 			db.run("INSERT INTO pages(url,data_json,status) VALUES(?,?,0)",[url,JSON.stringify(data_json)],function(err,row){
-				console.log(err+"pushQ");
+				//console.log(this);
 				//console.log(JSON.stringify(row)+"pushQ");
 				fn(row);
 			});
@@ -26,14 +26,18 @@ var queue={
 		if(num===undefined){
 			num=1;
 		}
-		console.log("NUM "+num);
+		//console.log("NUM "+num);
 		var li=[];
 		var done=0;
-			db.serialize(function() {
+			db.parallelize(function() {
 				db.all("SELECT * FROM pages WHERE status=0 LIMIT 0,"+num,function(err,rows){
+					//console.log(rows)
 					num=rows.length;
 					var mask=[];
 					var values=[];
+					if(rows.length===0){
+						fn([]);
+					}
 					for (var i = 0; i < rows.length; i++) {
 						var row=rows[i];
 						mask.push("?");
@@ -42,8 +46,9 @@ var queue={
 
 					};
 					mask="("+mask.join(",")+")";
-
+					//console.log("UPDATE pages SET status=1 WHERE id IN "+mask);
 					db.run("UPDATE pages SET status=1 WHERE id IN "+mask,values,function(e,r){
+							//console.log(this);
 							//console.log(e);
 							//console.log("SONE DONE");
 							fn(li);
@@ -59,16 +64,16 @@ var queue={
 
 	},
 	remove:function (idd,mask,fn){
-		db.serialize(function() {
+		db.parallelize(function() {
 			db.run("DELETE FROM pages WHERE id IN "+mask,idd,function(err,row){
-					console.log(err+"Qerr");
+			//console.log(this);					//console.log(err,"Qerr");
 					//console.log(JSON.stringify(row)+"QLength");
 					fn(err,row);
 				});
 			});
 	},
 	length:function (fn){
-		db.serialize(function() {
+		db.parallelize(function() {
 			db.each("SELECT COUNT(*) AS `c` FROM pages WHERE status=0",function(err,row){
 				//console.log(err+"QLength");
 				//console.log(JSON.stringify(row)+"QLength");
@@ -93,22 +98,20 @@ var app={
 		});
 	},
 	"processNext":function(){
-		console.log("FUCKER  FUCKER "+active);
-		if(active>=config.getConfig('lucene_batch_size')){
-			return;//if greater than batch size leave
+		if(busy){
+			return;
 		}
-		var expected=(config.getConfig('lucene_batch_size')-active);
-			active+=(expected);//mark active before even initializing
-			queue.length(function(len){
-			console.log(len+"LENGTH");
-			if(len!==0){
-					console.log("expected "+expected);
+		busy=true;
+
+			
 					queue.dequeue(function(li){
-						console.log("dequeue");
-						if(li.length!==expected){
-							active-=(expected-li.length);//reducing if less items are recieved
+						var counter=0;
+						var done_counter=li.length;
+						if(li.length===0){
+							busy=false;
+							setImmediate(function(){lucene.processNext();});
 						}
-						for (var i = li.length - 1; i >= 0; i--) {
+						for (var i=0;i<li.length;i++) {
 							var obj=li[i];
 							//console.log("here");
 								(function(url,data_json,uniqueId){
@@ -116,14 +119,9 @@ var app={
 										//console.log(url,uniqueId);
 											data_json=JSON.parse(data_json);
 											data_json["url"]=url;
-											var list=config.getConfig("lucene_indexed_fields_use_analyzers");
-											list="_source#dot#"+list.join(",_source#dot#");
-											data_json["indexed_fields"]=list;
-											var l=[]
-											l.push(data_json);
 
-											//console.log(l,typeof l[0]);
-											request.post("http://localhost:8000/index",{form:JSON.stringify(l)},function(err,responseHttp,body){
+											request({ url:"http://localhost:9200/bot_marvin/docs", method: 'PUT', json:data_json},function(err,responseHttp,body){
+												console.log(err.responseHttp,body);
 												if(err){
 													log.put("Error in post /index Lucene","error");
 												}
@@ -137,16 +135,18 @@ var app={
 										
 									}
 									finally{
-										active-=1;
-										console.log("reducing "+active);
 										queue.remove([uniqueId],"(?)",function(err,row){
-										//	console.log(row);
+											//console.log(err,row);
 										});
+										counter+=1;
+										if(counter===done_counter){
+											//console.log("COUNTER "+counter+" "+done_counter);
+											busy=false;
+											setImmediate(function(){lucene.processNext();});
+										}
+										
 											
 									
-										setImmediate(function(){
-											lucene.processNext();
-										});	
 									}
 
 
@@ -157,47 +157,31 @@ var app={
 						
 
 
-				},expected);//[[],[]]
+				},config.getConfig("lucene_batch_size"));//[[],[]]
 
-				
-				
-					
-			}
-			else{
-				//if len is 0 then decrement the active counter
-				active-=(expected);
-				console.log("Active new "+active);
-			}
-			});
 		
 		
 		
-	},
-	"getFileName":function(url){
-		return __dirname+"/pdf-store/"+url.replace(/\//gi,"##");
+		
 	}
 
 };
 exports.init=app;
-var active=0;
+var busy=false;
 if(require.main === module){
 	var lucene=app;
 	lucene.startServer();
 	process.on("message",function(d){
-		(function(d){
-		setTimeout(function(){
-			
-				 queue.enqueue(d["url"],d["data_json"],function(row){
-		        	//console.log(fileName+"PUSHED");
+			queue.enqueue(d["url"],d["data_json"],function(row){
+		        	//console.log("PUSHED");
 		        	log.put("Lucene Got request for "+d["url"],"info");
-			        lucene.processNext();
+		        	lucene.processNext();
 			        
-		        });
-			
+	        });	
 
-		},5000);
-		})(d);
+
 	});
-       
+
          
 }
+

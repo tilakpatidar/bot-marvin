@@ -12,11 +12,8 @@ var config={
   "network_host": "127.0.0.1",
   "network_port": "2020",
   "cluster_port": 5555,
+  "parse_sitemaps": true,
   "env": "/usr/local/bin/nodejs",
-  "headers": {
-    "User-Agent": "Mozilla/5.0 (X11; Linux i686) AppleWebKit/535.7 (KHTML, like Gecko) Chrome/16.0.912.63 Safari/535.7",
-    "Accept-Language": "en-us,en-gb,en;"
-  },
   "mongodb": {
     "mongodb_uri": "mongodb://127.0.0.1:27017/crawl",
     "mongodb_collection": "links",
@@ -43,16 +40,16 @@ var config={
   "elasticsearch": {
     "elasticsearch_uri": ""
   },
-  "file": {
-    "max_content_length": 104857600
-  },
   "http": {
     "timeout": 10000,
     "max_content_length": 10485760,
-    "follow_redirect": true
+    "follow_redirect": true,
+    "max_sockets_per_host": 10,
+    "max_concurrent_sockets": 10
   },
-  "log_buffer_lines": 10,
+  "log_buffer_lines": 100,
   "recrawl_intervals": {
+    "always": 600000,
     "monthly": 2592000000,
     "daily": 86400000,
     "weekly": 604800000,
@@ -65,21 +62,13 @@ var config={
   "tika": true,
   "tika_supported_files": "__REGEXP /\\.(ppt|doc|pdf|docx|pptx)$/gi",
   "tika_batch_size": 5,
-  "lucene_batch_size": 5,
-  "lucene_indexed_fields_use_analyzers": [
-    "id",
-    "host",
-    "meta_description",
-    "body",
-    "title",
-    "url",
-    "mime"
-  ],
-  "phantomjs_url": "http://127.0.0.1:9000/?q=",
+  "tika_content_length": 104857600,
+  "tika_timeout": 300000,
+  "tika_max_sockets_per_host": 10,
+  "phantomjs_port": 9000,
   "allow_robots": true,
   "external_links": false,
-  "max_concurrent_sockets": 10,
-  "batch_size": 1000,
+  "batch_size": 100,
   "db_type": "mongodb",
   "remove_tags": [
     "table",

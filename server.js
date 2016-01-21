@@ -10,7 +10,6 @@ function init(pool,cluster){
   var stats=require(__dirname+'/stats.js')(pool,cluster);
   var server = require('http').createServer(function (request, response) {
   var urlparts=url.parse(request.url.toString(),true);
-
   if (urlparts.path.indexOf("/ask")>=0) {
     if(request.method==="POST"){
       var body = "";
@@ -22,13 +21,13 @@ function init(pool,cluster){
         var js=JSON.parse(j["data"]);
         var bot_name=j["bot_name"];
         
-        if(urlparts.query[""]==="put-config"){
+        if(urlparts.query["q"]==="put-config"){
             stats.setConfig(bot_name,js,function(err,results){
                         response.write(JSON.stringify(results));
                         response.end();
             });          
         }
-        else if(urlparts.query[""]==="put-seed"){
+        else if(urlparts.query["q"]==="put-seed"){
           stats.setSeed(js,function(err,results){
                 response.write(JSON.stringify(results));
                 response.end();
@@ -38,7 +37,7 @@ function init(pool,cluster){
       });      
     }
 
-      switch(urlparts.query[""]){
+      switch(urlparts.query["q"]){
         case "main-stats":
                  stats.crawlStats(function(dic){
                     response.write(JSON.stringify(dic));
@@ -60,6 +59,13 @@ function init(pool,cluster){
               response.end();
             });
             break;
+        case "readTerminal":
+            var bot_name=urlparts['query']['bot_name'];
+              stats.readTerminal(bot_name,function(st,data){
+              response.write(data);
+              response.end();
+            });
+            break;
         case "cluster-info":
             stats.clusterInfo(function(err,results){
                 response.write(JSON.stringify(results));
@@ -67,7 +73,8 @@ function init(pool,cluster){
             });
             break;
         case "get-config":
-            stats.getConfig(function(err,results){
+        var bot_name=urlparts['query']['bot_name'];
+            stats.getConfig(bot_name,function(err,results){
                 response.write(JSON.stringify(results));
                 response.end();
             });
@@ -79,31 +86,43 @@ function init(pool,cluster){
             });
             break;
         case "get-failed-pages":
-            stats.getFailedPages(urlparts['query']['bot_name'],parseInt(urlparts['query']['i']),parseInt(urlparts['query']['n']),urlparts['query']['sort'],parseInt(urlparts['query']['sort_type']),function(err,results){
-                response.write(JSON.stringify(results));
+            stats.getFailedPages(urlparts['query']['bot_name'],parseInt(urlparts['query']['i']),parseInt(urlparts['query']['n']),urlparts['query']['sort'],parseInt(urlparts['query']['sort_type']),function(err,results,count){
+                res={results:results,page_count:count};
+                response.write(JSON.stringify(res));
                 response.end();
             });
             break;
         case "get-crawled-pages":
-            stats.getCrawledPages(urlparts['query']['bot_name'],parseInt(urlparts['query']['i']),parseInt(urlparts['query']['n']),urlparts['query']['sort'],parseInt(urlparts['query']['sort_type']),function(err,results){
-                response.write(JSON.stringify(results));
+            stats.getCrawledPages(urlparts['query']['bot_name'],parseInt(urlparts['query']['i']),parseInt(urlparts['query']['n']),urlparts['query']['sort'],parseInt(urlparts['query']['sort_type']),function(err,results,count){
+                res={results:results,page_count:count};
+                console.log(count)
+                response.write(JSON.stringify(res));
                 response.end();
             });
             break;
         case "get-total-buckets":
-            stats.getTotalBuckets(urlparts['query']['bot_name'],parseInt(urlparts['query']['i']),parseInt(urlparts['query']['n']),urlparts['query']['sort'],parseInt(urlparts['query']['sort_type']),function(err,results){
-                response.write(JSON.stringify(results));
+            stats.getTotalBuckets(urlparts['query']['bot_name'],parseInt(urlparts['query']['i']),parseInt(urlparts['query']['n']),urlparts['query']['sort'],parseInt(urlparts['query']['sort_type']),function(err,results,count){
+                res={results:results,page_count:count};
+                response.write(JSON.stringify(res));
                 response.end();
             });
             break;
         case "get-processed-buckets":
-            stats.getProcessedBuckets(urlparts['query']['bot_name'],parseInt(urlparts['query']['i']),parseInt(urlparts['query']['n']),urlparts['query']['sort'],parseInt(urlparts['query']['sort_type']),function(err,results){
+            stats.getProcessedBuckets(urlparts['query']['bot_name'],parseInt(urlparts['query']['i']),parseInt(urlparts['query']['n']),urlparts['query']['sort'],parseInt(urlparts['query']['sort_type']),function(err,results,count){
+                res={results:results,page_count:count};
+                response.write(JSON.stringify(res));
+                response.end();
+            });
+            break;
+        case "get-page":
+            stats.getPage(urlparts['query']['url'],function(err,results){
                 response.write(JSON.stringify(results));
                 response.end();
             });
             break;
-        case "index-field":
-            stats.indexField(urlparts['query']['collection_name'],urlparts['query']['index_name'],function(err,results){
+        case "search":
+        console.log(stats);
+            stats.search(urlparts['query']['text'],urlparts["query"]["i"],function(err,results){
                 response.write(JSON.stringify(results));
                 response.end();
             });

@@ -359,7 +359,7 @@
         <span class="input-group-addon bg-green">
                                         <i class="glyph-icon icon-search" style='font-size:16px;'></i>
                                     </span>
-                                    <input type="text" class="form-control" placeholder="Search for crawled data here">
+                                    <input type="text" class="form-control search_data" placeholder="Search for crawled data here">
                                 </div>
         <div class="dropdown" id="dashnav-btn">
             <a href="#" data-toggle="dropdown" data-placement="bottom" class="popover-button-header tooltip-button" title="Dashboard Quick Menu">
@@ -682,6 +682,14 @@
         </div>
     </div>
 </div>
+<div class="row search_results extra_pages">
+    <div class="panel-body">
+            <h3 class="title-hero-edit-seed">
+                Search results for query <span class="query_label"></span>
+            </h3>
+        
+    </div>
+</div>
 <div class="row edit_seed extra_pages">
     <div class="panel-body">
             <h3 class="title-hero-edit-seed">
@@ -691,6 +699,50 @@
         <button class="btn btn-primary seed_update_json">Update</button> <button class="btn btn-warning seed_reset_json">Reset</button>
     </div>
 </div>
+<div class="row show_console extra_pages">
+    <div class="panel-body">
+    <div id="window">
+    <div id="toolbar">
+        <div class="top">
+            <div id="lights">
+                <div class="light red terminal_close">
+                    <div class="glyph">×</div>
+                    <div class="shine"></div>
+                    <div class="glow"></div>
+                </div>              
+                <div class="light yellow terminal_close">
+                    <div class="glyph">-</div>
+                    <div class="shine"></div>
+                    <div class="glow"></div>
+                </div>
+                <div class="light green terminal_max">
+                    <div class="glyph">+</div>
+                    <div class="shine"></div>
+                    <div class="glow"></div>
+                </div>
+            </div>
+            <div id="title">
+                <div class="folder">
+                    <div class="tab"></div>
+                    <div class="body"></div>
+                </div>
+                
+            </div>
+            <div id="bubble">
+                <div class="shine"></div>
+                <div class="glow"></div>
+            </div>
+        </div>
+    </div>
+    <div id="terminal">
+   
+         
+    </div>  
+</div>
+          
+    </div>
+</div>
+
 <div class="row edit_config extra_pages">
     <div class="panel-body">
             <h3 class="title-hero-edit-config">

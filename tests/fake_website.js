@@ -16,9 +16,16 @@ function generateHTML(domain){
 function randomURLS(domain){
 	var li=[];
 	for(var j=0;j<20;j++){
-		var k=parseInt(Math.random()*10000000);
+		var max=1000000000;
+		var min=0;
+		var k=parseInt(Math.random()* (max - min) + min);
+		var depth=parseInt(Math.random()* (10-1)+1);
+		var dir="";
+		for(var kk=1;kk<=depth;kk++){
+			dir+=("dir"+kk+"/");
+		}
 		var sw=parseInt(Math.random()*100);
-		var abs=url.resolve(domain,'/dir/'+k);
+		var abs=url.resolve(domain,"/"+dir+k);
 		if(sw>50 && sw<95){
 			li.push('<li><a href="'+abs+'.html">'+k+'</a>');
 		}

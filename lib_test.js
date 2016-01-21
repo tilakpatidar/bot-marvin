@@ -5,7 +5,7 @@ require('./index.js').init(function(b){
 	console.log(bot.getConfig());
 
 	//insert a url to crawl
-	bot.insertSeed("http://www.geeksforgeeks.org/","nutch",false,function(status){
+	bot.insertSeed("http://www.geeksforgeeks.org/","nutch",false,5,"monthly",function(status){
 		console.log(status);
 		//remove url
 		bot.removeSeed("http://www.geeksforgeeks.org/",function(status){
@@ -17,9 +17,7 @@ require('./index.js').init(function(b){
 
 	
 
-	bot.set("headers",{"User-Agent":"Mozilla/5.0 (X11; Linux i686) AppleWebKit/535.7 (KHTML, like Gecko) Chrome/16.0.912.63 Safari/535.7",
-			"Accept-Language":"en-us,en-gb,en;"
-		});
+	bot.set("mongodb","mongodb_collection","links");
 	//clearing the crawl list
 	bot.clearSeed(function(status){
 		console.log(status);
@@ -61,7 +59,7 @@ require('./index.js').init(function(b){
 						//to verify a property exists
 
 						console.log(bot.isProperty("bot_name"));
-
+						//bot.set("parse_sitemaps",true);
 						bot.crawl();
 
 

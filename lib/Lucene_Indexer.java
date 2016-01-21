@@ -14,7 +14,9 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentMap;
+import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import com.mongodb.util.JSON;
+import org.apache.lucene.analysis.Analyzer;
 import com.mongodb.*;
 import com.github.mongoutils.lucene.*;
 import com.github.mongoutils.collections.*;
@@ -50,6 +52,7 @@ import java.net.URL;
 public class Lucene_Indexer {
 
     public static void main(String[] args) throws Exception {
+       System.out.println(MyTokenizer.tokenize("url","http://www.google.com/tilak/index.html"));
         HttpServer server = HttpServer.create(new InetSocketAddress(8000), 0);
         server.createContext("/init",new InitHandler());
         server.createContext("/index", new IndexHandler());
@@ -272,7 +275,7 @@ private void setProperty(JSONObject js1, String keys, String valueNew) throws JS
         ConcurrentMap<String, MapDirectoryEntry> store = new MongoConcurrentMap<String, MapDirectoryEntry>(MyReader.con, keySerializer,valueSerializer);
         // lucene directory
         Directory dir = new MapDirectory(store);
-        StandardAnalyzer analyzer = new StandardAnalyzer(Version.LUCENE_4_9);
+        Analyzer analyzer = new WhitespaceAnalyzer(Version.LUCENE_4_9);
         System.out.println("[INFO] /search for \""+query+"\" in \""+field+"\"");
         Query q = new QueryParser(Version.LUCENE_4_9,field, analyzer).parse(query);
         IndexReader reader = IndexReader.open(dir);
@@ -310,7 +313,7 @@ class MyIndexer{
         Directory dir = new MapDirectory(store);
 
         // index files
-        StandardAnalyzer analyzer = new StandardAnalyzer(Version.LUCENE_4_9);
+        Analyzer analyzer = new WhitespaceAnalyzer(Version.LUCENE_4_9);
         IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_4_9, analyzer);
         IndexWriter writer = new IndexWriter(dir, iwc);
         writer.deleteAll();
@@ -346,7 +349,7 @@ class MyIndexer{
         Directory dir = new MapDirectory(store);
 
         // index files
-        StandardAnalyzer analyzer = new StandardAnalyzer(Version.LUCENE_4_9);
+        Analyzer analyzer = new WhitespaceAnalyzer(Version.LUCENE_4_9);
         IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_4_9, analyzer);
         IndexWriter writer = new IndexWriter(dir, iwc);
 
@@ -388,25 +391,34 @@ class MyIndexer{
             providing each an id to map in query later.
         */
         Document doc = new Document();
-        String[] indexed_fields=object.get("indexed_fields").toString().split(",");
+        String[] indexed_fields;
+        try{
+            indexed_fields=object.get("indexed_fields").toString().split(",");
+        }
+        catch(JSONException e){
+            Set<String> sets=object.keySet();
+            indexed_fields=sets.toArray(new String[sets.size()]);
+        }
+        
         HashSet<String> hash=new HashSet<String>(Arrays.asList(indexed_fields));
         System.out.println(Arrays.toString(indexed_fields));
+        doc.add(new LongField("_id", (long)object.get("_source#dot#id").toString().hashCode(), Field.Store.YES));
+        doc.add(new StringField("docId", object.get("_source#dot#id").toString(), Field.Store.YES));
         for(String field : (Set<String>) object.keySet()){
             if(field.equals("indexed_fields")){
                 continue;
             }
             if(hash.contains(field)){
-                System.out.println("heree s tilak "+field);
                 Class type = object.get(field).getClass();
-                doc.add(new LongField("_id", (long)object.get(field).toString().hashCode(), Field.Store.YES));
+                
                 if(type.equals(String.class)){
-                    doc.add(new TextField(field, (String)object.get(field), Field.Store.YES));
+                    doc.add(new TextField(field, MyTokenizer.tokenize(field,(String)object.get(field)), Field.Store.NO));
                 }else if(type.equals(Long.class)){
-                    doc.add(new LongField(field, (long)object.get(field), Field.Store.YES));
+                    doc.add(new LongField(field, (long)object.get(field), Field.Store.NO));
                 }else if(type.equals(Double.class)){
-                    doc.add(new DoubleField(field, (double)object.get(field), Field.Store.YES));
+                    doc.add(new DoubleField(field, (double)object.get(field), Field.Store.NO));
                 }else if(type.equals(Boolean.class)){
-                    doc.add(new StringField(field, object.get(field).toString(), Field.Store.YES));
+                    doc.add(new StringField(field, object.get(field).toString(), Field.Store.NO));
                 }
             }
                 
@@ -425,6 +437,37 @@ class MyIndexer{
                     new_js.put(appender+field,object.get(field));
                 }
         }
+
+    }
+}
+class MyTokenizer{
+    public static String tokenize (String field_name,String field_value){
+        System.out.println(field_name);
+        ArrayList<String> tokens=new ArrayList<String>();
+        switch(field_name){
+            case "_source#dot#url":
+                String[] sp=field_value.replaceAll("http://","").replaceAll("https://","").split("/");
+                tokens.addAll(Arrays.asList(sp));
+                String host_name=sp[0];
+                String[] sec=host_name.split("\\.");
+                tokens.addAll(Arrays.asList(sec));
+                String http_type="http://";
+                if(field_value.contains("http://")){
+                    http_type="http://";
+                }
+                else if(field_value.contains("https://")){
+                    http_type="https://";
+                }
+                ArrayList<String> temp=new ArrayList<String>(Arrays.asList(sp));
+                for(int i=0;i<sp.length;i++){
+                    tokens.add(http_type+String.join("/",temp));
+                    temp.remove(temp.size()-1);
+                }
+                break;
+            case "_source#dot#title":
+                String[] sp=field_value.split(" ");
+        }
+        return String.join(" ",tokens);
 
     }
 }
