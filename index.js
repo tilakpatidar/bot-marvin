@@ -13,6 +13,8 @@ process.force_mode=false;//enables or disables the process.force_mode
 process.my_timers=[];//stores all the timers used to remove all timers for graceful exit
 process.reset=false;
 process.seedFile=null;
+var dependency=require(__dirname+"./lib/depcheck.js");
+dependency.check();
 var proto=require(__dirname+'/lib/proto.js');
 var check = require('check-types');
 var _=require("underscore")
@@ -423,14 +425,19 @@ var app={
 			fn=function(){}
 		}
 		check.assert.assigned(path,"file path cannot be undefined")
-		var data=fs.readFileSync(path).toString().split("\n");
+		// \n$ to remove extra \n at end
+		var data=fs.readFileSync(path).toString().replace(/\t{2,}/gi,"\t").replace(/\n{2,}/gi,"\n").replace(/\n$/gi,"").split("\n");
 		var done=0;
+		var success=0;
 		for (var i = 0; i < data.length; i++) {
 			var d=data[i].split("\t");
 			(function(a,b,c,dd,ee){
 				app.insertSeed(a,b,c,dd,ee,function(status){
 					if(status){
-						
+						success+=1;
+					}
+					else{
+						log.put("Failed to seed url "+a,"error");
 					}
 					done+=1;
 					if(done===data.length){

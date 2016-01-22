@@ -2,4 +2,5 @@
 ./org
 ./*.java
 ./*.class
+*.jar
 !.gitignore

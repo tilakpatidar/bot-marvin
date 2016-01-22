@@ -13,7 +13,6 @@ var URL=proto.URL;
 var ObjectX=proto.ObjectX;
 var _ = require("underscore");
 var check = require('check-types');
-var StringX=proto.StringX;
 var mongodb_collection=config.getConfig("mongodb","mongodb_collection");
 var bucket_collection=config.getConfig("mongodb","bucket_collection");
 var bot_collection=config.getConfig("mongodb","bot_collection");
@@ -40,8 +39,7 @@ var queue={
 			//console.log("INSERT OR IGNORE INTO links (url,domain,parent,freq) VALUES"+mask);
 			sqlite_db.run("INSERT OR IGNORE INTO links (url,domain,parent,freq) VALUES"+mask,data,function(err,row){
 			//console.log(err,row);
-			//console.log(this.lastID,"insert",StringX.urlHashCode(domain));
-				//console.log(JSON.stringify(row)+"pushQ");
+			//console.log(JSON.stringify(row)+"pushQ");
 				fn(row);
 			});
 		});
@@ -55,7 +53,6 @@ var queue={
 		var delIds=[];
 		var that=this;
 			sqlite_db.parallelize(function() {
-				//console.log("SELECT * FROM "+StringX.urlHashCode(domain)+" LIMIT 0,"+num)
 				//console.log(sqlite_db);
 				sqlite_db.all("SELECT * FROM links WHERE domain=? AND freq=? LIMIT 0,"+num,[domain,freq],function(err,rows){
 					//console.log(err,rows.length,"fetched");
@@ -856,6 +853,10 @@ var pool={
 		var url=URL.normalize(url).replace(/\./gi,"#dot#");
 		if(!check.assigned(fetch_interval)){
 			fetch_interval=config.getConfig("default_recrawl_interval");
+		}
+		if(!check.assigned(priority) || !check.assigned(parseFile) || !check.assigned(phantomjs)){
+			fn(false);
+			return;
 		}
 		d[url]={"phantomjs":phantomjs,"parseFile":parseFile,"priority":priority,"fetch_interval":fetch_interval};
 		var new_key="seedFile."+url;
