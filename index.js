@@ -37,11 +37,11 @@ function main(pool) {
 	process.bot.startBot(process.force_mode,function(status){
 		if(status){
 			//bot was started successfully
-			function startBotManager(links,botObjs){
+			function startBotManager(links,botObjs,links_fetch_interval){
 
 
 				//function to start the child_manager
-				pool.seed(links,function(completed){
+				pool.seed(links,links_fetch_interval,function(completed){
 					if(completed){
 						//create a child manager
 						process.child_manager=new require(__dirname+'/lib/child_manager.js')(pool,botObjs,cluster);						
@@ -52,7 +52,7 @@ function main(pool) {
 
 			}
 
-			pool.readSeedFile(function(links){
+			pool.readSeedFile(function(links,links_fetch_interval){
 
 				//reading the seed links from db
 
@@ -76,7 +76,7 @@ function main(pool) {
 									log.put("robots.txt parsing failed","error");
 								}
 								botObjs=obj;
-								startBotManager(links,botObjs);
+								startBotManager(links,botObjs,links_fetch_interval);
 								
 							});
 						}
@@ -544,7 +544,7 @@ if(require.main === module){
 	catch(err){
 		//cleanUp will run automatically as normal exit
 		console.log(err);
-		cleanUp();
+		//process.cleanUp();
 	}
 	
 }else{

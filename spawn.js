@@ -1,6 +1,6 @@
 var proto=require(__dirname+"/lib/proto.js");
 process.on("exit",function(){
-	console.log("KILLED")
+	//console.log("KILLED")
 })
 process.getAbsolutePath=proto.getAbsolutePath;
 var request = require("request");

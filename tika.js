@@ -314,6 +314,7 @@ if(require.main === module){
 	process.on("message",function(data){
 		//console.log(data);
 		if(data[0]==="ping"){
+			//console.log(data[0])
 			//occasional pings to keep queue working
 			tika.processNext();
 			return;
