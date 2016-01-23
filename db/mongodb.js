@@ -234,7 +234,7 @@ var pool={
 		domain=domain;
 		var temp=domain.replace(/\./gi,"#dot#");
 		var temp1=JSON.parse(JSON.stringify(sites).replace(/\./gi,"#dot#"));
-		that.sitemap_collection.insert({"_id":temp,"sites":temp1},function(err,results){
+		
 		//console.log(err);
 		if(err){
 				log.put("Unable to insert sites into sitemap collection","error");
@@ -242,7 +242,7 @@ var pool={
 				log.put("Sitemap file updated in db for "+domain,"success");
 				log.put("Inserting "+_.size(sites)+" records from "+domain+" sitemap file into generator cache","info");
 				
-				
+				var done=0;
 				var n = 100;
 				var lists = _.groupBy(sites, function(element, index){
 					  return Math.floor(index/n);
@@ -287,6 +287,13 @@ var pool={
 						sqlite_db.parallelize(function() {
 								sqlite_db.run(query,t,function(err,row){
 									//console.log(err,row)
+									done+=1;
+									if(done===lists.length){
+										that.sitemap_collection.insert({"_id":temp,"sites":temp1},function(err,results){
+											log.put("Updated sitemap file for "+domain+"in db","info");
+
+										});
+									}
 								if(!err){
 									log.put("Seed from "+domain+" sitemap. Inserted 100 records","info");
 								}
@@ -301,7 +308,7 @@ var pool={
 				fn();
 				return;
 			}
-		})
+		
 	},
 	"addToPool":function(li,fn){
 		//console.log(li);
@@ -371,148 +378,38 @@ var pool={
 		});
 			
 	},
-	"requestAccess":function(fn){
-		var k=new Date();
-		var that=this;
-		that.semaphore_collection.insert({"bot_name":config.getConfig("bot_name"),"requestTime":k},function(err,results){
-			var reqId=results["ops"][0]["_id"];
-
-			if(!err){
-				log.put("Request generated "+reqId,"info");
-				fn(true,reqId);
-				return;
-			}
-			else{
-				log.put("Unable to request","err");
-				fn(false,null);
-				return;
-			}
-		});
-	},
-	"verifyAccess":function(reqId,fn){
-	
-		var that=this;
-		that.semaphore_collection.find({}, {"sort" : [['requestTime', 'asc']]}).each(function (err, docs) {
-			
-			if(docs && docs["_id"].toString()===reqId.toString() && docs["bot_name"].toString()===config.getConfig("bot_name")){
-				log.put("Got access to queue reqId :"+reqId,"success");
-				fn(true);
-				return;
-			}
-			else{
-				log.put("No access for now","info");
-				fn(false);
-				return;
-			}
-			return false;
-
-		});
-
-	},
-	"removeRequest":function(reqId,fn){
-		var that=this;
-		that.semaphore_collection.remove({"_id":reqId},function(err,results){
-			if(err){
-				log.put("Unable to remove request_id "+reqId,"error");
-				fn(false);
-				return;
-			}
-			else{
-				log.put("Request id removed "+reqId,"success");
-				fn(true);
-				return;
-			}
-		});
-	},
 	"getNextBatch":function(result,batchSize){
 		var that=this;
-		that.requestAccess(function(requestRegistered,reqId){
+			var stamp1=new Date().getTime();
+			
+				that.bucket_collection.findAndModify({"underProcess":false,"recrawlAt":{$lte:stamp1}},[['recrawlAt',1],['score',1]],{"$set":{"underProcess":true,"processingBot":config.getConfig("bot_name")}},{"remove":false},function(err1,object){
+					//console.log(object,err1)
+					if(check.assigned(object.value)){
+							var hash=object["value"]["_id"];
+							var refresh_label=object["value"]["recrawlLabel"];
+							that.mongodb_collection.find({"hash":hash},{},{}).toArray(function(err,docs){
+									if(err){
 
-			if(requestRegistered){
-				(function(reqId){
-					process.semaphore_access=setInterval(function(){
-						
-										that.verifyAccess(reqId,function(access){
-											//access=false; caution for testing only uncommenting can break the application
-											if(!access){
-												return;
-											}
-											clearInterval(process.semaphore_access);//clearing the check for verification now
-											if(access){
-												log.put("Got access to the collection","info");
-												var stamp1=new Date().getTime();
-												that.bucket_collection.find({"underProcess":false,"recrawlAt":{$lte:stamp1}}).sort([['recrawlAt',1]]).limit(10).sort([['score',1]]).limit(1).toArray(function(err,docs){
-													if(docs!==null && docs!==undefined && docs[0]!==undefined){
-
-														var h=docs[0]["_id"];
-													}
-													else{
-														//console.log("here");
-														that.removeRequest(reqId,function(removed){
-																if(removed){
-																	result(null,[],null);
-																	return;
-																}
-																	
-															});
-														return;
-													}
-													that.bucket_collection.findAndModify({"_id":h},[],{"$set":{"underProcess":true,"processingBot":config.getConfig("bot_name")}},{"remove":false},function(err1,object){
-														//console.log(object,err1)
-														if(object.value!==null){
-																var hash=object["value"]["_id"];
-																var refresh_label=object["value"]["recrawlLabel"];
-																that.removeRequest(reqId,function(removed){
-																			if(removed){
-																				//console.log(hash);
-																					that.mongodb_collection.find({"hash":hash},{},{}).toArray(function(err,docs){
-																						if(err){
-
-																							log.put("pool.getNextBatch","error");
-																						}
-																						else{
-																							//console.log(docs);
-																							log.put(("Got "+docs.length+" for next Batch"),"success");
-																							result(err,docs,hash,refresh_label);		
-																						}
+										log.put("pool.getNextBatch","error");
+										result(null,[],null,null);
+										return;
+									}
+									else{
+										//console.log(docs);
+										log.put(("Got "+docs.length+" for next Batch"),"success");
+										result(err,docs,hash,refresh_label);		
+									}
 
 
-																					});
-																			}
-
-																});
-																
-														}
-														else{
-															that.removeRequest(reqId,function(removed){
-																if(removed){
-																	result(null,[],null);
-																	return;
-																}
-																	
-															});
-															}
-														});	
-													});
-											}
-											else{
-												log.put("Unable to get access to the collection","error");
-											}
-
-										});
-
-									},5000);
-
-
-
-
-				})(reqId);
+								});
+					}
+					else{
+						result(null,[],null);
+						return;
+						}
+					});	
 				
-				
-
-			}
-
-		});
+		
 
 	},
 	"setCrawled":function(url,data,status){
@@ -680,6 +577,7 @@ var pool={
 		//console.log(li);
 		//console.log(that.cache)
 		if(li[0]==="ping"){
+			console.log("pinging")
 			//just pinging so that we do not run short of buckets
 			//while we have links in our sqlite cache
 		}else{
@@ -744,6 +642,7 @@ var pool={
 			
 		}
 		var re=[];
+
 		var n_domains=_.size(that.cache);
 		var done=0;
 		var limit=n_domains*_.size(intervals);
@@ -1172,7 +1071,10 @@ var pool={
 		"pullDbConfig":function(idd,fn){
 			var that=this.parent;
 					that.bot_collection.findOne({"_id":idd},function(err,results){
-
+						if(!check.assigned(results)){
+							fn(null);
+							return;
+						}
 						var c=results.config;
 						if(err){
 							log.put("Error ocurred while pulling bot config from db ","error");
@@ -1193,7 +1095,7 @@ var pool={
 };
 pool.setParent();//setting the parent reference
 process.pool_check_mode=setInterval(function(){
-	if(process.MODE==='exec'){
+	if(process.MODE==='exec' && !process.tika_setup){
 		var c=setInterval(function(){
 			pool.seedReloader();
 		},10000);

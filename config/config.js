@@ -52,7 +52,7 @@ var config={
   "phantomjs_port": 9000,
   "allow_robots": true,
   "external_links": false,
-  "batch_size": 100,
+  "batch_size": 5000,
   "db_type": "mongodb",
   "remove_tags": [
     "table",

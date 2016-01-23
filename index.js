@@ -13,8 +13,6 @@ process.force_mode=false;//enables or disables the process.force_mode
 process.my_timers=[];//stores all the timers used to remove all timers for graceful exit
 process.reset=false;
 process.seedFile=null;
-var dependency=require(__dirname+"./lib/depcheck.js");
-dependency.check();
 var proto=require(__dirname+'/lib/proto.js');
 var check = require('check-types');
 var _=require("underscore")
@@ -27,7 +25,8 @@ var overriden_config=new_opts;//parses cmd line argv and perform required operat
 var config=require(__dirname+"/lib/config-reloader.js");
 config.setOverridenConfig(overriden_config);
 var fs=require('fs');
-
+var dependency=require(__dirname+"/lib/depcheck.js");
+dependency.check();
 var cluster;//stores the cluster obj to communicate with the other bots
 
 

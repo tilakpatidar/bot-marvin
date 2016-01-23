@@ -1,4 +1,7 @@
 var proto=require(__dirname+"/lib/proto.js");
+process.on("exit",function(){
+	console.log("KILLED")
+})
 process.getAbsolutePath=proto.getAbsolutePath;
 var request = require("request");
 var check=require("check-types");
@@ -284,7 +287,7 @@ var bot={
 		}
 		bot.active_sockets+=1;
 		
-		var req=request({uri:req_url,pool:separateReqPool});
+		var req=request({uri:req_url,followRedirect:false,pool:separateReqPool});
 		var html="";
 		var done_len=0;
 		var init_time=new Date().getTime();
@@ -311,7 +314,6 @@ var bot={
 			 	html += c;
 			 	var t=new Date().getTime();
 			 	if((t-init_time)>config.getConfig("http","timeout")){
-			 		console.log((t-init_time)+"ContentTimeOut");
 					log.put("Connection timedout change http.timeout setting in config","error");
 					try{
 						process.send({"bot":"spawn","setCrawled":[url,{},"ContentTimeOut"]});
@@ -323,7 +325,6 @@ var bot={
 					return;
 			 	}
 			 	if(done_len>config.getConfig("http","max_content_length")){
-					console.log(done_len+"ContentOverflow");
 					log.put("content-length is more than specified","error");
 					try{
 						process.send({"bot":"spawn","setCrawled":[url,{},"ContentOverflow"]});
@@ -334,6 +335,9 @@ var bot={
 					bot.isLinksFetched();
 					return;
 				}
+			});
+			res.on("error",function(err){
+				process.send({"bot":"spawn","setCrawled":[url,{},err.type]});
 			});
 			res.on("end",function(){
 				bot.active_sockets-=1;
@@ -365,6 +369,9 @@ var bot={
 					
 
 			});
+		});
+		req.on("error",function(err){
+			process.send({"bot":"spawn","setCrawled":[url,{},err.type]});
 		});
 
 					

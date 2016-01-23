@@ -11,8 +11,6 @@ Ex usage --option=value
 Loading the seedFile
 .IP --force
 Start the bot in force mode
-.IP --setup-tika
-Downloads and setup tika server for file parsing.
 .IP --childs\ <number\ of\ spawned\ process\ for\ this\ bot>
 Spawns new workers for crawling.
 .IP --max_concurrent_sockets\ <Integer>
@@ -51,7 +49,10 @@ Starts bot with 5 fetcher processes and each using 10 concurrent sockets to fetc
 .IP bot-marvin\ --webapp
 Starts webapp
 .SH See Also
-.IP --more-config
+.B bot-marvin-init
+To install external dependencies
+.P
+.B bot-marvin --more-config
 For more config-options.
 .SH BUGS
 No known bugs.
