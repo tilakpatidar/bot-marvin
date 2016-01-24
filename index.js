@@ -9,6 +9,7 @@
 
 
 //global requires
+
 process.force_mode=false;//enables or disables the process.force_mode
 process.my_timers=[];//stores all the timers used to remove all timers for graceful exit
 process.reset=false;
@@ -25,6 +26,7 @@ var overriden_config=new_opts;//parses cmd line argv and perform required operat
 var config=require(__dirname+"/lib/config-reloader.js");
 config.setOverridenConfig(overriden_config);
 var fs=require('fs');
+fs.appendFileSync(__dirname+"/db/sqlite/active_pids.txt",process.pid+"\n");
 var dependency=require(__dirname+"/lib/depcheck.js");
 dependency.check();
 var cluster;//stores the cluster obj to communicate with the other bots
@@ -100,43 +102,79 @@ function main(pool) {
 
 
 	function cleanUp(fn){
+	
 		log.put("Performing cleanUp ","info");
-			process.child_manager.setManagerLocked(true); //lock the manager so no new childs are spawned
-			process.child_manager.flushAllInlinks(function(status){
-				//flush all the inlinks into db before exit
-					process.child_manager.killWorkers();//kill all the workers before quiting
-					//clear all moduele references
-					//console.log(process.bot);
-					process.bot.stopBot(function (err) {
-						  //if (err) throw err;
+		try{
+			process.kill(process.tikaPID,"SIGINT");
+		}catch(err){
+			//trying to kill the tika server jar
+		}
+		
+		//console.log(cluster.cluster_server,cluster.file_server)
+		cluster.cluster_server.unref();
+		cluster.file_server.unref();
+		cluster.cluster_server.close(function(){
+			cluster.cluster_server.removeListener('connection', function(){
+			cluster.file_server.close(function(){
+				cluster.file_server.removeListener('connection', function(){
+				process.child_manager.setManagerLocked(true); //lock the manager so no new childs are spawned
+				process.child_manager.flushAllInlinks(function(status){
+					//flush all the inlinks into db before exit
+						process.child_manager.killWorkers();//kill all the workers before quiting
+						//clear all moduele references
+						//console.log(process.bot);
+						process.bot.stopBot(function (err) {
+							  //if (err) throw err;
+							
+							log.put("cleanUp done","success");
 						
-						log.put("cleanUp done","success");
-					
-						//flushing the log
-						log.flush(function(){
-							//clear timers
-							for (var i = 0; i < process.my_timers.length; i++) {
-								clearInterval(process.my_timers[i]);
-							};
-							pool.close();
-								fn(true);
-							
-							
-							
-							
-							
-						});
-					
-					
-					});				
+							//flushing the log
+							log.flush(function(){
+								//clear timers
+								for (var i = 0; i < process.my_timers.length; i++) {
+									clearInterval(process.my_timers[i]);
+								};
+								pool.close();
+								
+									fn(true);
+
+								
+								
+								
+								
+								
+							});
+						
+						
+						});				
+				});
 			});
+		});
+			});
+		});
+			
 
 	}
 	function deathCleanUp(){
 		log.put('Termination request processing','info');
 		cleanUp(function(done){
 			if(done){
-				process.exit(0);
+				setTimeout(function(){
+					var pids=fs.readFileSync(__dirname+"/db/sqlite/active_pids.txt").toString().split("\n");
+					for (var i = 0; i < pids.length; i++) {
+						try{
+							//console.log(parseInt(pids[i]))
+							process.kill(parseInt(pids[i]));
+						}catch(err){
+							//console.log(err)
+						}
+						
+					};
+					fs.unlinkSync(__dirname+"/db/sqlite/active_pids.txt");
+					process.exit(0);
+
+
+				},2000);
 			}
 		});
 	}
@@ -147,9 +185,13 @@ function main(pool) {
 				if(done){
 					var spawn = require('child_process').spawn;
 		    		var file_path=__dirname+'/index.js';
-					var ls    = spawn('/usr/bin/xterm', ['-hold','-e',config.getConfig("env")+" "+file_path+"; bash"]);
-					ls.stdout.pipe(process.stdout);
-					process.exit(0);				
+					var ls    = spawn(config.getConfig("env"),[file_path],{stdio: 'inherit'});
+					fs.appendFileSync(__dirname+"/db/sqlite/active_pids.txt",ls.pid+"\n");
+					//ls.stdout.pipe(process.stdout);
+					//process.exit(0);			
+					ls.on("exit",function(){
+						process.exit(0)
+					})	
 				}
 
 

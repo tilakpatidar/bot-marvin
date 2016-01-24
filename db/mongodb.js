@@ -41,16 +41,10 @@ var pool={
 		that.bucket_collection.createIndex({score:1},function(err){});//asc order sort for score
 		that.checkIfNewCrawl(function(isNewCrawl){
 					that.getParsers(function(){
-
-							var stamp1=new Date().getTime()-2000;//giving less time
-							var stamp=stamp1+""+parseInt(Math.random()*10000);
-							that.bucket_collection.insert({"_id":stamp,"score":1,"recrawlLabel":config.getConfig("default_recrawl_interval"),"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":links.length},function(err,results){
-								if(err){
-									throw err;
-								}else{
-									//console.log("Inserted "+stamp)
-								};
 								var done=0;
+								var success=0;
+								var stamp1=new Date().getTime()-2000;//giving less time
+								var stamp=stamp1+""+parseInt(Math.random()*10000);
 								for (var i = 0; i < links.length; i++) {
 									var anon=(function(domain,stamp,fetch_interval){
 										if(check.emptyString(domain)){
@@ -65,13 +59,24 @@ var pool={
 													log.put("pool.init maybe seed is already added","error");
 												}
 												else{
+													success+=1;
 													log.put(("Added  "+domain+" to initialize pool"),"success");
 												}
 												
 												done+=1;
-												if(done===links.length-1){
-													fn(true);
-													return;
+												if(done===links.length){
+														if(success===0){
+															//no seed links were inserted thus no need to insert new bucket
+															fn(true);
+															return;
+														}
+														that.bucket_collection.insert({"_id":stamp,"links":links,"score":1,"recrawlLabel":config.getConfig("default_recrawl_interval"),"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":success},function(err,results){
+																that.bucket_collection.remove({"numOfLinks":0},function(){
+																	fn(true);
+																	return;
+																});
+																
+														});
 												}
 												
 									
@@ -90,7 +95,7 @@ var pool={
 								};
 								
 							
-						});
+						
 			
 			});
 
@@ -369,7 +374,7 @@ var pool={
 					var bot = child.fork(parent_dir+"/lib/render.js",[config.getConfig("phantomjs_port")]);	
 				}
 				k['parseFile']=dic[key]['parseFile'];
-				k["priority"]=dic[key]['priority'];
+				k["priority"]=parseInt(dic[key]['priority']);
 				k["fetch_interval"]=dic[key]['fetch_interval'];
 				links[URL.normalize(key.replace(/#dot#/gi,"."))]=k;
 				links1.push(URL.normalize(key.replace(/#dot#/gi,".")));
@@ -448,7 +453,7 @@ var pool={
 
 						}
 						done+=1;
-						if(done===li.length-1){
+						if(done===li.length){
 							fn(hash,success);
 							return;
 						}				
@@ -543,7 +548,7 @@ var pool={
 			fn(false);
 			return;
 		}
-		d[url]={"phantomjs":phantomjs,"parseFile":parseFile,"priority":priority,"fetch_interval":fetch_interval};
+		d[url]={"phantomjs":phantomjs,"parseFile":parseFile,"priority":parseInt(priority),"fetch_interval":fetch_interval};
 		var new_key="seedFile."+url;
 		var k={};
 		k[new_key]=d[url];
@@ -702,9 +707,10 @@ var pool={
 								if(check.assigned(docs[0])){
 									if(docs[0]["bot_name"]===config.getConfig("bot_name")){
 										log.put("Became master","success");
-										that.semaphore_collection.remove({},function(){
+										that.semaphore_collection.insert({"_id":"master","bot_name":config.getConfig("bot_name")},function(eee,ddd){
+												that.semaphore_collection.remove({"requestTime":{"$exists":true}},function(){
 
-											that.semaphore_collection.insert({"_id":"master","bot_name":config.getConfig("bot_name")},function(eee,ddd){
+											
 												that.cluster_info_collection.updateOne({"_id":config.getConfig("cluster_name")},{$set:{"master":config.getConfig("bot_name")}},function(eeee,dddd){
 
 													fn(true);
@@ -1052,8 +1058,9 @@ var pool={
 							return;
 						}
 							var stamp1=new Date().getTime();
+							var links_to_be_inserted=_.pluck(hashes[key]["links"],0);
 							//console.log({"_id":hash,"recrawlLabel":key,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":numOfLinks});
-							that.bucket_collection.insert({"_id":hash,"score":hashes[key]["score"],"recrawlLabel":key,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":numOfLinks},function(err,results){
+							that.bucket_collection.insert({"_id":hash,"links":links_to_be_inserted,"score":hashes[key]["score"],"recrawlLabel":key,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":numOfLinks},function(err,results){
 								if(err){
 									log.put(("pool.addToPool"+err),"error");
 									//fn(false);
