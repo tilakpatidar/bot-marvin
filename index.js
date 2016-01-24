@@ -16,6 +16,7 @@ process.reset=false;
 process.seedFile=null;
 var proto=require(__dirname+'/lib/proto.js');
 var check = require('check-types');
+var enableDestroy = require('server-destroy');
 var _=require("underscore")
 JSONX=proto["JSONX"];//JSON for regex support in .json files
 process.getAbsolutePath=proto.getAbsolutePath;
@@ -109,14 +110,28 @@ function main(pool) {
 		}catch(err){
 			//trying to kill the tika server jar
 		}
-		
+		if(!check.assigned(cluster.cluster_server.shutdown)){
+			cluster.cluster_server.shutdown=function(fn){
+				fn();
+			};
+		}
+		if(!check.assigned(cluster.file_server.shutdown)){
+			cluster.file_server.shutdown=function(fn){
+				fn();
+			};
+		}
+		if(!check.assigned(cluster.fileServer.shutdown)){
+			cluster.fileServer.shutdown=function(fn){
+				fn();
+			};
+		}
 		//console.log(cluster.cluster_server,cluster.file_server)
-		cluster.cluster_server.unref();
-		cluster.file_server.unref();
-		cluster.cluster_server.close(function(){
-			cluster.cluster_server.removeListener('connection', function(){
-			cluster.file_server.close(function(){
-				cluster.file_server.removeListener('connection', function(){
+	cluster.cluster_server.shutdown(function() {
+	    cluster.file_server.shutdown(function() {
+		    cluster.fileServer.shutdown(function() {
+	    
+
+				
 				process.child_manager.setManagerLocked(true); //lock the manager so no new childs are spawned
 				process.child_manager.flushAllInlinks(function(status){
 					//flush all the inlinks into db before exit
@@ -134,10 +149,14 @@ function main(pool) {
 								for (var i = 0; i < process.my_timers.length; i++) {
 									clearInterval(process.my_timers[i]);
 								};
-								pool.close();
-								
+								pool.close(function(){
 									fn(true);
-
+								});
+								
+									
+});
+});
+});
 								
 								
 								
@@ -148,10 +167,7 @@ function main(pool) {
 						
 						});				
 				});
-			});
-		});
-			});
-		});
+			
 			
 
 	}
@@ -159,7 +175,8 @@ function main(pool) {
 		log.put('Termination request processing','info');
 		cleanUp(function(done){
 			if(done){
-				setTimeout(function(){
+				console.log(done)
+				process.nextTick(function(){
 					var pids=fs.readFileSync(__dirname+"/db/sqlite/active_pids.txt").toString().split("\n");
 					for (var i = 0; i < pids.length; i++) {
 						try{
@@ -174,12 +191,15 @@ function main(pool) {
 					process.exit(0);
 
 
-				},2000);
+				});
 			}
 		});
 	}
-	var death=require("death");
-	death(deathCleanUp);
+	if(!process.modifyConfig){
+		var death=require("death");
+		death(deathCleanUp);
+	}
+	
 	process.on('restart',function(){
 				cleanUp(function(done){
 				if(done){
@@ -191,7 +211,8 @@ function main(pool) {
 					//process.exit(0);			
 					ls.on("exit",function(){
 						process.exit(0)
-					})	
+					});	
+							
 				}
 
 

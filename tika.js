@@ -77,12 +77,18 @@ var queue={
 
 var app={
 	"startServer":function(){
-		exec('java -jar '+__dirname+'/lib/tika-server-1.11.jar -h '+config.getConfig("tika_host"), function(error, stdout, stderr) {
+		var d=exec('java -jar '+__dirname+'/lib/tika-server-1.11.jar -h '+config.getConfig("tika_host"), function(error, stdout, stderr) {
 			log.put("[SUCCESS] Tika server started","success");
 		    if (check.assigned(error)) {
 		        log.put('[INFO] Server is already running',"info");
 		    }
 		});
+		try{
+			process.send({"tikaPID":d.pid});
+		}catch(e){
+			
+		}
+		
 	},
 	"submitFile":function(url,callback){
 			var err;
@@ -203,6 +209,7 @@ var app={
 			});
 			var dic={};
 			source.pipe(request.put({url:'http://'+config.getConfig("tika_host")+':'+config.getConfig('tika_port')+'/tika',headers: {'Accept': 'text/plain'}},function(err, httpResponse, body){
+				//console.log(body)
 				dic["text"]=body;
 				source = fs.createReadStream(app.getFileName(url)).on('error',function(err){
 				
@@ -236,65 +243,81 @@ var app={
 		if(busy){
 			return;
 		}
-		busy=true;
-				
-					queue.dequeue(function(li){
-						//console.log(li);
-						if(li.length===0){
-							busy=false;
-							setImmediate(function(){tika.processNext();});
-							return;
-						}
-						for (var i = li.length - 1; i >= 0; i--) {
-							var obj=li[i];
-								(function(fileName,parseFile,uniqueId){
-									try{
-											tika.submitFile(fileName,function(err,body){
-												//console.log(err);
-												//console.log(body);
-											if(err){
-												log.put("error from fetchFile for "+fileName,"error");
-												process.send({"bot":"tika","setCrawled":[fileName,{},err]});
-											}else{
-												//console.log(body);
-												var parser=require(__dirname+"/parsers/"+parseFile);
-												var dic=parser.init.parse(body,fileName);//pluggable parser
-												log.put("fetchFile for "+fileName,"success");
-												process.send({"bot":"tika","setCrawled":[fileName,dic[1],200]});
-
-											}
-											
-												
-											});
-									}
-									catch(err){
+		queue.length(function(count){
+			if(check.assigned(count) && count!==0){
+				busy=true;
+				queue.dequeue(function(li){
+				//console.log(li);
+				if(li.length===0){
+					busy=false;
+					setImmediate(function(){tika.processNext();});
+					return;
+				}
+				for (var i = li.length - 1; i >= 0; i--) {
+					var obj=li[i];
+						(function(fileName,parseFile,uniqueId){
+							try{
+									tika.submitFile(fileName,function(err,body){
+										//console.log(err);
+										//console.log(body);
+									if(err){
 										log.put("error from fetchFile for "+fileName,"error");
-										process.send({"bot":"tika","setCrawled":[fileName,{},"tikaUnknownError"]});
+										try{
+											process.send({"bot":"tika","setCrawled":[fileName,{},err]});
+										}catch(errr){
+
+										}
 										
+									}else{
+										//console.log(body);
+										var parser=require(__dirname+"/parsers/"+parseFile);
+										var dic=parser.init.parse(body,fileName);//pluggable parser
+										log.put("fetchFile for "+fileName,"success");
+										try{
+											process.send({"bot":"tika","setCrawled":[fileName,dic[1],200]});
+										}catch(e){}
+										
+
 									}
-									finally{
-										
-										queue.remove(uniqueId,function(err,row){
-										//	console.log(row);
-										});
-										busy=false;
-										setImmediate(function(){tika.processNext();});
-											
 									
-									}
+										
+									});
+							}
+							catch(err){
+								log.put("error from fetchFile for "+fileName,"error");
+								try{
+									process.send({"bot":"tika","setCrawled":[fileName,{},"tikaUnknownError"]});
+
+								}catch(e){}
+								
+								
+							}
+							finally{
+								
+								queue.remove(uniqueId,function(err,row){
+								//	console.log(row);
+								});
+								busy=false;
+								setImmediate(function(){tika.processNext();});
+									
+							
+							}
 
 
-								})(obj.fileName,obj.parseFile,obj.uid);
-						};
-					
-						
-						
-
+						})(obj.fileName,obj.parseFile,obj.uid);
+				};
 
 				},config.getConfig("tika_batch_size"));//[[],[]]
 
 				
 				
+			}
+			return;
+
+		})
+		
+				
+			
 					
 		
 		

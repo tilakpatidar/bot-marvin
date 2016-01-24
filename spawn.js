@@ -85,7 +85,7 @@ var bot={
 								process.send({"bot":"spawn","setCrawled":[url,{},403]});
 							}
 							catch(err){
-							log.put("Child killed","error")
+							//log.put("Child killed","error")
 							}
 							bot.isLinksFetched();
 							return;
@@ -135,7 +135,7 @@ var bot={
 			process.send({"bot":"spawn","addToPool":[q,q,url,config.getConfig("default_recrawl_interval")]});
 			}
 							catch(err){
-							log.put("Child killed","error")
+							//log.put("Child killed","error")
 							}
 		};
 			var a=$("a")
@@ -186,7 +186,7 @@ var bot={
 									try{
 											process.send({"bot":"spawn","addToPool":[URL.normalize(abs),URL.normalize(domain),URL.normalize(url),config.getConfig("default_recrawl_interval")]});
 										}catch(err){
-											log.put("Child killed","error")
+											//log.put("Child killed","error")
 										}
 											
 						}
@@ -201,7 +201,7 @@ var bot={
 								process.send({"bot":"spawn","finishedBatch":[bot.batchId,bot.refresh_label]});
 								setTimeout(function(){process.exit(0);},2000);
 						}catch(err){
-											log.put("Child killed","error")
+										//	log.put("Child killed","error")
 						}
 				
 					
@@ -302,7 +302,7 @@ var bot={
 					try{
 						process.send({"bot":"spawn","setCrawled":[url,{},"ContentOverflow"]});
 					}catch(err){
-						log.put("Child killed","error")
+						//log.put("Child killed","error")
 					}
 					
 					bot.isLinksFetched();
@@ -318,7 +318,7 @@ var bot={
 					try{
 						process.send({"bot":"spawn","setCrawled":[url,{},"ContentTimeOut"]});
 					}catch(err){
-						log.put("Child killed","error")
+						//log.put("Child killed","error")
 					}
 					
 					bot.isLinksFetched();
@@ -329,7 +329,7 @@ var bot={
 					try{
 						process.send({"bot":"spawn","setCrawled":[url,{},"ContentOverflow"]});
 					}catch(err){
-						log.put("Child killed","error")
+						//log.put("Child killed","error")
 					}
 					
 					bot.isLinksFetched();
@@ -337,7 +337,12 @@ var bot={
 				}
 			});
 			res.on("error",function(err){
-				process.send({"bot":"spawn","setCrawled":[url,{},err.type]});
+				try{
+					process.send({"bot":"spawn","setCrawled":[url,{},err.type]});
+				}catch(errr){
+
+				}
+				
 			});
 			res.on("end",function(){
 				bot.active_sockets-=1;
@@ -347,7 +352,7 @@ var bot={
 					try{
 						process.send({"bot":"spawn","setCrawled":[url,{},-1]});
 					}catch(err){
-						log.put("Child killed","error")
+					//	log.put("Child killed","error")
 					}
 					
 					bot.isLinksFetched();
@@ -363,7 +368,7 @@ var bot={
 				try{
 				process.send({"bot":"spawn","setCrawled":[url,dic[1],code]});
 				}catch(err){
-				log.put("Child killed","error")
+				//log.put("Child killed","error")
 				}
 				bot.isLinksFetched();
 					
@@ -371,7 +376,12 @@ var bot={
 			});
 		});
 		req.on("error",function(err){
-			process.send({"bot":"spawn","setCrawled":[url,{},err.type]});
+			try{
+				process.send({"bot":"spawn","setCrawled":[url,{},err.type]});
+			}catch(errr){
+
+			}
+			
 		});
 
 					
@@ -379,7 +389,12 @@ var bot={
 	"fetchFile":function(url,domain){
 		//files will be downloaded by seperate process
 		var p=bot.links[domain]["parseFile"];
-		process.send({"bot":"spawn","tika":[url,p]});
+		try{
+			process.send({"bot":"spawn","tika":[url,p]});
+		}catch(err){
+
+		}
+		
 		bot.isLinksFetched();
 					
 

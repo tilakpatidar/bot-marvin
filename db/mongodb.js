@@ -328,7 +328,9 @@ var pool={
 		var that=this;
 		var serverOptions = {
 		  'auto_reconnect': true,
-		  'poolSize': 5000
+		  'poolSize': 5000,
+		  'server': { socketOptions: { keepAlive: 1, connectTimeoutMS: 30000 } },//for topology destroyed error so that mongo can keep connections alice after shut
+		  'replset': { socketOptions: { keepAlive: 1, connectTimeoutMS: 30000 } }
 		};
 		process.mongo=MongoClient.connect(mongodb,serverOptions, function(err, db) {
 			that.db=db;
@@ -346,9 +348,14 @@ var pool={
 			
 		});
 	},
-	close:function(){
+	close:function(fn){
 		var that=this;
-		that.db.close();
+		if(!check.assigned(fn)){
+			fn=function (argument) {
+				// body...
+			}
+		}
+		that.db.close(fn);
 	},
 	"readSeedFile":function(fn){
 		var that=this;

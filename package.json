@@ -53,6 +53,7 @@
     "xml2js": "0.4.15",
     "download":"4.4.3",
     "node-static": "0.7.7",
-    "zlib":"1.0.5"
+    "zlib":"1.0.5",
+    "string-editor": "0.1.2"
   }
 }
