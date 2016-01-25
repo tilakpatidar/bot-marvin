@@ -347,9 +347,10 @@ var pool={
 			that.cluster_info_collection=db.collection(cluster_info_collection);
 			that.parsers_collection=db.collection(parsers_collection);
 			that.sitemap_collection=db.collection(sitemap_collection);
+			
+			//create partitions for all the cluster bots
 			that.bots_partitions=[];
 			that.bots_partitions.push(config.getConfig("bot_name"));
-			//create partitions for all the cluster bots
 			that.stats.activeBots(function(errr,docs){
 				//console.log(docs)
 				for (var i = 0; i < docs.length; i++) {
@@ -872,7 +873,13 @@ var pool={
 			var that=this.parent;
 			
 			that.bot_collection.find({},{}).toArray(function(err,docs){
-				
+				//this method is called by cluster in some interval which will also update the new added bots for partioning
+				that.bots_partitions=[];
+				that.bots_partitions.push(config.getConfig("bot_name"));
+				for (var i = 0; i < docs.length; i++) {
+						var obj=docs[i]["_id"];
+						that.bots_partitions.push(obj);
+				};
 				fn(err,docs);
 			});
 		},
