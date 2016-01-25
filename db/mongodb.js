@@ -273,7 +273,7 @@ var pool={
 			
 				that.bucket_collection.findAndModify({"underProcess":false,"recrawlAt":{$lte:stamp1}},[['recrawlAt',1],['score',1]],{"$set":{"underProcess":true,"processingBot":config.getConfig("bot_name")}},{"remove":false},function(err1,object){
 					//console.log(object,err1)
-					if(check.assigned(object.value)){
+					if( check.assigned(object) && check.assigned(object.value)){
 							var hash=object["value"]["_id"];
 							var refresh_label=object["value"]["recrawlLabel"];
 							that.mongodb_collection.find({"hash":hash},{},{}).toArray(function(err,docs){
@@ -373,6 +373,7 @@ var pool={
 			var links={};
 			var links1=[];
 			var links2=[];
+			var links3=[];
 			for(var key in dic){
 				var k={};
 				k["phantomjs"]=dic[key]['phantomjs'];
@@ -386,8 +387,11 @@ var pool={
 				links[URL.normalize(key.replace(/#dot#/gi,"."))]=k;
 				links1.push(URL.normalize(key.replace(/#dot#/gi,".")));
 				links2.push(dic[key]['fetch_interval']);
+				links3.push({url:URL.normalize(key.replace(/#dot#/gi,".")),priority:k["priority"],fetch_interval:k["fetch_interval"]});
 			}
-
+			_.sortBy(links3,"priority").reverse();//descending order
+			that["bucket_pointer"]=0;
+			that["bucket_priority"]=links3;
 			that["links"]=links;
 			that["seedCount"]=links1.length;
 			fn(links1,links2);
@@ -568,6 +572,9 @@ var pool={
 						return;
 					}
 					else{
+						var json=JSON.parse(fs.readFileSync(parent_dir+"/config/seed.json").toString());
+						json[org_url]=d[url];
+						fs.writeFileSync(parent_dir+"/config/seed.json",JSON.stringify(json,null,2));
 						that.links[org_url]={"phantomjs":phantomjs,"parseFile":parseFile};
 						fn(true);
 						return;
@@ -668,13 +675,19 @@ var pool={
 		var that=this;
 		that.pullSeedLinks(function(new_config){
 			if(check.assigned(new_config)){
-				if(!ObjectX.isEquivalent(new_config,that.seed_db_copy)){
-					log.put("Seed Links changed from db ","info");
-					process.emit("restart");//will be caught by death and it will cause to restart
-				}
-				else{
-					log.put("No change in seed links","info");
-				}
+				fs.writeFile(parent_dir+"/config/seed.json",JSON.stringify(new_config,null,2).replace(/#dot#/gi,"."),function(){
+					if(!ObjectX.isEquivalent(new_config,that.seed_db_copy)){
+						
+							log.put("Seed Links changed from db ","info");
+							process.emit("restart");//will be caught by death and it will cause to restart
+
+						
+
+					}
+					else{
+						log.put("No change in seed links","info");
+					}
+				});
 			}
 		});
 	},
@@ -763,7 +776,7 @@ var pool={
 				}
 				else{
 					//no one is master then try to become one
-					console.log("trying")
+					//console.log("trying")
 					that.bot.requestToBecomeMaster(config.getConfig("bot_name"),function(st){
 						fn(st);
 					});
@@ -968,6 +981,19 @@ var pool={
 		}
 	},
 	"bucketOperation":{
+		"getCurrentDomain":function(){
+			var that=this.parent;
+			var domain=that.bucket_priority[that.bucket_pointer];
+			if(!check.assigned(domain)){
+				that.bucket_pointer=0;
+				return that.bucketOperation.getCurrentDomain();
+			}
+			that.bucket_pointer+=1;
+			if(that.bucket_pointer>=that.bucket_pointer.length){
+				that.bucket_pointer=0;
+			}
+			return domain;
+		},
 		"creator":function(){
 			var that=this.parent;
 			//console.log("pinging")
@@ -994,38 +1020,89 @@ var pool={
 					var re=[];
 
 					var n_domains=_.size(that.cache);
-					var done=0;
-					var limit=n_domains*_.size(intervals);
+					
+					var interval_size=_.size(intervals);
+					var new_size=0;
 				
 					for(var k in intervals){
-						for (var key in that.cache) {
-							(function(key,k){
-								var eachh=parseInt(config.getConfig("batch_size")/n_domains);
-								//console.log("EACHH "+eachh);
-								var pusher=that.bucketOperation.pusher;
-								that.bucketOperation.dequeue(key,eachh,k,function(l){
-									//console.log(l,"dequeue	"+l);
-										for (var i = 0; i < l.length; i++) {
-											var urldata=l[i];
-											hashes[k]["links"].push(urldata);
-										};
-										++done;
-										if(done===limit){
-											if(check.emptyObject(hashes)){
-												process.bucket_creater_locked=false;
-												return;
-											}
-											//console.log(hashes)
-											pusher(hashes,function(){
-												process.bucket_creater_locked=false;
-											});
+						(function(k){
+								var done=0;
+								var domains=[];
+								var summer=0;
+								var first_pointer=that.bucket_pointer;
+								var continue_flag=false;
+								while(summer<10){
+									var d=that.bucketOperation.getCurrentDomain();
+									//console.log(d)
+									
+									if(first_pointer===that.bucket_pointer){
+										if(domains.length===0){
+											continue_flag=true;
 										}
-								});						
+										else{
+											continue_flag=false;
+										}
+										
+										break;
+									}
+									summer+=d["priority"];
+									if(d["fetch_interval"]!==k){
+											continue;
+									}
+									domains.push(d);
+									if(summer===10){
+										break;
+									}
+									else if(summer>10){
+										summer-=d["priority"];
+										that.bucket_pointer-=1;//dec
+										domains.pop();
+									}
+									new_size+=domains.length;
+								}
+								//console.log(domains)
+								if(continue_flag || domains.length===0){
+									interval_size-=1;
+									//console.log("skip");
+									return;
+								}
+								console.log("heree")
+								for (var i = 0; i < domains.length; i++) {
+									//console.log(i)
+									(function(dd,limit){
+									var ratio=parseInt(config.getConfig("batch_size")/10);
+									var eachh=ratio*dd["priority"];
+									var key=dd["url"];
+									var k=dd["fetch_interval"];
+									//console.log("EACHH "+eachh);
+									var pusher=that.bucketOperation.pusher;
+									//console.log(key,eachh,k);
+									that.bucketOperation.dequeue(key,eachh,k,function(l){
+										//console.log(l,"dequeue	"+l);
+											for (var i = 0; i < l.length; i++) {
+												var urldata=l[i];
+												hashes[k]["links"].push(urldata);
+											};
+											++done;
+											if(done===limit){
+												if(check.emptyObject(hashes)){
+													process.bucket_creater_locked=false;
+													return;
+												}
+												//console.log(hashes)
+												pusher(hashes,function(){
+													process.bucket_creater_locked=false;
+												});
+											}
+									});	
 
-							})(key,k);
+									})(domains[i],domains.length);
+									
+								};
 
-							
-						};
+
+						})(k);
+				
 					}
 		
 		
@@ -1136,10 +1213,6 @@ var pool={
 pool.setParent();//setting the parent reference
 process.pool_check_mode=setInterval(function(){
 	if(process.MODE==='exec' && !process.tika_setup){
-		var c=setInterval(function(){
-			pool.seedReloader();
-		},10000);
-		process.my_timers.push(c);
 		var d=setInterval(function(){
 			pool.parserReloader();
 

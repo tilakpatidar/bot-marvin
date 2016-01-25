@@ -135,7 +135,7 @@ var app={
 				
 				callback("TikeFileStreamError");
 		});
-			var req=request({uri: url,pool:separateReqPool});
+			var req=request({uri: url,pool:separateReqPool,headers:config.getConfig("http","headers")});
 			var done_len=0;
 			var init_time=new Date().getTime();
 			req.on("response",function(res){

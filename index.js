@@ -16,7 +16,6 @@ process.reset=false;
 process.seedFile=null;
 var proto=require(__dirname+'/lib/proto.js');
 var check = require('check-types');
-var enableDestroy = require('server-destroy');
 var _=require("underscore")
 JSONX=proto["JSONX"];//JSON for regex support in .json files
 process.getAbsolutePath=proto.getAbsolutePath;
@@ -25,6 +24,7 @@ var new_opts=argv.init();
 var log=require(__dirname+"/lib/logger.js");
 var overriden_config=new_opts;//parses cmd line argv and perform required operations
 var config=require(__dirname+"/lib/config-reloader.js");
+var seed=require(__dirname+"/lib/seed-reloader.js");
 config.setOverridenConfig(overriden_config);
 var fs=require('fs');
 fs.appendFileSync(__dirname+"/db/sqlite/active_pids.txt",process.pid+"\n");
@@ -341,6 +341,18 @@ var app={
 								log.put("pdf-store cache reset","success");
 
 
+								//remove seed file
+								//touch a new file
+								try{
+									var stream=fs.createWriteStream(__dirname+"/config/seed.json");
+									stream.write("{}");
+									stream.close();
+									log.put("Seed file cleared","success");
+								}catch(ee){
+									log.put("Seed file not cleared","error");
+								}
+								
+
 								log.put("crawler reset","success");
 								app.clearSeed(function(status){
 										try{
@@ -488,11 +500,13 @@ var app={
 		}
 		check.assert.assigned(path,"file path cannot be undefined")
 		// \n$ to remove extra \n at end
-		var data=fs.readFileSync(path).toString().replace(/\t{2,}/gi,"\t").replace(/\n{2,}/gi,"\n").replace(/\n$/gi,"").split("\n");
+		var data=fs.readFileSync(path).toString().replace(/\t{2,}/gi,"\t").replace(/\n{2,}/gi,"\n").replace(/\n$/gi,"");
+		var json=JSON.parse(data);
 		var done=0;
 		var success=0;
-		for (var i = 0; i < data.length; i++) {
-			var d=data[i].split("\t");
+		var limit=_.size(json);
+		for(var keys in json){
+			var obj=json[keys];
 			(function(a,b,c,dd,ee){
 				app.insertSeed(a,b,c,dd,ee,function(status){
 					if(status){
@@ -502,11 +516,15 @@ var app={
 						log.put("Failed to seed url "+a,"error");
 					}
 					done+=1;
-					if(done===data.length){
+					if(done===limit){
 						fn(true);
 					}
 				});
-			})(d[0],d[1],JSON.parse(d[2]),d[3],d[4]);
+			})(keys,obj["parseFile"],obj["phantomjs"],obj["priority"],obj["fetch_interval"]);
+		}
+		
+		for (var i = 0; i < data.length; i++) {
+			
 			
 		};
 	},
@@ -567,6 +585,7 @@ if(require.main === module){
 				app.pool=pool;//set pool obj
 				cluster=c;
 				config.setDB(pool,overriden_config);
+				seed.setDB(pool);
 				var bot=require(__dirname+'/lib/bot.js');
 				process.bot=new bot(cluster,pool);//making global so that bot stats can be updated in any module
 				fn(pool);
@@ -623,6 +642,7 @@ if(require.main === module){
 					cluster=c;
 					app.pool=pool;//set pool obj
 					config.setDB(pool);
+					seed.setDB(pool);
 					var bot=require(__dirname+'/lib/bot.js');
 					process.bot=new bot(cluster,pool);//making global so that bot stats can be updated in any module
 					fn(app);//return the app object when db connection is made

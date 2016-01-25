@@ -5,7 +5,7 @@ var config={
   "robot_agent": "*",
   "bot_name": "zaphod",
   "cluster_name": "hitchiker",
-  "childs": 4,
+  "childs": 2,
   "verbose": true,
   "logging": true,
   "network_interface": "lo",
@@ -30,7 +30,10 @@ var config={
     "max_content_length": 10485760,
     "follow_redirect": true,
     "max_sockets_per_host": 10,
-    "max_concurrent_sockets": 10
+    "max_concurrent_sockets": 10,
+    "headers": {
+      "User-Agent": "Mozilla/5.0"
+    }
   },
   "log_buffer_lines": 100,
   "recrawl_intervals": {
