@@ -54,7 +54,7 @@ var pool={
 										that.getLinksFromSiteMap(domain,function(){
 											
 											
-											that.mongodb_collection.insert({"_id":domain,"hash":stamp,"domain":domain,"done":false,"queue_type":"links","fetch_interval":fetch_interval,"queue_underprocess":true},function(err,results){
+											that.mongodb_collection.insert({"_id":domain,"hash":stamp,"domain":domain,"done":false,"fetch_interval":fetch_interval},function(err,results){
 												if(err){
 													log.put("pool.init maybe seed is already added","error");
 												}
@@ -236,8 +236,12 @@ var pool={
 				
 				
 				(function(url,domain,parent,hash,i,refresh_time){
-					
-						that.links_cache_collection.insert({"_id":url,"done":false,"domain":domain,"parent":parent,"data":"","hash":hash,"queue_type":"links","queue_underprocess":false,"fetch_interval":refresh_time},function(err,results){
+					var bot_partition=that.bots_partitions[that.bot_pointer];
+						that.bot_pointer+=1;
+						if(that.bot_pointer>=that.bots_partitions.length){
+							that.bot_pointer=0;
+						}
+						that.mongodb_collection.insert({"_id":url,"done":false,"partitionedBy":bot_partition,"domain":domain,"parent":parent,"data":"","hash":hash,"fetch_interval":refresh_time},function(err,results){
 							
 							done+=1;
 							if(done===li.length){
@@ -337,21 +341,20 @@ var pool={
 		process.mongo=MongoClient.connect(mongodb,serverOptions, function(err, db) {
 			that.db=db;
 			that.mongodb_collection=db.collection(mongodb_collection);
-			that.links_cache_collection=db.collection("links_cache");
 			that.bucket_collection=db.collection(bucket_collection);
 			that.bot_collection=db.collection(bot_collection);
 			that.semaphore_collection=db.collection(semaphore_collection);
 			that.cluster_info_collection=db.collection(cluster_info_collection);
 			that.parsers_collection=db.collection(parsers_collection);
 			that.sitemap_collection=db.collection(sitemap_collection);
-			that.bots_partitions={};
-			that.bots_partitions[config.getConfig("bot_name")]=db.collection(config.getConfig("bot_name")+"_partition");
+			that.bots_partitions=[];
+			that.bots_partitions.push(config.getConfig("bot_name"));
 			//create partitions for all the cluster bots
 			that.stats.activeBots(function(errr,docs){
-				console.log(docs)
+				//console.log(docs)
 				for (var i = 0; i < docs.length; i++) {
 					var obj=docs[i]["_id"];
-					that.bots_partitions[obj]=db.collection(obj+"_partition");
+					that.bots_partitions.push(obj);
 				};
 				
 			})
@@ -466,7 +469,7 @@ var pool={
 			var parent=li[i][2];
 			
 			(function(url,domain,parent,hash){
-				that.mongodb_collection.insert({"_id":url,"done":false,"domain":domain,"parent":parent,"data":"","hash":hash},function(err,results){
+				that.mongodb_collection.updateOne({"_id":url},{"$set":{"done":true,"domain":domain,"parent":parent,"data":"","hash":hash}},function(err,results){
 						if(err){
 							//console.log(err);
 							//link is already present
@@ -994,20 +997,6 @@ var pool={
 		}
 	},
 	"bucketOperation":{
-		"splitBucket":function(){
-			var that=this.parent;
-			//splits the bucket so that other bots can make bucket
-			var bot_partition=Object.keys(that.bots_partitions)[that.bot_pointer];
-					that.bot_pointer+=1;
-					if(that.bot_pointer>=_.size(that.bot_partition)){
-						that.bot_pointer=0;
-					}
-			var documentsToMove = that.links_cache_collection.find({"done":false}).limit(10000);
-				documentsToMove.forEach(function(doc) {
-					that.links_cache_collection.updateOne({"_id":doc["_id"]},{"$set":{"done":"true"}})
-				    that.bots_partitions[bot_partition].insert(doc);
-				});
-		},
 		"getCurrentDomain":function(){
 			var that=this.parent;
 			var domain=that.bucket_priority[that.bucket_pointer];
@@ -1205,7 +1194,7 @@ var pool={
 			var that=this.parent;
 			var li=[];
 			var rem=[];
-				that.bots_partitions[config.getConfig("bot_name")].find({"domain":domain,"fetch_interval":interval,"queue_underprocess":false},{limit:count}).toArray(function(err,object){
+				that.mongodb_collection.find({"domain":domain,"done":false,"fetch_interval":interval,"partitionedBy":config.getConfig("bot_name")},{limit:count}).toArray(function(err,object){
 					
 					//console.log(object)
 					if(check.assigned(object) && object.length!==0){
@@ -1216,11 +1205,8 @@ var pool={
 						var parents=_.pluck(object,"parent");
 						_.each(rem,function(item,index){li.push([item,domains[index],parents[index]]);});
 						
-						that.bots_partitions[config.getConfig("bot_name")].remove({"_id":{"$in":rem}},{},function(err1,results){
-							//console.log(err1,results);
-							//console.log(li)
 							fn(li)
-						});
+						
 						
 					}
 					else{
@@ -1250,14 +1236,6 @@ process.pool_check_mode=setInterval(function(){
 			if(!process.webappOnly && !process.bucket_creater_locked){
 				
 				pool.bucketOperation.creator();
-			}
-			
-		},10000);
-		process.my_timers.push(e);
-		var f=setInterval(function(){
-			if(!process.webappOnly && process.cluster_master){
-				
-				pool.bucketOperation.splitBucket();
 			}
 			
 		},10000);
