@@ -236,12 +236,18 @@ var pool={
 				
 				
 				(function(url,domain,parent,hash,i,refresh_time){
-						that.mongodb_collection.insert({"_id":url,"done":false,"domain":domain,"parent":parent,"data":"","hash":hash,"queue_type":"links","queue_underprocess":false,"fetch_interval":refresh_time},function(err,results){
+					var bot_partition=Object.keys(that.bots_partitions)[that.bot_pointer];
+					that.bot_pointer+=1;
+					if(that.bot_pointer>=_.size(that.bot_partition)){
+						that.bot_pointer=0;
+					}
+						that.bots_partitions[bot_partition].insert({"_id":url,"done":false,"domain":domain,"parent":parent,"data":"","hash":hash,"queue_type":"links","queue_underprocess":false,"fetch_interval":refresh_time},function(err,results){
 							
 							done+=1;
 							if(done===li.length){
 								fn();
 							}
+					
 											
 					});
 				})(url,domain,parent,null,i,refresh_time);
@@ -335,13 +341,23 @@ var pool={
 		process.mongo=MongoClient.connect(mongodb,serverOptions, function(err, db) {
 			that.db=db;
 			that.mongodb_collection=db.collection(mongodb_collection);
-			that.mongodb_collection=db.collection(mongodb_collection);
 			that.bucket_collection=db.collection(bucket_collection);
 			that.bot_collection=db.collection(bot_collection);
 			that.semaphore_collection=db.collection(semaphore_collection);
 			that.cluster_info_collection=db.collection(cluster_info_collection);
 			that.parsers_collection=db.collection(parsers_collection);
 			that.sitemap_collection=db.collection(sitemap_collection);
+			that.bots_partitions={};
+			that.bots_partitions[config.getConfig("bot_name")]=db.collection(config.getConfig("bot_name")+"_partition");
+			//create partitions for all the cluster bots
+			that.stats.activeBots(function(errr,docs){
+				console.log(docs)
+				for (var i = 0; i < docs.length; i++) {
+					var obj=docs[i]["_id"];
+					that.bots_partitions[obj]=db.collection(obj+"_partition");
+				};
+				
+			})
 
 			fn(err,db);
 			return;
@@ -1178,7 +1194,7 @@ var pool={
 			var that=this.parent;
 			var li=[];
 			var rem=[];
-				that.mongodb_collection.find({"domain":domain,"fetch_interval":interval,"queue_underprocess":false},{limit:count}).toArray(function(err,object){
+				that.bots_partitions[config.getConfig("bot_name")].find({"domain":domain,"fetch_interval":interval,"queue_underprocess":false},{limit:count}).toArray(function(err,object){
 					
 					//console.log(object)
 					if(check.assigned(object) && object.length!==0){
@@ -1189,7 +1205,7 @@ var pool={
 						var parents=_.pluck(object,"parent");
 						_.each(rem,function(item,index){li.push([item,domains[index],parents[index]]);});
 						
-						that.mongodb_collection.remove({"_id":{"$in":rem}},{},function(err1,results){
+						that.bots_partitions[config.getConfig("bot_name")].remove({"_id":{"$in":rem}},{},function(err1,results){
 							//console.log(err1,results);
 							//console.log(li)
 							fn(li)
@@ -1207,6 +1223,7 @@ var pool={
 		}
 	},
 	"seedCount":0,
+	"bot_pointer":0,
 	"cache":{},
 	"links":{}
 };
