@@ -36,8 +36,9 @@ var cluster;//stores the cluster obj to communicate with the other bots
 
 function main(pool) {
 	//setting args
-	
+
 	process.bot.startBot(process.force_mode,function(status){
+		console.log("THIS ONE")
 		if(status){
 			//bot was started successfully
 			function startBotManager(links,botObjs,links_fetch_interval){
@@ -54,9 +55,9 @@ function main(pool) {
 				});
 
 			}
-
-			pool.readSeedFile(function(links,links_fetch_interval){
-
+console.log("THEEE")
+				pool.readSeedFile(function(links,links_fetch_interval){
+					//console.log("THAT ONE")
 				//reading the seed links from db
 
 						var botObjs={};//will store robots.txt data for seed links
@@ -79,12 +80,15 @@ function main(pool) {
 									log.put("robots.txt parsing failed","error");
 								}
 								botObjs=obj;
+								console.log("CUL")
 								startBotManager(links,botObjs,links_fetch_interval);
+								return;
 								
 							});
 						}
 						else{
 							startBotManager(links,null);
+							return;
 						}
 
 

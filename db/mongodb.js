@@ -37,6 +37,7 @@ var pool={
 		that.mongodb_collection.createIndex({"$**":"text"},{"weights": {"data._source.id":5,"data._source.host":5,"data._source.meta_description":5,"data._source.title":5,"data._source.body":1}},function(err){
 				//console.log(err);
 			});
+		console.log("FUCKED")
 		that.bucket_collection.createIndex({recrawlAt:1},function(err){});//asc order sort for recrawlAt
 		that.bucket_collection.createIndex({score:1},function(err){});//asc order sort for score
 		that.checkIfNewCrawl(function(isNewCrawl){
@@ -53,8 +54,9 @@ var pool={
 										that.cache[domain]=true;
 										that.getLinksFromSiteMap(domain,function(){
 											
-											
+											console.log(domain)
 											that.mongodb_collection.insert({"_id":domain,"hash":stamp,"domain":domain,"done":false,"fetch_interval":fetch_interval},function(err,results){
+												console.log(err)
 												if(err){
 													log.put("pool.init maybe seed is already added","error");
 												}
@@ -383,6 +385,7 @@ var pool={
 				process.bot.stopBot(function(){
 						process.exit(0);
 				});
+				fn([],[]);
 				return;
 			}
 			var dic=results[0].seedFile;
@@ -737,6 +740,7 @@ var pool={
 			that.semaphore_collection.findOne({"_id":"master"},function(err,doc){
 				if(check.assigned(doc)){
 					fn(false);
+					return;
 				}else{
 					that.semaphore_collection.insert({"bot_name":config.getConfig("bot_name"),"requestTime":parseInt(new Date().toString())},function(e,d){
 						that.semaphore_collection.find({}).sort({"requestTime":1}).toArray(function(ee,docs){
@@ -751,6 +755,7 @@ var pool={
 												that.cluster_info_collection.updateOne({"_id":config.getConfig("cluster_name")},{$set:{"master":config.getConfig("bot_name")}},function(eeee,dddd){
 
 													fn(true);
+													return;
 
 												});
 												
@@ -762,17 +767,21 @@ var pool={
 									}
 									else{
 										fn(false);
+										return;
 									}
 								}
 								else{
 										fn(false);
+										return;
 									}
 							}else{
 								fn(false);
+								return;
 							}
 						});
 						if(!check.assigned(e)){
 							fn(true);
+							return;
 						}
 					})
 				}
@@ -805,12 +814,14 @@ var pool={
 			var that=this.parent;
 			that.bot_collection.findOne({"_id":config.getConfig("bot_name"),"active":true},function(err,results){
 				fn(err,results);
+				return;
 			});
 		},
 		startBotAddNewBot:function(t,fn){
 			var that=this.parent;
 			that.bot_collection.findAndModify({"_id":config.getConfig("bot_name")},[],{"$set":{"registerTime":t,"active":true,"config":JSON.parse(JSONX.stringify(config.getConfig()))}},{remove:false,upsert:true},function(err,result){
 				fn(err,result);
+				return;
 			});
 		},
 		updateBotInfo:function(n_dic,fn){
