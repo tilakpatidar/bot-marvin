@@ -236,12 +236,8 @@ var pool={
 				
 				
 				(function(url,domain,parent,hash,i,refresh_time){
-					var bot_partition=Object.keys(that.bots_partitions)[that.bot_pointer];
-					that.bot_pointer+=1;
-					if(that.bot_pointer>=_.size(that.bot_partition)){
-						that.bot_pointer=0;
-					}
-						that.bots_partitions[bot_partition].insert({"_id":url,"done":false,"domain":domain,"parent":parent,"data":"","hash":hash,"queue_type":"links","queue_underprocess":false,"fetch_interval":refresh_time},function(err,results){
+					
+						that.links_cache_collection.insert({"_id":url,"done":false,"domain":domain,"parent":parent,"data":"","hash":hash,"queue_type":"links","queue_underprocess":false,"fetch_interval":refresh_time},function(err,results){
 							
 							done+=1;
 							if(done===li.length){
@@ -341,6 +337,7 @@ var pool={
 		process.mongo=MongoClient.connect(mongodb,serverOptions, function(err, db) {
 			that.db=db;
 			that.mongodb_collection=db.collection(mongodb_collection);
+			that.links_cache_collection=db.collection("links_cache");
 			that.bucket_collection=db.collection(bucket_collection);
 			that.bot_collection=db.collection(bot_collection);
 			that.semaphore_collection=db.collection(semaphore_collection);
@@ -997,6 +994,20 @@ var pool={
 		}
 	},
 	"bucketOperation":{
+		"splitBucket":function(){
+			var that=this.parent;
+			//splits the bucket so that other bots can make bucket
+			var bot_partition=Object.keys(that.bots_partitions)[that.bot_pointer];
+					that.bot_pointer+=1;
+					if(that.bot_pointer>=_.size(that.bot_partition)){
+						that.bot_pointer=0;
+					}
+			var documentsToMove = that.links_cache_collection.find({"done":false}).limit(10000);
+				documentsToMove.forEach(function(doc) {
+					that.links_cache_collection.updateOne({"_id":doc["_id"]},{"$set":{"done":"true"}})
+				    that.bots_partitions[bot_partition].insert(doc);
+				});
+		},
 		"getCurrentDomain":function(){
 			var that=this.parent;
 			var domain=that.bucket_priority[that.bucket_pointer];
@@ -1236,9 +1247,17 @@ process.pool_check_mode=setInterval(function(){
 		},10000);
 		process.my_timers.push(d);
 		var e=setInterval(function(){
-			if(!process.webappOnly && !process.bucket_creater_locked && process.cluster_master){
+			if(!process.webappOnly && !process.bucket_creater_locked){
 				
 				pool.bucketOperation.creator();
+			}
+			
+		},10000);
+		process.my_timers.push(e);
+		var f=setInterval(function(){
+			if(!process.webappOnly && process.cluster_master){
+				
+				pool.bucketOperation.splitBucket();
 			}
 			
 		},10000);
