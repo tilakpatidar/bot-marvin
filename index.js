@@ -36,9 +36,9 @@ var cluster;//stores the cluster obj to communicate with the other bots
 
 function main(pool) {
 	//setting args
-
+//#debug#console.log("IN MAIN")
 	process.bot.startBot(process.force_mode,function(status){
-		console.log("THIS ONE")
+		//#debug#console.log("THIS ONE")
 		if(status){
 			//bot was started successfully
 			function startBotManager(links,botObjs,links_fetch_interval){
@@ -48,16 +48,17 @@ function main(pool) {
 				pool.seed(links,links_fetch_interval,function(completed){
 					if(completed){
 						//create a child manager
-						process.child_manager=new require(__dirname+'/lib/child_manager.js')(pool,botObjs,cluster);						
+						process.child_manager=new require(__dirname+'/lib/child_manager.js')(pool,botObjs,cluster);		
+						//#debug#console.log(process.child_manager,"child_manager")				
 					}
 
 
 				});
 
 			}
-console.log("THEEE")
+//#debug#console.log("THEEE")
 				pool.readSeedFile(function(links,links_fetch_interval){
-					//console.log("THAT ONE")
+					//#debug#console.log("THAT ONE")
 				//reading the seed links from db
 
 						var botObjs={};//will store robots.txt data for seed links
@@ -72,7 +73,7 @@ console.log("THEEE")
 							log.put("downloading robots.txt this could take a while","info");
 							var robots=require(__dirname+'/lib/robots.js').app;
 							robots.init(Object.keys(pool.links),function(err,obj){
-								//console.log(obj);
+								//#debug#console.log(obj);
 								if(obj){
 									log.put("robots.txt parsed","success");
 								}
@@ -80,7 +81,7 @@ console.log("THEEE")
 									log.put("robots.txt parsing failed","error");
 								}
 								botObjs=obj;
-								console.log("CUL")
+								//#debug#console.log("CUL")
 								startBotManager(links,botObjs,links_fetch_interval);
 								return;
 								
@@ -138,19 +139,24 @@ console.log("THEEE")
 				fn();
 			};
 		}
-		//console.log(cluster.cluster_server,cluster.file_server)
+		//#debug#console.log(cluster.cluster_server,cluster.file_server)
 	cluster.cluster_server.shutdown(function() {
 	    cluster.file_server.shutdown(function() {
 		    cluster.fileServer.shutdown(function() {
 	    
-
+		    	if(!check.assigned(process.child_manager)){
+		    		process.child_manager={};
+		    		process.child_manager.setManagerLocked=function(){};
+		    		process.child_manager.killWorkers=function(){};
+		    		process.child_manager.flushAllInlinks=function(fn){fn();}
+		    	}
 				
 				process.child_manager.setManagerLocked(true); //lock the manager so no new childs are spawned
 				process.child_manager.flushAllInlinks(function(status){
 					//flush all the inlinks into db before exit
 						process.child_manager.killWorkers();//kill all the workers before quiting
 						//clear all moduele references
-						//console.log(process.bot);
+						//#debug#console.log(process.bot);
 						process.bot.stopBot(function (err) {
 							  //if (err) throw err;
 							
@@ -190,15 +196,15 @@ console.log("THEEE")
 		log.put('Termination request processing','info');
 		cleanUp(function(done){
 			if(done){
-				console.log(done)
+				//#debug#console.log(done)
 				process.nextTick(function(){
 					var pids=fs.readFileSync(__dirname+"/db/sqlite/active_pids.txt").toString().split("\n");
 					for (var i = 0; i < pids.length; i++) {
 						try{
-							//console.log(parseInt(pids[i]))
+							//#debug#console.log(parseInt(pids[i]))
 							process.kill(parseInt(pids[i]));
 						}catch(err){
-							//console.log(err)
+							//#debug#console.log(err)
 						}
 						
 					};
@@ -259,7 +265,7 @@ function updateJson(js){
 		config.updateDbConfig(dic);//regex safe json update to db
 	}
 	catch(err){
-		console.log(err);
+		//#debug#console.log(err);
 		return false;
 	}
 	return true;
@@ -376,7 +382,7 @@ var app={
 												return;
 										}
 										catch(err){
-											console.log(err);
+											//#debug#console.log(err);
 											log.put("in pool.close","error");
 											return;
 										}
@@ -405,7 +411,7 @@ var app={
 			main(app.pool);
 		}
 		catch(err){
-			console.log(err);
+			//#debug#console.log(err);
 			cleanUp();
 		}
 		
@@ -660,7 +666,7 @@ if(require.main === module){
 	}
 	catch(err){
 		//cleanUp will run automatically as normal exit
-		console.log(err);
+		//#debug#console.log(err);
 		//process.cleanUp();
 	}
 	

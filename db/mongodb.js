@@ -27,7 +27,7 @@ var cluster;
 var sitemap = require(parent_dir+'/lib/sitemap_parser');
 //read seed file
 
-process.bucket_creater_locked=false;
+process.bucket_creater_locked=true;
 
 
 var pool={
@@ -35,9 +35,9 @@ var pool={
 		//this method runs first when crawler starts
 		var that=this;
 		that.mongodb_collection.createIndex({"$**":"text"},{"weights": {"data._source.id":5,"data._source.host":5,"data._source.meta_description":5,"data._source.title":5,"data._source.body":1}},function(err){
-				//console.log(err);
+				//#debug#console.log(err);
 			});
-		//console.log("FUCKED")
+		//#debug#console.log("FUCKED")
 		that.bucket_collection.createIndex({recrawlAt:1},function(err){});//asc order sort for recrawlAt
 		that.bucket_collection.createIndex({score:1},function(err){});//asc order sort for score
 		that.checkIfNewCrawl(function(isNewCrawl){
@@ -51,9 +51,9 @@ var pool={
 										that.cache[domain]=true;
 										that.getLinksFromSiteMap(domain,function(){
 											
-											//console.log(domain)
+											//#debug#console.log(domain)
 											that.mongodb_collection.insert({"_id":domain,"hash":stamp,"domain":domain,"partitionedBy":config.getConfig("bot_name"),"done":false,"fetch_interval":fetch_interval},function(err,results){
-												//console.log(err)
+												//#debug#console.log(err)
 												if(err){
 													log.put("pool.init maybe seed is already added","error");
 												}
@@ -140,7 +140,7 @@ var pool={
 		var temp=domain.replace(/\./gi,"#dot#");
 		var temp1=JSON.parse(JSON.stringify(sites).replace(/\./gi,"#dot#"));
 		
-		//console.log(err);
+		//#debug#console.log(err);
 		if(err){
 				log.put("Unable to insert sites into sitemap collection","error");
 			}else{
@@ -156,7 +156,7 @@ var pool={
 				for (var i = 0; i < lists.length; i++) {
 					//each subarray
 					var sub=lists[i];
-					//console.log(sub)
+					//#debug#console.log(sub)
 					var mask="";
 					var t=[];
 					var query="INSERT OR IGNORE INTO links (url,domain,parent,freq) VALUES ";
@@ -166,7 +166,7 @@ var pool={
 						m.push("(?,?,?,?)");
 						var url=sub[ii][0];
 						t.push(url)
-						//console.log(domain)
+						//#debug#console.log(domain)
 						that.cache[domain]=true;
 						t.push(domain)
 						var parent=urllib.resolve(domain,"sitemap.xml");
@@ -191,7 +191,7 @@ var pool={
 					(function(query,t){
 						sqlite_db.parallelize(function() {
 								sqlite_db.run(query,t,function(err,row){
-									//console.log(err,row)
+									//#debug#console.log(err,row)
 									done+=1;
 									if(done===lists.length){
 										that.sitemap_collection.insert({"_id":temp,"sites":temp1},function(err,results){
@@ -227,7 +227,7 @@ var pool={
 
 				//overriding default fetch_interval with the domain specified interval
 				var refresh_time=that.links[domain]["fetch_interval"];
-				//console.log(refresh_time);
+				//#debug#console.log(refresh_time);
 				if(!check.assigned(refresh_time)){
 					refresh_time=config.getConfig("default_recrawl_interval");
 				}
@@ -263,11 +263,11 @@ var pool={
 			return;
 		}
 		that.insertLinksInDB(li,function(){
-			//console.log("heree")
+			//#debug#console.log("heree")
 			fn(true);
 			return;
 		}); //links will be inserted in the links collection
-		//console.log("herere 1");
+		//#debug#console.log("herere 1");
 
 		
 			
@@ -277,7 +277,7 @@ var pool={
 			var stamp1=new Date().getTime();
 			
 				that.bucket_collection.findAndModify({"underProcess":false,"recrawlAt":{$lte:stamp1}},[['recrawlAt',1],['score',1]],{"$set":{"underProcess":true,"processingBot":config.getConfig("bot_name")}},{"remove":false},function(err1,object){
-					//console.log(object,err1)
+					//#debug#console.log(object,err1)
 					if( check.assigned(object) && check.assigned(object.value)){
 							var hash=object["value"]["_id"];
 							var refresh_label=object["value"]["recrawlLabel"];
@@ -290,7 +290,7 @@ var pool={
 										return;
 									}
 									else{
-										//console.log(docs);
+										//#debug#console.log(docs);
 										log.put(("Got "+docs.length+" for next Batch"),"success");
 										result(err,docs,hash,refresh_label);		
 									}
@@ -313,6 +313,7 @@ var pool={
 		if(!check.assigned(data)){
 			data="";
 		}
+		//#debug#console.log(status)
 		if(!check.assigned(status)){
 			status="0";//no error
 		}
@@ -340,7 +341,7 @@ var pool={
 		};
 		process.mongo=MongoClient.connect(mongodb,serverOptions, function(err, db) {
 			that.db=db;
-			//console.log(err,db)
+			//#debug#console.log(err,db)
 			that.mongodb_collection=db.collection(mongodb_collection);
 			that.bucket_collection=db.collection(bucket_collection);
 			that.bot_collection=db.collection(bot_collection);
@@ -353,7 +354,7 @@ var pool={
 			that.bots_partitions=[];
 			that.bots_partitions.push(config.getConfig("bot_name"));
 			that.stats.activeBots(function(errr,docs){
-				//console.log(docs)
+				//#debug#console.log(docs)
 				for (var i = 0; i < docs.length; i++) {
 					var obj=docs[i]["_id"];
 					that.bots_partitions.push(obj);
@@ -408,7 +409,7 @@ var pool={
 				links2.push(dic[key]['fetch_interval']);
 				links3.push({url:URL.normalize(key.replace(/#dot#/gi,".")),priority:k["priority"],fetch_interval:k["fetch_interval"]});
 			}
-			_.sortBy(links3,"priority").reverse();//descending order
+			_.sortBy(links3,"priority",this).reverse();//descending order
 			that["bucket_pointer"]=0;
 			that["bucket_priority"]=links3;
 			that["links"]=links;
@@ -474,9 +475,9 @@ var pool={
 			(function(url,domain,parent,hash){
 				that.mongodb_collection.updateOne({"_id":url},{"$set":{"done":true,"domain":domain,"parent":parent,"data":"","hash":hash}},function(err,results){
 						if(err){
-							//console.log(err);
+							//#debug#console.log(err);
 							//link is already present
-							//console.log("pool.addToPool");
+							//#debug#console.log("pool.addToPool");
 						}
 						else{
 							success+=1;
@@ -662,7 +663,7 @@ var pool={
 					md5sum.update(data);
 					var hash=md5sum.digest('hex');
 					if(hash!==d["hash"]){
-						//console.log("thre");
+						//#debug#console.log("thre");
 						fs.writeFileSync(parent_dir+"/parsers/"+d["_id"]+".js",d["data"].value());
 					}
 				}else{
@@ -778,10 +779,7 @@ var pool={
 								return;
 							}
 						});
-						if(!check.assigned(e)){
-							fn(true);
-							return;
-						}
+						
 					})
 				}
 			});
@@ -791,7 +789,7 @@ var pool={
 			that.semaphore_collection.findOne({"_id":"master"},function(err,doc){
 				if(check.assigned(doc)){
 					if(doc.bot_name===config.getConfig("bot_name")){
-						//console.log("still")
+						//#debug#console.log("still")
 						fn(true);
 					}else{
 						//anyone else is master so then leave
@@ -801,7 +799,7 @@ var pool={
 				}
 				else{
 					//no one is master then try to become one
-					//console.log("trying")
+					//#debug#console.log("trying")
 					that.bot.requestToBecomeMaster(config.getConfig("bot_name"),function(st){
 						fn(st);
 						return;
@@ -874,7 +872,7 @@ var pool={
 	"stats":{
 		"getPage":function(url,fn){
 			var that=this.parent;
-			//console.log(url)
+			//#debug#console.log(url)
 			that.mongodb_collection.findOne({"_id":url},function(err,results){
 				
 				fn(err,results);
@@ -931,7 +929,7 @@ var pool={
 			var cursor=that.mongodb_collection.find(d,{},{});
 			cursor.count(function(err,c){
 				cursor.limit(len).skip(i).sort(sor).toArray(function(err,docs){
-					//console.log(c);
+					//#debug#console.log(c);
 					fn(err,docs,c);
 					return;
 				});
@@ -1047,9 +1045,9 @@ var pool={
 		},
 		"creator":function(){
 			var that=this.parent;
-			//console.log("pinging")
-			//console.log(li);
-			//console.log(that.cache)
+			//#debug#console.log("pinging")
+			//#debug#console.log(li);
+			//#debug#console.log(that.cache)
 			process.bucket_creater_locked=true;
 			//just pinging so that we do not run short of buckets
 			//while we have links in our mongodb cache
@@ -1084,7 +1082,7 @@ var pool={
 								var continue_flag=false;
 								while(summer<10){
 									var d=that.bucketOperation.getCurrentDomain();
-									//console.log(d)
+									//#debug#console.log(d)
 									
 									if(first_pointer===that.bucket_pointer){
 										if(domains.length===0){
@@ -1111,25 +1109,25 @@ var pool={
 									}
 									new_size+=domains.length;
 								}
-								//console.log(domains)
+								//console.log(domains,k)
 								if(continue_flag || domains.length===0){
 									interval_size-=1;
-									//console.log("skip");
+									//#debug#console.log("skip");
 									return;
 								}
-								console.log("heree")
+								//#debug#console.log("heree")
 								for (var i = 0; i < domains.length; i++) {
-									//console.log(i)
+									//#debug#console.log(i)
 									(function(dd,limit){
 									var ratio=parseInt(config.getConfig("batch_size")/10);
 									var eachh=ratio*dd["priority"];
 									var key=dd["url"];
 									var k=dd["fetch_interval"];
-									//console.log("EACHH "+eachh);
+									//#debug#console.log("EACHH "+eachh);
 									var pusher=that.bucketOperation.pusher;
-									//console.log(key,eachh,k);
+									//#debug#console.log(key,eachh,k);
 									that.bucketOperation.dequeue(key,eachh,k,function(l){
-										//console.log(l,"dequeue	"+l);
+										//#debug#console.log(l,"dequeue	"+l);
 											for (var i = 0; i < l.length; i++) {
 												var urldata=l[i];
 												hashes[k]["links"].push(urldata);
@@ -1140,7 +1138,7 @@ var pool={
 													process.bucket_creater_locked=false;
 													return;
 												}
-												//console.log(hashes)
+												//#debug#console.log(hashes)
 												pusher(hashes,function(){
 													process.bucket_creater_locked=false;
 												});
@@ -1161,7 +1159,7 @@ var pool={
 		},
 		"pusher":function(hashes,fn){
 			var that=pool;
-			//console.log(that)
+			//#debug#console.log(that)
 			try{
 				hashes=score.getScore(hashes,that.links);
 			}catch(err){
@@ -1169,15 +1167,15 @@ var pool={
 				return;
 			}
 			
-			//console.log(hashes);
-			//console.log("herere 2");
+			//#debug#console.log(hashes);
+			//#debug#console.log("herere 2");
 			if(!check.assigned(hashes)){
 				fn(false);
 				return;
 			}
 			var done=0;
 			var counter=_.size(hashes);
-			//console.log("hashes",hashes);
+			//#debug#console.log("hashes",hashes);
 			for(var key in hashes){
 				(function(key){
 					//first links are added to the db to avoid same links
@@ -1191,11 +1189,12 @@ var pool={
 								fn(true);
 								return;
 							}
+							return;
 							
 						}
 							var stamp1=new Date().getTime();
 							var links_to_be_inserted=_.pluck(hashes[key]["links"],0);
-							//console.log({"_id":hash,"recrawlLabel":key,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":numOfLinks});
+							//#debug#console.log({"_id":hash,"recrawlLabel":key,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":numOfLinks});
 							that.bucket_collection.insert({"_id":hash,"links":links_to_be_inserted,"score":hashes[key]["score"],"recrawlLabel":key,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":numOfLinks},function(err,results){
 								if(err){
 									log.put(("pool.addToPool"+err),"error");
@@ -1233,11 +1232,11 @@ var pool={
 			var rem=[];
 				that.mongodb_collection.find({"domain":domain,"hash":null,"done":false,"fetch_interval":interval,"partitionedBy":config.getConfig("bot_name")},{limit:count}).toArray(function(err,object){
 					
-					//console.log(object)
+					//#debug#console.log(object)
 					if(check.assigned(object) && object.length!==0){
-						//console.log(object)
+						//#debug#console.log(object)
 						rem=_.pluck(object,"_id"); 
-						//console.log(rem)
+						//#debug#console.log(rem)
 						var domains=_.pluck(object,"domain");
 						var parents=_.pluck(object,"parent");
 						_.each(rem,function(item,index){li.push([item,domains[index],parents[index]]);});

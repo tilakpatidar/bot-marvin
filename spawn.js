@@ -1,6 +1,6 @@
 var proto=require(__dirname+"/lib/proto.js");
 process.on("exit",function(){
-	//console.log("KILLED")
+	//#debug#("KILLED")
 })
 process.getAbsolutePath=proto.getAbsolutePath;
 var request = require("request");
@@ -74,7 +74,7 @@ var bot={
 			//if robots is enabled
 			//check if access is given to the crawler for requested resource
 			var robot=bot.botObjs[domain];
-			if(!robot["NO_ROBOTS"]){
+			if(check.assigned(robot) && !robot["NO_ROBOTS"]){
 				robot=bot.addProto(robot);
 				 robot.canFetch(config.getConfig("robot_agent"),url, function (access,crawl_delay) {
 				      if (!access) {
@@ -91,7 +91,7 @@ var bot={
 							return;
 					    }
 					    else{
-					    	//console.log("access "+url+" crawl_delay "+crawl_delay);
+					    	//#debug#("access "+url+" crawl_delay "+crawl_delay);
 					    	 bot.scheduler(url,domain,crawl_delay);
 							
 					    }
@@ -119,7 +119,7 @@ var bot={
 				bot.fetchFile(url,domain);
 			}
 			else{
-				//console.log(url,domain)
+				//#debug#(url,domain)
 				bot.fetchWebPage(url,domain);
 			}
 		}
@@ -144,9 +144,9 @@ var bot={
 			a.each(function(){
 				function reject(r){
 					count-=1;
-					//console.log(r+"rule");
-					//console.log("domain "+domain);
-					//console.log("abs "+abs);
+					//#debug#(r+"rule");
+					//#debug#("domain "+domain);
+					//#debug#("abs "+abs);
 					//log.put((""+abs+" rejected by filters"),"error");
 					return true;
 					
@@ -154,7 +154,7 @@ var bot={
 				var href=$(this).attr("href");
 				if(check.assigned(href)){
 					href=href.replace("https://","http://");//std form
-					//console.log("url "+href);
+					//#debug#("url "+href);
 					var abs=urllib.resolve(domain,href);
 					if(abs===domain+"/"){
 						//reject http://www.youtube.com http://www.youtube.com/
@@ -293,7 +293,7 @@ var bot={
 		var done_len=0;
 		var init_time=new Date().getTime();
 		req.on("response",function(res){
-//console.log(res)
+//#debug#(arguments)
 			var len = parseInt(res.headers['content-length'], 10);
 			if(!check.assigned(len) || !check.number(len)){
 				len=0;
@@ -338,7 +338,7 @@ var bot={
 				}
 			});
 			res.on("error",function(err){
-				//console.log(err )
+				//#debug#(err )
 				try{
 					process.send({"bot":"spawn","setCrawled":[url,{},err.type]});
 				}catch(errr){
@@ -367,6 +367,7 @@ var bot={
 				//dic[2] inlinks suggested by custom parser
 				bot.grabInlinks(dic[0],url,domain,dic[2]);
 				var code=res.statusCode;
+				//#debug#(code,"code")
 				try{
 				process.send({"bot":"spawn","setCrawled":[url,dic[1],code]});
 				}catch(err){
@@ -378,6 +379,7 @@ var bot={
 			});
 		});
 		req.on("error",function(err){
+			//#debug#(err)
 			try{
 				process.send({"bot":"spawn","setCrawled":[url,{},err.type]});
 			}catch(errr){
