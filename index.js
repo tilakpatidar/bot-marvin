@@ -114,6 +114,15 @@ console.log("THEEE")
 		}catch(err){
 			//trying to kill the tika server jar
 		}
+		if(!check.assigned(cluster.cluster_server)){
+			cluster.cluster_server={}
+		}
+		if(!check.assigned(cluster.file_server)){
+			cluster.file_server={}
+		}
+		if(!check.assigned(cluster.fileServer)){
+			cluster.fileServer={}
+		}
 		if(!check.assigned(cluster.cluster_server.shutdown)){
 			cluster.cluster_server.shutdown=function(fn){
 				fn();
@@ -153,8 +162,10 @@ console.log("THEEE")
 								for (var i = 0; i < process.my_timers.length; i++) {
 									clearInterval(process.my_timers[i]);
 								};
+
 								pool.close(function(){
 									fn(true);
+									return;
 								});
 								
 									
@@ -362,6 +373,7 @@ var app={
 										try{
 												//app.pool.close();
 												fn();
+												return;
 										}
 										catch(err){
 											console.log(err);
@@ -409,14 +421,17 @@ var app={
 				app.pool.checkIfNewCrawl(function(newCrawl,cluster_info){
 				if(newCrawl){
 					fn(false);
+					return;
 				}
 				else{
 					url=url.replace(/\./gi,"#dot#");
 					if(cluster_info.seedFile[url]){
 						fn(true);
+						return;
 					}
 					else{
 						fn(false);
+						return;
 					}
 				}
 			});
@@ -424,6 +439,7 @@ var app={
 		}
 		catch(err){
 			fn(false);
+			return;
 		}
 	},
 	"insertSeed":function(url,parseFile,phantomjs,priority,fetch_interval,fn){
@@ -433,20 +449,24 @@ var app={
 		if(_.size(arguments)<5){
 			throw new SyntaxError("atleast 5 args expected");
 			fn(false);
+			return;
 		}
 		url=url.replace("https://","http://");
 		app.isSeedPresent(url,function(present){
 			if(present){
 				fn(false);
+				return;
 			}
 			else{
 				app.pool.insertSeed(url,parseFile,phantomjs,priority,fetch_interval,function(inserted){
 				
 					if(inserted){
 						fn(true);
+						return;
 					}
 					else{
 						fn(false);
+						return;
 					}
 				});
 			}
@@ -462,19 +482,23 @@ var app={
 		if(_.size(arguments)<5){
 			throw new SyntaxError("atleast 5 args expected");
 			fn(false);
+			return;
 		}
 		url=url.replace("https://","http://");
 		app.isSeedPresent(url,function(present){
 			if(!present){
 				fn(false);
+				return;
 			}
 			else{
 				app.pool.insertSeed(url,parseFile,phantomjs,priority,fetch_interval,function(inserted){
 					if(inserted){
 						fn(true);
+						return;
 					}
 					else{
 						fn(false);
+						return;
 					}
 				});
 			}
@@ -491,9 +515,11 @@ var app={
 		app.pool.removeSeed(url,function(removed){
 					if(removed){
 						fn(true);
+						return;
 					}
 					else{
 						fn(false);
+						return;
 					}
 		});
 		
@@ -522,6 +548,7 @@ var app={
 					done+=1;
 					if(done===limit){
 						fn(true);
+						return;
 					}
 				});
 			})(keys,obj["parseFile"],obj["phantomjs"],obj["priority"],obj["fetch_interval"]);
@@ -539,6 +566,7 @@ var app={
 		app.pool.clearSeed(function(cleared){
 			if(check.assigned(fn)){
 				fn(cleared);
+				return;
 			}
 		});
 	},
@@ -549,6 +577,7 @@ var app={
 		process.bot.stopBot(function(){
 			if(check.assigned(fn)){
 				fn();
+				return;
 			}
 		});
 	},
@@ -571,6 +600,7 @@ var app={
 			}
 			if(check.assigned(fn)){
 				fn();
+				return;
 			}
 			
 		})
@@ -593,6 +623,7 @@ if(require.main === module){
 				var bot=require(__dirname+'/lib/bot.js');
 				process.bot=new bot(cluster,pool);//making global so that bot stats can be updated in any module
 				fn(pool);
+				return;
 				});			
 			});
 		}
@@ -650,6 +681,7 @@ if(require.main === module){
 					var bot=require(__dirname+'/lib/bot.js');
 					process.bot=new bot(cluster,pool);//making global so that bot stats can be updated in any module
 					fn(app);//return the app object when db connection is made
+					return;
 				});
 			});
 		

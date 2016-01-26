@@ -119,6 +119,7 @@ var bot={
 				bot.fetchFile(url,domain);
 			}
 			else{
+				//console.log(url,domain)
 				bot.fetchWebPage(url,domain);
 			}
 		}
@@ -292,7 +293,7 @@ var bot={
 		var done_len=0;
 		var init_time=new Date().getTime();
 		req.on("response",function(res){
-
+//console.log(res)
 			var len = parseInt(res.headers['content-length'], 10);
 			if(!check.assigned(len) || !check.number(len)){
 				len=0;
@@ -337,6 +338,7 @@ var bot={
 				}
 			});
 			res.on("error",function(err){
+				//console.log(err )
 				try{
 					process.send({"bot":"spawn","setCrawled":[url,{},err.type]});
 				}catch(errr){
@@ -405,7 +407,6 @@ var bot={
 
 
 bot.getTask(function(links){
-
 	bot.queueLinks(links);
 
 });

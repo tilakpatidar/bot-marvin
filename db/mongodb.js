@@ -37,7 +37,7 @@ var pool={
 		that.mongodb_collection.createIndex({"$**":"text"},{"weights": {"data._source.id":5,"data._source.host":5,"data._source.meta_description":5,"data._source.title":5,"data._source.body":1}},function(err){
 				//console.log(err);
 			});
-		console.log("FUCKED")
+		//console.log("FUCKED")
 		that.bucket_collection.createIndex({recrawlAt:1},function(err){});//asc order sort for recrawlAt
 		that.bucket_collection.createIndex({score:1},function(err){});//asc order sort for score
 		that.checkIfNewCrawl(function(isNewCrawl){
@@ -54,9 +54,9 @@ var pool={
 										that.cache[domain]=true;
 										that.getLinksFromSiteMap(domain,function(){
 											
-											console.log(domain)
-											that.mongodb_collection.insert({"_id":domain,"hash":stamp,"domain":domain,"done":false,"fetch_interval":fetch_interval},function(err,results){
-												console.log(err)
+											//console.log(domain)
+											that.mongodb_collection.insert({"_id":domain,"hash":stamp,"domain":domain,"partitionedBy":config.getConfig("bot_name"),"done":false,"fetch_interval":fetch_interval},function(err,results){
+												//console.log(err)
 												if(err){
 													log.put("pool.init maybe seed is already added","error");
 												}
@@ -285,6 +285,7 @@ var pool={
 							var hash=object["value"]["_id"];
 							var refresh_label=object["value"]["recrawlLabel"];
 							that.mongodb_collection.find({"hash":hash},{},{}).toArray(function(err,docs){
+								
 									if(err){
 
 										log.put("pool.getNextBatch","error");
@@ -342,6 +343,7 @@ var pool={
 		};
 		process.mongo=MongoClient.connect(mongodb,serverOptions, function(err, db) {
 			that.db=db;
+			//console.log(err,db)
 			that.mongodb_collection=db.collection(mongodb_collection);
 			that.bucket_collection=db.collection(bucket_collection);
 			that.bot_collection=db.collection(bot_collection);
@@ -805,6 +807,7 @@ var pool={
 					//console.log("trying")
 					that.bot.requestToBecomeMaster(config.getConfig("bot_name"),function(st){
 						fn(st);
+						return;
 					});
 					
 				}
@@ -828,6 +831,7 @@ var pool={
 			var that=this.parent;
 			that.bot_collection.update({"_id":config.getConfig('bot_name')},n_dic,function(err,results){
 				fn(err,results);
+				return;
 
 			});
 		},
@@ -835,6 +839,7 @@ var pool={
 			var that=this.parent;
 			that.bot_collection.findAndModify({"_id":config.getConfig("bot_name")},[],{"$set":{"active":false}},{remove:false},function(err,result){
 				fn(err,result);
+				return;
 			});
 		}
 	},
@@ -844,8 +849,10 @@ var pool={
 			that.cluster_info_collection.findOne({"_id":config.getConfig("cluster_name")},function(e,d){
 				if(check.assigned(d)){
 					fn(d.master);
+					return;
 				}else{
 					fn(null);
+					return;
 				}
 			});
 		},
@@ -853,6 +860,7 @@ var pool={
 			var that=this.parent;
 			that.bot_collection.findOne({"_id":bot_name},function(err,results){
 				fn(err,results);
+				return;
 
 			});
 		},
@@ -861,6 +869,7 @@ var pool={
 			that.cluster_info_collection.find({"_id":config.getConfig("cluster_name")}).toArray(function(err,results){
 					var seeds=results[0].seedFile;
 					fn(err,seeds);
+					return;
 
 			});
 		}
@@ -872,12 +881,14 @@ var pool={
 			that.mongodb_collection.findOne({"_id":url},function(err,results){
 				
 				fn(err,results);
+				return;
 			});
 		},
 		cluster_info:function(id_name,fn){
 			var that=this.parent;
 			that.cluster_info_collection.findOne({"_id":id_name},function(err,results){
 				fn(err,results);
+				return;
 			});
 		},
 		"activeBots":function(fn){
@@ -892,6 +903,7 @@ var pool={
 						that.bots_partitions.push(obj);
 				};
 				fn(err,docs);
+				return;
 			});
 		},
 		"crawlStats":function(fn){
@@ -924,6 +936,7 @@ var pool={
 				cursor.limit(len).skip(i).sort(sor).toArray(function(err,docs){
 					//console.log(c);
 					fn(err,docs,c);
+					return;
 				});
 			})
 		},
@@ -934,6 +947,7 @@ var pool={
 				count=c;
 				cursor.limit(len).skip(i).sort(sor).toArray(function(err,docs){
 					fn(err,docs,c);
+					return;
 				});
 			})
 			
@@ -945,6 +959,7 @@ var pool={
 				count=c;
 				cursor.limit(len).skip(i).sort(sor).toArray(function(err,docs){
 					fn(err,docs,c);
+					return;
 				});
 			})
 		},
@@ -955,6 +970,7 @@ var pool={
 				count=c;
 				cursor.limit(len).skip(i).sort(sor).toArray(function(err,docs){
 					fn(err,docs,c);
+					return;
 				});
 			})
 		},
@@ -965,6 +981,7 @@ var pool={
 				count=c;
 				cursor.limit(len).skip(i).sort(sor).toArray(function(err,docs){
 					fn(err,docs,c);
+					return;
 				});
 			})
 		},
@@ -972,12 +989,14 @@ var pool={
 			var that=this.parent;
 			that.bot_collection.update({"_id":bot_name},{"$set":{"config":js}},function(err,results){
 				fn(err,results);
+				return;
 			});
 		},
 		"updateSeed":function(js,fn){
 			var that=this.parent;
 			that.cluster_info_collection.update({"_id":config.getConfig("cluster_name")},{"$set":{"seedFile":js}},function(err,results){
 				fn(err,results);
+				return;
 			});
 		},
 		"search":function(query,i,fn){
@@ -989,6 +1008,7 @@ var pool={
 			var that=this.parent;
 			that.mongodb_collection.find({$text: {$search: query}}, {score: {$meta: "textScore"}},{ skip: i, limit: 10 }).sort({score:{$meta:"textScore"}}).toArray(function(err,docs){
 				fn(err,docs);
+				return;
 			});
 		}
 	},
@@ -1172,8 +1192,9 @@ var pool={
 							++done;
 							if(done===counter){
 								fn(true);
+								return;
 							}
-							return;
+							
 						}
 							var stamp1=new Date().getTime();
 							var links_to_be_inserted=_.pluck(hashes[key]["links"],0);
@@ -1193,6 +1214,7 @@ var pool={
 								++done;
 								if(done===counter){
 									fn(true);
+									return;
 								}
 													
 													
@@ -1212,7 +1234,7 @@ var pool={
 			var that=this.parent;
 			var li=[];
 			var rem=[];
-				that.mongodb_collection.find({"domain":domain,"done":false,"fetch_interval":interval,"partitionedBy":config.getConfig("bot_name")},{limit:count}).toArray(function(err,object){
+				that.mongodb_collection.find({"domain":domain,"hash":null,"done":false,"fetch_interval":interval,"partitionedBy":config.getConfig("bot_name")},{limit:count}).toArray(function(err,object){
 					
 					//console.log(object)
 					if(check.assigned(object) && object.length!==0){
@@ -1224,11 +1246,13 @@ var pool={
 						_.each(rem,function(item,index){li.push([item,domains[index],parents[index]]);});
 						
 							fn(li)
+							return;
 						
 						
 					}
 					else{
 						fn([]);
+						return;
 
 					}
 						
