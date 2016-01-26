@@ -70,10 +70,10 @@ var pool={
 															return;
 														}
 														that.bucket_collection.insert({"_id":stamp,"links":links,"score":1,"recrawlLabel":config.getConfig("default_recrawl_interval"),"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":success},function(err,results){
-																that.bucket_collection.remove({"numOfLinks":0},function(){
-																	fn(true);
-																	return;
-																});
+														
+															fn(true);
+															return;
+																
 																
 														});
 												}
