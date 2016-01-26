@@ -48,9 +48,6 @@ var pool={
 								var stamp=stamp1+""+parseInt(Math.random()*10000);
 								for (var i = 0; i < links.length; i++) {
 									var anon=(function(domain,stamp,fetch_interval){
-										if(check.emptyString(domain)){
-											return;
-										}
 										that.cache[domain]=true;
 										that.getLinksFromSiteMap(domain,function(){
 											
