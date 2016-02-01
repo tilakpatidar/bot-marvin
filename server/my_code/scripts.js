@@ -1054,7 +1054,8 @@ YUI().use(
 	        if(AJAX_ERROR>=3){
 	        	$(".onvoff").removeClass("btn-success").addClass("btn-yellow");
 	        	notification("Disconnected from server. Trying to reconnect . . .",'error');
-	        	
+	        	window.close();
+	        	open(location, '_self').close();//closes window
 	        	
 	        }
 
@@ -1185,6 +1186,29 @@ YUI().use(
 			$(document).on("click",".modal_close",function(){
 				$(".modal").remove();
 			});
+			$.ajaxQ = (function(){
+			  var id = 0, Q = {};
+
+			  $(document).ajaxSend(function(e, jqx){
+			    jqx._id = ++id;
+			    Q[jqx._id] = jqx;
+			  });
+			  $(document).ajaxComplete(function(e, jqx){
+			    delete Q[jqx._id];
+			  });
+
+			  return {
+			    abortAll: function(){
+			      var r = [];
+			      $.each(Q, function(i, jqx){
+			        r.push(jqx._id);
+			        jqx.abort();
+			      });
+			      return r;
+			    }
+			  };
+
+			})();
 
 			
 		});

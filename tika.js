@@ -5,11 +5,11 @@ var exec = require('child_process').exec;
 var fs = require('fs');
 var request = require('request');
 var check=require("check-types");
-var log=require(__dirname+"/lib/logger.js");
-var config=require(__dirname+"/lib/config-reloader.js");
-var separateReqPool = {maxSockets: config.getConfig("tika_max_sockets_per_host")};
+var log;
+var config=require(__dirname+"/lib/spawn_config.js");
 var sqlite3 = require('sqlite3').verbose();
 var db = new sqlite3.Database(__dirname+'/db/sqlite/tika_queue');
+var separateReqPool;
 db.serialize(function() {
 	db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,fileName TEXT UNIQUE,parseFile TEXT,status INTEGER)");
 });
@@ -333,21 +333,34 @@ exports.init=app;
 var busy=false;
 var tika=app;
 if(require.main === module){
-	tika.startServer();
+	
 	process.on("message",function(data){
 		//console.log(data);
-		if(data[0]==="ping"){
+		var key=Object.keys(data)[0];
+		if(key==="ping"){
 			//console.log(data[0])
 			//occasional pings to keep queue working
 			tika.processNext();
 			return;
-		}
-	        queue.enqueue(data[0],data[1],function(row){
+		}else if(key==="init"){
+			//making init ready
+			var o=data[key];
+			config=config.init(o[0],o[1],o[2]);
+			process.bot_config=config;
+			log=require(__dirname+"/lib/logger.js");
+			separateReqPool = {maxSockets: config.getConfig("tika_max_sockets_per_host")};
+			tika.startServer();
+		}else if(key==="tika"){
+			var d=data["tika"];
+			//console.log(d)
+			queue.enqueue(d[0],d[1],function(row){
 	        	//console.log(fileName+"PUSHED");
-	        	log.put("Tika Got request for "+data[0]+" with parse file "+data[1],"info");
+	        	log.put("Tika Got request for "+d[0]+" with parse file "+d[1],"info");
 		        tika.processNext();
 		     
 	        });
+		}
+	        
 
 	});
 

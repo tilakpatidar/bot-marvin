@@ -3,17 +3,16 @@ process.on("exit",function(){
 	//#debug#("KILLED")
 })
 process.getAbsolutePath=proto.getAbsolutePath;
+var parent_dir=process.getAbsolutePath(__dirname);
 var request = require("request");
 var check=require("check-types");
 var colors = require('colors');
 var urllib = require('url');
-var config=require(__dirname+"/lib/config-reloader.js");
-var separateReqPool = {maxSockets: config.getConfig("http","max_sockets_per_host")};
-var log=require(__dirname+"/lib/logger.js");
+var config=require(__dirname+"/lib/spawn_config.js");
+var log;
 var URL=proto["URL"];
+var separateReqPool;
 var regex_urlfilter={};
-regex_urlfilter["accept"]=config.getConfig("accept_regex");
-regex_urlfilter["reject"]=config.getConfig("reject_regex");
 var bot={
 	"queued":0,
 	"active_sockets":0,
@@ -35,6 +34,12 @@ var bot={
 				bot.botObjs=k[3];
 				bot.batchId=k[4];
 				bot.refresh_label=k[5];
+				config=config.init(k[6],k[7],k[8]);
+				process.bot_config=config;
+				separateReqPool = {maxSockets: config.getConfig("http","max_sockets_per_host")};
+				regex_urlfilter["accept"]=config.getConfig("accept_regex");
+				regex_urlfilter["reject"]=config.getConfig("reject_regex");
+				log=require(__dirname+"/lib/logger.js");
 				//prepare regexes
 				
 				fn(bot.batch);

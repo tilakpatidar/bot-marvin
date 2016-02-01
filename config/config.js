@@ -3,28 +3,12 @@ var proto=require(parent_dir+'/lib/proto.js');
 var JSONX=proto.JSONX;
 var config={
   "robot_agent": "*",
-  "bot_name": "zaphod",
-  "cluster_name": "hitchiker",
   "childs": 2,
   "verbose": true,
   "logging": true,
-  "network_interface": "wlan0",
-  "network_host": "127.0.0.1",
-  "network_port": "2020",
-  "cluster_port": 5555,
-  "parse_sitemaps": false,
+  "parse_sitemaps": true,
   "env": "/usr/local/bin/node",
   "text_editor": "nano",
-  "mongodb": {
-    "mongodb_uri": "mongodb://127.0.0.1:27017/crawl",
-    "mongodb_collection": "links",
-    "bucket_collection": "bucket",
-    "semaphore_collection": "queue",
-    "bot_collection": "bots",
-    "cluster_info_collection": "cluster_info",
-    "parsers_collection": "parsers",
-    "sitemap_collection": "sitemap_data"
-  },
   "http": {
     "timeout": 10000,
     "max_content_length": 10485760,
@@ -37,7 +21,7 @@ var config={
   },
   "log_buffer_lines": 100,
   "recrawl_intervals": {
-    "always": 600000,
+    "always": 0,
     "monthly": 2592000000,
     "daily": 86400000,
     "weekly": 604800000,

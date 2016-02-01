@@ -1,6 +1,6 @@
 var cheerio = require('cheerio');
 var parent_dir=process.getAbsolutePath(__dirname);
-var config=require(parent_dir+"/lib/config-reloader.js");
+var config=process.bot_config;
 var app={
 	"parse":function(data,url){
 		var indexed={};
