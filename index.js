@@ -18,7 +18,7 @@ process.my_timers=[];//stores all the timers used to remove all timers for grace
 process.reset=false;
 process.seedFile=null;
 var check = require('check-types');
-var _=require("underscore")
+var _=require("underscore");
 var cluster,log;
 var dependency=require(__dirname+"/lib/depcheck.js");
 dependency.check();

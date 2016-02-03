@@ -994,11 +994,21 @@ var pool={
 	},
 	"bucketOperation":{
 		"getCurrentDomain":function(){
+
 			var that=this.parent;
+			console.log(that.bucket_priority)
 			var domain=that.bucket_priority[that.bucket_pointer];
+			if(!check.assigned(domain)){
+				console.log(that.bucket_pointer,"olaaa");
+			}
 			that.bucket_pointer+=1;
-			if(that.bucket_pointer>=that.bucket_priority.length){
+			if(that.bucket_pointer===that.bucket_priority.length){
 				that.bucket_pointer=0;
+			}
+			if(!check.assigned(domain)){
+				that.bucket_pointer=0;
+				return that.bucketOperation.getCurrentDomain();
+
 			}
 			return domain;
 		},
