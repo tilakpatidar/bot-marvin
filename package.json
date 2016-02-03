@@ -12,7 +12,8 @@
   },
   "bin": {
     "bot-marvin": "./index.js",
-    "bot-marvin-init":"./lib/download.js"
+    "bot-marvin-init":"./lib/download.js",
+    "bot-marvin-db":"./lib/db_config.js"
   },
   "repository": {
     "type": "git",
