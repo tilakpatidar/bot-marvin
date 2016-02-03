@@ -34,7 +34,7 @@ process.bucket_creater_locked=true;
 var pool={
 	"seed":function(links,links_fetch_interval,fn){
 		//this method runs first when crawler starts
-		process.begin_intervals=true;
+		
 		var that=this;
 		that.mongodb_collection.createIndex({"$**":"text"},{"weights": {"data._source.id":5,"data._source.host":5,"data._source.meta_description":5,"data._source.title":5,"data._source.body":1}},function(err){
 				//#debug#console.log(err);

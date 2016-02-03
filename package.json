@@ -55,6 +55,7 @@
     "node-static": "0.7.7",
     "zlib":"1.0.5",
     "string-editor": "0.1.2",
-    "server-graceful-shutdown": "0.1.2"
+    "server-graceful-shutdown": "0.1.2",
+    "robots": "0.9.4"
   }
 }
