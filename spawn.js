@@ -156,11 +156,13 @@ var bot={
 					return true;
 					
 				}
+
 				var href=$(this).attr("href");
 				if(check.assigned(href)){
 					href=href.replace("https://","http://");//std form
 					//#debug#("url "+href);
 					var abs=urllib.resolve(domain,href);
+					process.send({"bot":"spawn","graph":[abs,domain]});
 					if(abs===domain+"/"){
 						//reject http://www.youtube.com http://www.youtube.com/
 						return reject("0");

@@ -22,6 +22,7 @@ var cluster_info_collection=config.getConfig("mongodb","cluster_info_collection"
 var parsers_collection=config.getConfig("mongodb","parsers_collection");
 var sitemap_collection=config.getConfig("mongodb","sitemap_collection");
 var robots_collection=config.getConfig("mongodb","robots_collection");
+var graph_collection=config.getConfig("mongodb","graph_collection");
 var fs=require('fs');
 var urllib=require('url');
 var cluster;
@@ -299,10 +300,10 @@ var pool={
 			that.cluster_info_collection=db.collection(cluster_info_collection);
 			that.parsers_collection=db.collection(parsers_collection);
 			that.sitemap_collection=db.collection(sitemap_collection);
-			that.robots_collection=db.collection(robots_collection)
+			that.robots_collection=db.collection(robots_collection);
+			that.graph_collection=db.collection(graph_collection);
 			//create partitions for all the cluster bots
 			that.bots_partitions=[];
-			that.bots_partitions.push(config.getConfig("bot_name"));
 			that.stats.activeBots(function(errr,docs){
 				//#debug#console.log(docs)
 				for (var i = 0; i < docs.length; i++) {
@@ -852,7 +853,6 @@ var pool={
 			that.bot_collection.find({},{}).toArray(function(err,docs){
 				//this method is called by cluster in some interval which will also update the new added bots for partioning
 				that.bots_partitions=[];
-				that.bots_partitions.push(config.getConfig("bot_name"));
 				for (var i = 0; i < docs.length; i++) {
 						var obj=docs[i]["_id"];
 						that.bots_partitions.push(obj);
@@ -996,11 +996,8 @@ var pool={
 		"getCurrentDomain":function(){
 
 			var that=this.parent;
-			console.log(that.bucket_priority)
+			//console.log(that.bucket_priority)
 			var domain=that.bucket_priority[that.bucket_pointer];
-			if(!check.assigned(domain)){
-				console.log(that.bucket_pointer,"olaaa");
-			}
 			that.bucket_pointer+=1;
 			if(that.bucket_pointer===that.bucket_priority.length){
 				that.bucket_pointer=0;
