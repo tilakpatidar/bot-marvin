@@ -102,23 +102,20 @@ var app={
 						err=err1;
 					}
 					
-					callback(err,null);
-					return;
+					return callback(err,null);
 				}
 				log.put(("[SUCCESS] File "+url+" added to store"),"success");
 				app.extractText(url,function(err2,body){
 					//console.log(err2);
 					if(err2){
 						err="tikaExtractFailed";
-						callback(err,null);
-						return;
+						return callback(err,null);
 					}
 					app.removeFile(url,function(err3){
 						//console.log(err3);
 						if(err3){
 							err="tikaRemoveDownloadedFailed";
-							callback(err,null);
-							return;
+							return callback(err,null);
 						}
 						log.put(("[SUCCESS] File "+url+" removed from store"),"success");
 						callback(err,body);
@@ -145,9 +142,7 @@ var app={
 				}
 				if(len>config.getConfig("tika_content_length")){
 						log.put("content-length is more than specified","error");
-						callback("TikaContentOverflow");
-						
-						return;
+						return callback("TikaContentOverflow");
 				}
 				res.on("data",function(chunk){
 					done_len+=chunk.length;
@@ -155,14 +150,12 @@ var app={
 				 	if((t-init_time)>config.getConfig("tika_timeout")){
 				 		//console.log((t-init_time)+"ContentTimeOut");
 						log.put("Connection timedout change tika_timeout setting in config","error");
-						callback("TikaContentTimeout");
-						return;
+						return callback("TikaContentTimeout");
 				 	}
 				 	if(done_len>config.getConfig("tika_content_length")){
 						//console.log(done_len+"ContentOverflowTka");
 						log.put("content-length is more than specified","error");
-						callback("TikaContentOverflow");
-						return;
+						return callback("TikaContentOverflow");
 					}
 				});
 					res.on('error',function(err){
@@ -250,8 +243,7 @@ var app={
 				//console.log(li);
 				if(li.length===0){
 					busy=false;
-					setImmediate(function(){tika.processNext();});
-					return;
+					return setImmediate(function(){tika.processNext();});
 				}
 				for (var i = li.length - 1; i >= 0; i--) {
 					var obj=li[i];
@@ -340,8 +332,7 @@ if(require.main === module){
 		if(key==="ping"){
 			//console.log(data[0])
 			//occasional pings to keep queue working
-			tika.processNext();
-			return;
+			return tika.processNext();
 		}else if(key==="init"){
 			//making init ready
 			var o=data[key];

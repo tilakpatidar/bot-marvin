@@ -42,7 +42,7 @@ var bot={
 				log=require(__dirname+"/lib/logger.js");
 				//prepare regexes
 				
-				fn(bot.batch);
+				return fn(bot.batch);
 			}
 		});
 	},
@@ -68,10 +68,10 @@ var bot={
 		var bot=this;//inside setTimeout no global access
 		if(bot.active_sockets>config.getConfig("http","max_concurrent_sockets")){
 			//pooling to avoid socket hanging
-			(function(url,domain){
+			 return (function(url,domain){
 					setTimeout(function(){ bot.processLink(url,domain); }, 1000); //to avoid recursion
 			})(url,domain);
-			return;
+			
 		}
 
 		
@@ -92,8 +92,8 @@ var bot={
 							catch(err){
 							//log.put("Child killed","error")
 							}
-							bot.isLinksFetched();
-							return;
+							return bot.isLinksFetched();
+							
 					    }
 					    else{
 					    	//#debug#("access "+url+" crawl_delay "+crawl_delay);
@@ -221,17 +221,16 @@ var bot={
 				crawl_delay=0;
 			}
 			if(this.allowAll){
-				allowed(true,crawl_delay);
-				return;
+				return allowed(true,crawl_delay);
+				
 			}
 			else if(this.disallowAll){
-				allowed(false,crawl_delay);
-				return;
+				return allowed(false,crawl_delay);
+				
 			}
 			var rules=this.defaultEntry["rules"];
 			if(!check.assigned(rules)){
-				allowed(true,crawl_delay);
-				return;
+				return allowed(true,crawl_delay);
 			}
 
 			for (var i = 0; i < rules.length; i++) {
@@ -240,24 +239,21 @@ var bot={
 
 				var given_path="/"+url.replace("http://","").replace("https://","").split("/").slice(1).join("/");
 				if(given_path===path && isallowed){
-					allowed(true,crawl_delay);
-					return;
+					return allowed(true,crawl_delay);
 				}
 				else if(given_path===path && !isallowed){
-					allowed(false,crawl_delay);
-					return;
+					return allowed(false,crawl_delay);
 				}
 			};
 			//if no match then simply allow
-			allowed(true,crawl_delay);
+			return allowed(true,crawl_delay);
 		};
 		return robot;
 	},
 	"scheduler":function(url,domain,time){
 		if(time===0){
 			//queue immediately
-			bot.fetch(url,domain);
-			return;
+			return bot.fetch(url,domain);
 		}
 		else{
 			var lastTime=bot.lastAccess[domain];
@@ -311,8 +307,7 @@ var bot={
 						//log.put("Child killed","error")
 					}
 					
-					bot.isLinksFetched();
-					return;
+					 return bot.isLinksFetched();
 			}
 			res.on("data",function(chunk){
 				done_len+=chunk.length;
@@ -327,8 +322,7 @@ var bot={
 						//log.put("Child killed","error")
 					}
 					
-					bot.isLinksFetched();
-					return;
+					return bot.isLinksFetched();
 			 	}
 			 	if(done_len>config.getConfig("http","max_content_length")){
 					log.put("content-length is more than specified","error");
@@ -338,8 +332,7 @@ var bot={
 						//log.put("Child killed","error")
 					}
 					
-					bot.isLinksFetched();
-					return;
+					return bot.isLinksFetched();
 				}
 			});
 			res.on("error",function(err){
@@ -362,8 +355,7 @@ var bot={
 					//	log.put("Child killed","error")
 					}
 					
-					bot.isLinksFetched();
-					return;
+					return bot.isLinksFetched();
 				}
 				var parser=require(__dirname+"/parsers/"+bot.links[domain]["parseFile"]);
 				var dic=parser.init.parse(html,url);//pluggable parser
@@ -399,6 +391,7 @@ var bot={
 		//files will be downloaded by seperate process
 		var p=bot.links[domain]["parseFile"];
 		try{
+			process.send({"bot":"spawn","setCrawled":[url,{},code]});
 			process.send({"bot":"spawn","tika":[url,p]});
 		}catch(err){
 

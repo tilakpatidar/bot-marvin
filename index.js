@@ -200,26 +200,22 @@ function isSeedPresent(url,fn){
 			try{
 					pool.checkIfNewCrawl(function(newCrawl,cluster_info){
 					if(newCrawl){
-						fn(false);
-						return;
+						return fn(false);
 					}
 					else{
 						url=url.replace(/\./gi,"#dot#");
 						if(cluster_info.seedFile[url]){
-							fn(true);
-							return;
+							return fn(true);
 						}
 						else{
-							fn(false);
-							return;
+							return fn(false);
 						}
 					}
 				});
 				
 			}
 			catch(err){
-				fn(false);
-				return;
+				return fn(false);
 			}
 		}
 function insertSeed(url,parseFile,phantomjs,priority,fetch_interval,fn){
@@ -228,25 +224,21 @@ function insertSeed(url,parseFile,phantomjs,priority,fetch_interval,fn){
 			}
 			if(_.size(arguments)<5){
 				throw new SyntaxError("atleast 5 args expected");
-				fn(false);
-				return;
+				return fn(false);
 			}
 			url=url.replace("https://","http://");
 			isSeedPresent(url,function(present){
 				if(present){
-					fn(false);
-					return;
+					return fn(false);
 				}
 				else{
 					pool.insertSeed(url,parseFile,phantomjs,priority,fetch_interval,function(inserted){
 					
 						if(inserted){
-							fn(true);
-							return;
+							return fn(true);
 						}
 						else{
-							fn(false);
-							return;
+							return fn(false);
 						}
 					});
 				}
@@ -375,8 +367,7 @@ function reset(fn){
 			clearSeed(function(status){
 					try{
 							//app.pool.close();
-							fn();
-							return;
+							return fn();
 					}
 					catch(err){
 						//#debug#console.log(err);
@@ -510,8 +501,7 @@ for (var i = 0; i < process.my_timers.length; i++) {
 								
 
 									pool.close(function(){
-										fn(true);
-										return;
+										return fn(true);
 									});
 								
 							});
