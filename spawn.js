@@ -162,7 +162,7 @@ var bot={
 					href=href.replace("https://","http://");//std form
 					//#debug#("url "+href);
 					var abs=urllib.resolve(domain,href);
-					process.send({"bot":"spawn","graph":[abs,domain]});
+					process.send({"bot":"spawn","graph":[abs,url]});
 					if(abs===domain+"/"){
 						//reject http://www.youtube.com http://www.youtube.com/
 						return reject("0");
