@@ -119,7 +119,6 @@ var pool={
 				//insert sitemap urls
 				var sitemap = require(parent_dir+'/lib/sitemap_parser');
 				sitemap.getSites(abs, function(err, sites) {
-					//console.log(err,sites,"tilak os")
 				    if(!err) {
 				    	
 				    	sites=JSON.parse(JSON.stringify(sites).replace(/https:/g,"http:"));
@@ -147,10 +146,9 @@ var pool={
 	"updateSiteMap":function(domain,sites,fn){
 		var that=this;
 		var temp=domain.replace(/\./gi,"#dot#");
-		var temp1=JSON.parse(JSON.stringify(sites).replace(/\./gi,"#dot#"));
+		var temp1=JSON.parse(JSON.stringify(sites));
 		
 		that.sitemap_collection.insert({"_id":temp,"sites":temp1},function(err,results){
-			console.log(err)
 			log.put("Updated sitemap file for "+domain+"in db","info");
 
 			that.addToPool(sites,function(){

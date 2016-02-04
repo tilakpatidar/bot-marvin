@@ -162,7 +162,7 @@ function entire_body(){
 						});
 					}
 					else{
-						startBotManager(links,null);
+						startBotManager(links,null,links_fetch_interval);
 						return;
 					}
 
