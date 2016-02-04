@@ -47,12 +47,13 @@ var pool={
 								var success=0;
 								var stamp1=new Date().getTime()-2000;//giving less time
 								var stamp=stamp1+""+parseInt(Math.random()*10000);
+								that.bucket_collection.insert({"_id":stamp,"links":links,"score":1,"recrawlLabel":config.getConfig("default_recrawl_interval"),"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":success},function(err,results){
+											
 								for (var i = 0; i < links.length; i++) {
 									var anon=(function(domain,stamp,fetch_interval){
 										that.cache[domain]=true;
 										that.getLinksFromSiteMap(domain,function(){
 											//#debug#console.log(domain)
-											that.bucket_collection.insert({"_id":stamp,"links":links,"score":1,"recrawlLabel":config.getConfig("default_recrawl_interval"),"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":success},function(err,results){
 															
 											that.mongodb_collection.insert({"_id":domain,"hash":stamp,"domain":domain,"partitionedBy":config.getConfig("bot_name"),"done":false,"fetch_interval":fetch_interval},function(err,results){
 												//#debug#console.log(err)
@@ -70,13 +71,13 @@ var pool={
 														return;
 														
 												}
-												
+
 																
 																
 												});
 												
 									
-											});
+											
 										});
 										
 										
@@ -89,6 +90,7 @@ var pool={
 									
 									
 								};
+							});
 								
 							
 						
