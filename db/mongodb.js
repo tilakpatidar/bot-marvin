@@ -112,7 +112,7 @@ var pool={
 		var abs=urllib.resolve(domain,"sitemap.xml");
 		var temp=domain.replace(/\./gi,"#dot#");
 		that.sitemap_collection.findOne({"_id":temp},function(err,docs){
-			if(err || !docs){
+			if(check.assigned(err) || !check.assigned(docs)){
 				log.put("Sitemap not present for "+domain+" in db",'info');
 				log.put("Downloading sitemap index for "+domain,"info");
 				log.put("Seeding from sitemap.xml this could take some minutes ","info");
@@ -150,6 +150,7 @@ var pool={
 		var temp1=JSON.parse(JSON.stringify(sites).replace(/\./gi,"#dot#"));
 		
 		that.sitemap_collection.insert({"_id":temp,"sites":temp1},function(err,results){
+			console.log(err)
 			log.put("Updated sitemap file for "+domain+"in db","info");
 
 			that.addToPool(sites,function(){
