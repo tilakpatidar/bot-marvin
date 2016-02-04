@@ -52,6 +52,8 @@ var pool={
 										that.cache[domain]=true;
 										that.getLinksFromSiteMap(domain,function(){
 											//#debug#console.log(domain)
+											that.bucket_collection.insert({"_id":stamp,"links":links,"score":1,"recrawlLabel":config.getConfig("default_recrawl_interval"),"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":success},function(err,results){
+															
 											that.mongodb_collection.insert({"_id":domain,"hash":stamp,"domain":domain,"partitionedBy":config.getConfig("bot_name"),"done":false,"fetch_interval":fetch_interval},function(err,results){
 												//#debug#console.log(err)
 												if(err){
@@ -64,18 +66,14 @@ var pool={
 												
 												done+=1;
 												if(done===links.length){
-														if(success===0){
-															//no seed links were inserted thus no need to insert new bucket
-															fn(true);
-															return;
-														}
-														that.bucket_collection.insert({"_id":stamp,"links":links,"score":1,"recrawlLabel":config.getConfig("default_recrawl_interval"),"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":success},function(err,results){
-															fn(true);
-															return;
-																
-																
-														});
+														fn(true);
+														return;
+														
 												}
+												
+																
+																
+												});
 												
 									
 											});
