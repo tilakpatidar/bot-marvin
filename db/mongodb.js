@@ -146,8 +146,7 @@ var pool={
 	"updateSiteMap":function(domain,sites,fn){
 		var that=this;
 		var temp=domain.replace(/\./gi,"#dot#");
-		var temp1=JSON.parse(JSON.stringify(sites));
-		
+		var temp1=JSON.parse(JSON.stringify(sites).replace(/\./gi,"#dot#"));
 		that.sitemap_collection.insert({"_id":temp,"sites":temp1},function(err,results){
 			log.put("Updated sitemap file for "+domain+"in db","info");
 
