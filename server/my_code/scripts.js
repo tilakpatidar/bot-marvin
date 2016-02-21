@@ -1146,7 +1146,7 @@ YUI().use(
 				      var divs=$();
 				      console.log(js);
 					      	var obj=js;
-					      	var t=$("<div class='dialog_divs search_divs'><div class='search_field_operation search_key_"+obj["_id"]+"'><a href='#' class='search_field'>#1</a><span class='search_field_span'>|</span><a href='#' class='search_field'>Update</a><span class='search_field_span'>|</span><a href='#' class='search_field'>Delete</a><span class='search_field_span'>|</span><a href='http://localhost:2020/ask?q=get-page&url="+encodeURIComponent(title)+"' download='"+encodeURIComponent(title)+".json' class='download_json'>Download</a></div><div class='search_results_div search_result_1'></div></div>");
+					      	var t=$("<div class='dialog_divs search_divs'><div class='search_field_operation search_key_"+obj["_id"]+"'><a href='#' class='search_field'>#1</a><span class='search_field_span'>|</span><a href='#' class='search_field'>Update</a><span class='search_field_span'>|</span><a href='#' class='search_field'>Delete</a><span class='search_field_span'>|</span><a href='http://localhost:2020/ask?q=get-page&url="+encodeURIComponent(title)+"' download='"+encodeURIComponent(title)+".json' class='download_json'>Download</a></div><div class='bucket_results_div bucket_result_1'></div></div>");
 					     	console.log(t);
 					     	
 					     	
@@ -1159,7 +1159,7 @@ YUI().use(
 							  function(Y) {
 							    editor = new Y.AceEditor(
 							      {
-							        boundingBox: '.search_result_'+i,
+							        boundingBox: '.bucket_result_'+i,
 							        height: '200',
 							        mode: 'json',
 							        value: '{}',
@@ -1211,5 +1211,55 @@ YUI().use(
 			})();
 
 			
+
+			$(document).on("click",".dialog_type_bucket",function(){
+				var title=$(this).attr("class").replace("dialog_bucket","").replace("dialog_type_bucket unique_id_","").trim();
+				var customModal = $('<div class="modal fade display-block"> <div class="modal-dialog"> <div class="modal-content"> <div class="modal-header"> <button type="button" class="close modal_close" data-dismiss="modal" aria-hidden="true">×</button> <h4 class="modal-title">Modal title</h4> </div> <div class="modal-body"></div> <div class="modal-footer"> <button type="button" class="btn btn-default modal_close" data-dismiss="modal">Close<div class="ripple-wrapper"></div></button> </div> </div> </div> </div>');
+				customModal.find(".modal-title").html("<a target='_blank' href='"+title+"'>Bucket id: "+title+"</a>");
+				$.ajax({
+				  url: "/ask?q=get-bucket",
+				  crossDomain:true,
+				  data:{url:title}
+				})
+				  .done(function( data ) {
+				      var js=JSON.parse(data);
+				      var divs=$();
+					      	var obj=js;
+					      	var t=$("<div class='dialog_divs search_divs'><div class='search_field_operation search_key_"+obj["_id"]+"'><a href='#' class='search_field'>#1</a><span class='search_field_span'>|</span><a href='#' class='search_field'>Update</a><span class='search_field_span'>|</span><a href='#' class='search_field'>Delete</a><span class='search_field_span'>|</span><a href='http://localhost:2020/ask?q=get-page&url="+encodeURIComponent(title)+"' download='"+encodeURIComponent(title)+".json' class='download_json'>Download</a></div><div class='search_results_div search_result_1'></div></div>");
+					     	
+					     	
+					     	
+					     	divs=divs.add(t);
+					      customModal.find(".modal-body").append(divs);
+						$('body').append(customModal);
+					   	(function(obj,i){
+							YUI().use(
+							  'aui-ace-editor',
+							  function(Y) {
+							    editor = new Y.AceEditor(
+							      {
+							        boundingBox: '.search_result_'+i,
+							        height: '200',
+							        mode: 'json',
+							        value: '{}',
+							        readOnly:true,
+							        disabled:true,
+							        dragEnabled:false
+							      }
+							    ).render();
+							        editor.set('value',JSON.stringify(obj, null, 2));
+							     	setTimeout(function(){
+									 $(".dialog_divs").find(".ace_scrollbar-v").attr("style","display:inline !important;");
+							   		$(".dialog_divs").find(".ace_scrollbar-h").attr("style","display:inline !important;");
+							     	},2000)
+							       
+							    
+							  
+							}
+							);
+				      		})(obj,1);
+					  });
+			})
+
 		});
 })();

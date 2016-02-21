@@ -838,6 +838,15 @@ var pool={
 				return;
 			});
 		},
+		"getBucket":function(url,fn){
+			var that=this.parent;
+			//#debug#console.log(url)
+			that.bucket_collection.findOne({"_id":url},function(err,results){
+				
+				fn(err,results);
+				return;
+			});
+		},
 		cluster_info:function(id_name,fn){
 			var that=this.parent;
 			that.cluster_info_collection.findOne({"_id":id_name},function(err,results){
