@@ -609,3 +609,7 @@ span.small_brackets {
 .icon .folder{
     margin:15px 0 0 6px;
 }
+
+#sb-site{
+    min-height: initial !important;
+}

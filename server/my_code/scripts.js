@@ -2,6 +2,7 @@
 	$(document).ready(function(){
 		$(".extra_pages").css("display","none");
 		$(".refresh_indicator").hide();
+		$("#page-sidebar").css("min-height",$(document).height()+"px");
 		var main_stats=[];
 		var REFRESH_INTERVAL=8000;
 		var NOTY_HIDE_DELAY=1500;
@@ -217,7 +218,7 @@
 				      	}
 				      }
 				      $(".cluster_info_update").remove();
-				      var b=$('<li class="cluster_info_update"><a class="cluster_name_a" href="javascript:void(0);" title=""><i class="glyph-icon icon-database"></i><span class="cluster_name">'+js['_id']+'</span><span class="small_brackets">(cluster name)</span></a></li><li class="cluster_info_update"><a class="cluster_creation_date_a" href="javascript:void(0);" title=""><i class="glyph-icon icon-calendar"></i><span class="cluster_creation_date">'+new Date(js['createdAt']).toDateString()+'</span><span class="small_brackets">(creation date)</span></a></li><li class="cluster_info_update"><a class="cluster_initiated_by_a" href="javascript:void(0);" title=""><i class="glyph-icon icon-flash"></i><span class="cluster_initiated_by">'+js['initiatedBy']+'</span><span class="small_brackets">(created by)</span></a></li><li class="cluster_info_update"><a class="cluster_add_seed_links_a" href="javascript:void(0);" title=""><i class="glyph-icon icon-plus"></i><span class="cluster_add_seed_links">Add seed links</span></a></li>');
+				      var b=$('<li class="cluster_info_update"><a class="cluster_name_a" href="javascript:void(0);" title=""><i class="glyph-icon icon-database"></i><span class="cluster_name">'+js['_id']+'</span><span class="small_brackets">(cluster name)</span></a></li><li class="cluster_info_update"><a class="cluster_creation_date_a" href="javascript:void(0);" title=""><i class="glyph-icon icon-calendar"></i><span class="cluster_creation_date">'+new Date(js['createdAt']).toDateString()+'</span><span class="small_brackets">(creation date)</span></a></li><li class="cluster_info_update"><a class="cluster_initiated_by_a" href="javascript:void(0);" title=""><i class="glyph-icon icon-flash"></i><span class="cluster_initiated_by">'+js['initiatedBy']+'</span><span class="small_brackets">(created by)</span></a></li><li class="cluster_info_update"><a class="cluster_initiated_by_a" href="javascript:void(0);" title=""><i class="glyph-icon icon-flash"></i><span class="cluster_master">'+js['master']+'</span><span class="small_brackets">(current master)</span></a></li><li class="cluster_info_update"><a class="cluster_add_seed_links_a" href="javascript:void(0);" title=""><i class="glyph-icon icon-plus"></i><span class="cluster_add_seed_links">Add seed links</span></a></li>');
 				      b.find(".cluster_add_seed_links_a").on('click',function(){
 				      	editSeed();
 				      });

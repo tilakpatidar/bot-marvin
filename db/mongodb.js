@@ -284,9 +284,7 @@ var pool={
 		var that=this;
 		var serverOptions = {
 		  'auto_reconnect': true,
-		  'poolSize': 5000,
-		  'server': { socketOptions: { keepAlive: 1, connectTimeoutMS: 30000 } },//for topology destroyed error so that mongo can keep connections alice after shut
-		  'replset': { socketOptions: { keepAlive: 1, connectTimeoutMS: 30000 } }
+		  'poolSize': config.getConfig("pool-size")
 		};
 		process.mongo=MongoClient.connect(mongodb,serverOptions, function(err, db) {
 			that.db=db;
