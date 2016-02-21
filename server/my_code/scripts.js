@@ -68,7 +68,7 @@
 			var count=0;
 			for(var key in obj[2]){
 				var tt=TABLE_HEAD;
-				tt=tt.replace(/###REPLACE4###/g,obj[3][count]).replace(/###REPLACE3###/g,obj[0]).replace(/###LABEL###/g,key).replace(/###WIDTH###/g,obj[2][key]);
+				tt=tt.replace(/###REPLACE4###/g,obj[3][count][0]).replace(/###REPLACE3###/g,obj[0]).replace(/###LABEL###/g,key).replace(/###WIDTH###/g,obj[2][key]);
 				tt=$(tt);
 				t.find('.head_row').append(tt);
 				++count;
@@ -600,10 +600,13 @@
 						
 					}
 				}
+			//	alert()
 				var c=current_class;
 				$(this).attr('class',c);
 				current_class=current_class.replace('sorting','').replace('_asc','').replace('_desc','');
 				var items=current_class.split('sort_key_');
+			//	alert(items[1])
+			//	console.log(items)
 				var key=items[1].trim();
 				if(type===undefined){
 					key=undefined;
