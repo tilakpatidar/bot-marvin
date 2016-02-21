@@ -7,7 +7,7 @@ bot_marvin \- crawler
 Bot Marvin is a highly scalable open source web crawler software project.
 .SH OPTIONS
 Ex usage --option=value
-.IP --seedFile\ <Absolute\ path\ to\ seed\ file>
+.IP --loadSeedFile\ <Absolute\ path\ to\ seed\ file>
 Loading the seedFile
 .IP --force
 Start the bot in force mode
@@ -26,7 +26,7 @@ Enable/Disable bot logging.
 .IP --allow_robots\ <true/false>
 Enable/Disable robots.txt check.
 .IP --external_links\ <true/false>
-Enable/Disable using external links.
+Enable/Disable following external links.
 .IP --parse_sitemaps\ <true/false>
 Enable/Disable using sitemaps for seed urls.
 .IP --config
@@ -35,11 +35,17 @@ Opens the config file in your text editor.
 Does not start the bot but webapp will run.
 .IP --reset
 Reset bot data drops the entire crawled data.
-.SH SAMPLE CMDS
+.SH Running the bot
 .IP bot-marvin
-Starts the web crawler
-.IP bot-marvin\ --seedFile\ /home/marvin/seedfile
-Seeds the crawler with the give file.
+Starts the web crawler 
+.SH First time setup
+.IP bot-marvin-db
+Edit db config of the bot
+.IP bot-marvin\ --config
+Edit bot settings
+.IP bot-marvin\ --loadSeedFile\ /home/marvin/seedfile
+Seeds the crawler with the given file.
+.SH Sample cmds
 .IP bot-marvin\ --force
 If you see warnings like bot already exists. Use this command. But,it will kill any bot with same name in cluster.
 .IP bot-marvin\ --db_type=mongodb\ --childs=5\ --max_concurrent_sockets=10
