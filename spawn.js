@@ -152,7 +152,7 @@ var bot={
 					//#debug#(r+"rule");
 					//#debug#("domain "+domain);
 					//#debug#("abs "+abs);
-					//log.put((""+abs+" rejected by filters"),"error");
+					log.put((""+abs+" rejected by filters"),"error");
 					return true;
 					
 				}
@@ -162,7 +162,8 @@ var bot={
 					href=href.replace("https://","http://");//std form
 					//#debug#("url "+href);
 					var abs=urllib.resolve(domain,href);
-					process.send({"bot":"spawn","graph":[abs,url]});
+					//console.log(abs);
+					
 					if(abs===domain+"/"){
 						//reject http://www.youtube.com http://www.youtube.com/
 						return reject("0");
@@ -193,6 +194,7 @@ var bot={
 					
 									try{
 											process.send({"bot":"spawn","addToPool":[URL.normalize(abs),URL.normalize(domain),URL.normalize(url),config.getConfig("default_recrawl_interval")]});
+											process.send({"bot":"spawn","graph":[URL.normalize(abs),URL.normalize(url)]});
 										}catch(err){
 											//log.put("Child killed","error")
 										}
@@ -391,12 +393,14 @@ var bot={
 	},
 	"fetchFile":function(url,domain){
 		//files will be downloaded by seperate process
+		//console.log("files    "+url)
 		var p=bot.links[domain]["parseFile"];
+		code="inTikaQueue";
 		try{
 			process.send({"bot":"spawn","setCrawled":[url,{},code]});
 			process.send({"bot":"spawn","tika":[url,p]});
 		}catch(err){
-
+			//console.log(err);
 		}
 		
 		bot.isLinksFetched();
