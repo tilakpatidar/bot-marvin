@@ -7,6 +7,7 @@ var request = require('request');
 var check=require("check-types");
 var log;
 var config=require(__dirname+"/lib/spawn_config.js");
+var color_debug;
 var sqlite3 = require('sqlite3').verbose();
 var db = new sqlite3.Database(__dirname+'/db/sqlite/tika_queue');
 var separateReqPool;
@@ -80,13 +81,14 @@ var app={
 		var d=exec('java -jar '+__dirname+'/lib/tika-server-1.11.jar -h '+config.getConfig("tika_host"), function(error, stdout, stderr) {
 			log.put("[SUCCESS] Tika server started","success");
 		    if (check.assigned(error)) {
+		    	log.put(error.stack,color_debug);
 		        log.put('[INFO] Server is already running',"info");
 		    }
 		});
 		try{
 			process.send({"tikaPID":d.pid});
 		}catch(e){
-			
+			log.put(e.stack,color_debug);
 		}
 		
 	},
@@ -129,7 +131,7 @@ var app={
 	},
 	"addFileToStore":function(url,callback){
 		var st=fs.createWriteStream(app.getFileName(url)).on('error',function(err){
-				
+				log.put(err.stack,color_debug);
 				callback("TikeFileStreamError");
 		});
 			var req=request({uri: url,pool:separateReqPool,headers:config.getConfig("http","headers")});
@@ -159,15 +161,17 @@ var app={
 					}
 				});
 					res.on('error',function(err){
-									
+						log.put(err.stack,color_debug);
 						callback("TikaDownloadFailed");
 
 					}).pipe(st).on('error',function(err){
-						
+						log.put(err.stack,color_debug);
 						callback("TikaFileStoreWriteError");
 					}).on('close',function(err){
 						if(!err){
 							callback(null);
+						}else{
+							log.put(err.stack,color_debug);
 						}
 						
 					});
@@ -197,7 +201,7 @@ var app={
 		try{
 			var source = fs.createReadStream(app.getFileName(url));
 			source.on('error',function(err){
-				
+					log.put(err.stack,color_debug);
 					callback("TikaFileStoreReadError",{});
 			});
 			var dic={};
@@ -205,16 +209,18 @@ var app={
 				//console.log(body)
 				dic["text"]=body;
 				source = fs.createReadStream(app.getFileName(url)).on('error',function(err){
-				
+						log.put(err.stack,color_debug);
 						callback("TikaFileStoreReadError",{});
 				});;
 				source.pipe(request.put({url:'http://'+config.getConfig("tika_host")+':'+config.getConfig('tika_port')+'/meta',headers: {'Accept': 'application/json'}},function(err1, httpResponse1, body1){
 					var err=null;
 					try{
 						log.put("tika.extractText for "+url,"success");
+						//unexpected end of input error here check it please
 						dic["meta"]=JSON.parse(body1);
 						callback(err,dic);
 					}catch(err){
+						log.put(err.stack,color_debug);
 						err="TikaServerResponseError";
 						log.put("tika.extractText for "+url,"error");
 						callback(err,dic);
@@ -222,10 +228,11 @@ var app={
 					
 				}));
 			})).on('error',function(err){
-				
+					log.put(err.stack,color_debug);
 					callback("TikaServerResponseError",{});
 			});
 		}catch(err){
+			log.put(err.stack,color_debug);
 			callback("TikaExtractFailed",{});
 		}
 		
@@ -257,7 +264,7 @@ var app={
 										try{
 											process.send({"bot":"tika","setCrawled":[fileName,{},err]});
 										}catch(errr){
-
+											log.put(errr.stack,color_debug);
 										}
 										
 									}else{
@@ -267,7 +274,9 @@ var app={
 										log.put("fetchFile for "+fileName,"success");
 										try{
 											process.send({"bot":"tika","setCrawled":[fileName,dic[1],200]});
-										}catch(e){}
+										}catch(e){
+											log.put(e.stack,color_debug);
+										}
 										
 
 									}
@@ -280,7 +289,9 @@ var app={
 								try{
 									process.send({"bot":"tika","setCrawled":[fileName,{},"tikaUnknownError"]});
 
-								}catch(e){}
+								}catch(e){
+									log.put(e.stack,color_debug);
+								}
 								
 								
 							}
@@ -338,6 +349,12 @@ if(require.main === module){
 			var o=data[key];
 			config=config.init(o[0],o[1],o[2]);
 			process.bot_config=config;
+			var co=config.getConfig("tika_debug");
+			if(co){
+				color_debug="error";
+			}else{
+				color_debug="no_verbose";
+			}
 			log=require(__dirname+"/lib/logger.js");
 			separateReqPool = {maxSockets: config.getConfig("tika_max_sockets_per_host")};
 			tika.startServer();
