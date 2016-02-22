@@ -33,6 +33,7 @@ var config={
   "tika_host": "0.0.0.0",
   "tika_port": "9998",
   "tika": true,
+  "tika_debug":true,
   "tika_supported_files": "__REGEXP /\\.(ppt|doc|pdf|docx|pptx)$/gi",
   "tika_batch_size": 5,
   "tika_content_length": 104857600,
