@@ -217,6 +217,7 @@ var app={
 					try{
 						log.put("tika.extractText for "+url,"success");
 						//unexpected end of input error here check it please
+						//console.log(body1)
 						dic["meta"]=JSON.parse(body1);
 						callback(err,dic);
 					}catch(err){

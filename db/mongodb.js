@@ -104,8 +104,8 @@ var pool={
 	},
 	"getLinksFromSiteMap":function(domain,fn){
 		if(!config.getConfig('parse_sitemaps') || process.webappOnly){
-			fn();
-			return;
+			
+			return fn();
 		}
 		
 		var that=this;
