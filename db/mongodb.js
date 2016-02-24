@@ -534,25 +534,19 @@ var pool={
 		var new_key="seedFile."+url;
 		var k={};
 		k[new_key]=d[url];
-		that.insertParseFile(parseFile,function(parseFileUpdated){
-			if(parseFileUpdated){
-				that.cluster_info_collection.update({"_id":cluster_name},{"$set":k},function(err,result){
+		that.cluster_info_collection.update({"_id":cluster_name},{"$set":k},function(err,result){
 			
-					if(err){
-						fn(false);
-						return;
-					}
-					else{
-						that.links[org_url]={"phantomjs":phantomjs,"parseFile":parseFile};
-						fn(true);
-						return;
-					}
-				});
-			}else{
+			if(err){
 				fn(false);
 				return;
 			}
+			else{
+				that.links[org_url]={"phantomjs":phantomjs,"parseFile":parseFile};
+				fn(true);
+				return;
+			}
 		});
+		
 		
 	},
 	"checkIfBotActive":function(fn){

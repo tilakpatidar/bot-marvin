@@ -301,9 +301,11 @@ function seedFile(){
 			var done=0;
 			var success=0;
 			var limit=_.size(json);
+			var parsers={};
 			for(var keys in json){
 				var obj=json[keys];
 				(function(a,b,c,dd,ee){
+					parsers[b]=true;
 					insertSeed(a,b,c,dd,ee,function(status){
 						if(status){
 							success+=1;
@@ -313,8 +315,24 @@ function seedFile(){
 						}
 						done+=1;
 						if(done===limit){
-							process.emit("stop_bot_and_exit");
-							return;
+							var size=_.size(parsers);
+							var counter=0;
+							for(var parser_keys in parsers){
+								(function(parseFile){
+									pool.insertParseFile(parseFile,function(parseFileUpdated){
+											++size;
+											if(counter===size){
+												process.emit("stop_bot_and_exit");
+												return;
+											}
+											
+									});
+
+								})(parser_keys);
+								
+							}
+							
+							
 						}
 					});
 				})(keys,obj["parseFile"],obj["phantomjs"],obj["priority"],obj["fetch_interval"]);
