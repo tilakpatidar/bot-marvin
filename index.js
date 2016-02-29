@@ -320,7 +320,8 @@ function seedFile(){
 							for(var parser_keys in parsers){
 								(function(parseFile){
 									pool.insertParseFile(parseFile,function(parseFileUpdated){
-											++size;
+											
+											++counter;
 											if(counter===size){
 												process.emit("stop_bot_and_exit");
 												return;
