@@ -23,6 +23,7 @@ var parsers_collection=config.getConfig("mongodb","parsers_collection");
 var sitemap_collection=config.getConfig("mongodb","sitemap_collection");
 var robots_collection=config.getConfig("mongodb","robots_collection");
 var graph_collection=config.getConfig("mongodb","graph_collection");
+var seed_collection=config.getConfig("mongodb","seed_collection");
 var fs=require('fs');
 var urllib=require('url');
 var cluster;
@@ -298,6 +299,7 @@ var pool={
 			that.sitemap_collection=db.collection(sitemap_collection);
 			that.robots_collection=db.collection(robots_collection);
 			that.graph_collection=db.collection(graph_collection);
+			that.seed_collection=db.collection(seed_collection);
 			//create partitions for all the cluster bots
 			that.bots_partitions=[];
 			that.stats.activeBots(function(errr,docs){
@@ -325,7 +327,9 @@ var pool={
 	},
 	"readSeedFile":function(fn){
 		var that=this;
-		that.cluster_info_collection.find({"_id":config.getConfig("cluster_name")}).toArray(function(err,results){
+		that.seed_collection.find({}).toArray(function(err,results){
+			//console.log(results)
+
 			if(results.length===0){
 				//empty seed file
 				log.put("Empty seed file","error");
@@ -335,8 +339,17 @@ var pool={
 				fn([],[]);
 				return;
 			}
-			var dic=results[0].seedFile;
-			that.seed_db_copy=dic;//stored for future comparision
+			var temp={};
+			//changing structure
+			for (var i = 0; i < results.length; i++) {
+				var idd=results[i]["_id"];
+				var k=results[i];
+				delete k["_id"];
+				temp[idd]=k;
+			};
+			var dic=temp;
+			delete results;
+			that.seed_db_copy=temp;//stored for future comparision
 			var links={};
 			var links1=[];
 			var links2=[];
@@ -484,10 +497,7 @@ var pool={
 		var cluster_name=config.getConfig("cluster_name");
 		var org_url=url;
 		var url=url.replace(/\./gi,"#dot#");
-		var k="seedFile."+url;
-		var d={};
-		d[k]="";
-		that.cluster_info_collection.updateOne({"_id":cluster_name},{"$unset":d},function(err,result){
+		that.seed_collection.removeOne({"_id":url},function(err,result){
 			if(err){
 				fn(false);
 				return;
@@ -501,7 +511,7 @@ var pool={
 	},
 	"clearSeed":function(fn){
 		var that=this;
-		that.cluster_info_collection.updateOne({"_id":config.getConfig("cluster_name")},{"$set":{"seedFile":{}}},function(err,result){
+		that.seed_collection.remove({},function(err,result){
 			if(err){
 				fn(false);
 				return;
@@ -513,6 +523,17 @@ var pool={
 			}
 		});
 	},
+	"isSeedPresent":function(url,fn){
+		var that=this;
+		that.seed_collection.findOne({"_id":url},function(err,doc){
+			if(check.assigned(doc)){
+				fn(true);
+			}else{
+				fn(false);
+			}
+
+		});
+	},
 	"insertSeed":function(url,parseFile,phantomjs,priority,fetch_interval,fn){
 		if(priority>10){
 			fn(false);
@@ -520,7 +541,6 @@ var pool={
 		}
 		var that=this;
 		var cluster_name=config.getConfig("cluster_name");
-		var d={};
 		var org_url=url;
 		var url=URL.normalize(url).replace(/\./gi,"#dot#");
 		if(!check.assigned(fetch_interval)){
@@ -530,11 +550,8 @@ var pool={
 			fn(false);
 			return;
 		}
-		d[url]={"phantomjs":phantomjs,"parseFile":parseFile,"priority":parseInt(priority),"fetch_interval":fetch_interval};
-		var new_key="seedFile."+url;
-		var k={};
-		k[new_key]=d[url];
-		that.cluster_info_collection.update({"_id":cluster_name},{"$set":k},function(err,result){
+		var d={"_id":url,"phantomjs":phantomjs,"parseFile":parseFile,"priority":parseInt(priority),"fetch_interval":fetch_interval};
+		that.seed_collection.insert(d,function(err,result){
 			
 			if(err){
 				fn(false);
@@ -575,7 +592,7 @@ var pool={
 			//console.log(err,results)
 			if(!results){
 				//first time crawl therfore update the cluster info
-				that.cluster_info_collection.insert({"_id":id_name,'createdAt':new Date(),'webapp_host':config.getConfig("network_host"),'webapp_port':config.getConfig('network_port'),'initiatedBy':config.getConfig('bot_name'),"seedFile":{}},function(err1,results1){
+				that.cluster_info_collection.insert({"_id":id_name,'createdAt':new Date(),'webapp_host':config.getConfig("network_host"),'webapp_port':config.getConfig('network_port'),'initiatedBy':config.getConfig('bot_name')},function(err1,results1){
 
 					if(!err){
 						log.put("Inserted cluster info for fresh crawl ","success");
@@ -621,12 +638,12 @@ var pool={
 	},
 	"pullSeedLinks":function(fn){
 		var that=this;
-		that.cluster_info_collection.find({"_id":config.getConfig("cluster_name")}).toArray(function(err,results){
+		that.seed_collection.find({}).toArray(function(err,results){
 			if(check.emptyArray(results)){
 				fn(err,null);
 				return;
 			}
-			var seeds=results[0].seedFile;
+			var seeds=results;
 			if(check.emptyObject(seeds)){
 				fn(err,null);
 				return;
@@ -812,8 +829,8 @@ var pool={
 		},
 		"getSeed":function(fn){
 			var that=this.parent;
-			that.cluster_info_collection.find({"_id":config.getConfig("cluster_name")}).toArray(function(err,results){
-					var seeds=results[0].seedFile;
+			that.seed_collection.find({}).toArray(function(err,results){
+					var seeds=results;
 					fn(err,seeds);
 					return;
 
@@ -943,14 +960,6 @@ var pool={
 			var that=this.parent;
 			that.bot_collection.update({"_id":bot_name},{"$set":{"config":js}},function(err,results){
 				//console.log(err)
-				fn(err,results);
-				return;
-			});
-		},
-		"updateSeed":function(js,fn){
-			var that=this.parent;
-			that.cluster_info_collection.update({"_id":config.getConfig("cluster_name")},{"$set":{"seedFile":js}},function(err,results){
-				//console.log(err,results)
 				fn(err,results);
 				return;
 			});

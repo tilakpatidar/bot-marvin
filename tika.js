@@ -79,13 +79,24 @@ var queue={
 var app={
 	"startServer":function(){
 		//first kill an old instance of tika if exists
-		var pid=fs.readFileSync(__dirname+"/db/sqlite/tikaPID.txt").toString();
-		log.put("Trying to kill an old instance of tika if active","info");
+		try{
+			var pid=fs.readFileSync(__dirname+"/db/sqlite/tikaPID.txt").toString();
+			log.put("Trying to kill an old instance of tika if active","info");
+		}catch(err){
+			pid="";
+			log.put(err.stack,color_debug);
+			//touch file if not exists
+			var stream=fs.createWriteStream(__dirname+"/db/sqlite/tikaPID.txt");
+			stream.write("");
+			stream.end();
+		}
+		
 		
 		try{
 			process.kill(parseInt(pid));
 		}
 		catch(err){
+
 			log.put(err.stack,color_debug);
 		}
 		var d=exec('java -jar '+__dirname+'/lib/tika-server-1.11.jar -h '+config.getConfig("tika_host"), function(error, stdout, stderr) {

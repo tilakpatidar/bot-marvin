@@ -198,20 +198,17 @@ function isSeedPresent(url,fn){
 			}
 
 			try{
-					pool.checkIfNewCrawl(function(newCrawl,cluster_info){
-					if(newCrawl){
-						return fn(false);
-					}
-					else{
-						url=url.replace(/\./gi,"#dot#");
-						if(cluster_info.seedFile[url]){
+					url=url.replace(/\./gi,"#dot#");
+					pool.isSeedPresent(url,function(bool){
+						if(bool){
 							return fn(true);
 						}
 						else{
 							return fn(false);
 						}
-					}
-				});
+
+					});
+					
 				
 			}
 			catch(err){
@@ -258,7 +255,7 @@ function editSeedFile(fn){
 					console.log("Updating seed please wait!");
 					//console.log(result)
 					var dic=JSON.parse(result);
-					seed.updateDbSeed(dic,function(){
+					seedFile(dic,function(){
 						console.log("Seed updated [SUCCESS]");
 						process.bot.stopBot(function(){
 							process.exit(0);
@@ -275,7 +272,7 @@ function editSeedFile(fn){
 					console.log("Updating seed please wait!");
 					//console.log(result)
 					var dic=JSON.parse(result);
-					seed.updateDbSeed(dic,function(){
+					seedFile(dic,function(){
 						console.log("Seed updated [SUCCESS]");
 						process.bot.stopBot(function(){
 							process.exit(0);
@@ -291,13 +288,23 @@ function editSeedFile(fn){
 		
 		
 }
-function seedFile(){
+function seedFile(data,fn){
 	//will seed the bot and exit gracefully
-		var path=process.seedFile;
+	pool.checkIfNewCrawl(function(newCrawl){
+		//check if crawl is fresh or old
+		//if new crawl it updates cluster info	
+	if(!check.assigned(data)){
+		//data is not provided
+			var path=process.seedFile;
 			check.assert.assigned(path,"file path cannot be undefined")
 			// \n$ to remove extra \n at end
 			var data=fs.readFileSync(path).toString().replace(/\t{2,}/gi,"\t").replace(/\n{2,}/gi,"\n").replace(/\n$/gi,"");
 			var json=JSON.parse(data);
+	}else{
+		//data is provided
+			var json=data;
+	}
+		
 			var done=0;
 			var success=0;
 			var limit=_.size(json);
@@ -323,7 +330,12 @@ function seedFile(){
 											
 											++counter;
 											if(counter===size){
-												process.emit("stop_bot_and_exit");
+												if(!check.assigned(fn)){
+													process.emit("stop_bot_and_exit");
+												}else{
+													fn();
+												}
+												
 												return;
 											}
 											
@@ -338,7 +350,9 @@ function seedFile(){
 					});
 				})(keys,obj["parseFile"],obj["phantomjs"],obj["priority"],obj["fetch_interval"]);
 			}
-			
+	
+	
+	});		
 }
 function reset(fn){
 			//drop the db				
