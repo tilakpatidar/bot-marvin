@@ -314,7 +314,7 @@ function seedFile(){
 							log.put("Failed to seed url "+a,"error");
 						}
 						done+=1;
-						if(done===limit){
+						if(done===limit){	
 							var size=_.size(parsers);
 							var counter=0;
 							for(var parser_keys in parsers){
