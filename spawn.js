@@ -341,6 +341,7 @@ var bot={
 			});
 			res.on("error",function(err){
 				//#debug#(err )
+				//console.log(err,err.type)
 				try{
 					process.send({"bot":"spawn","setCrawled":[url,{},err.type]});
 				}catch(errr){
@@ -368,7 +369,7 @@ var bot={
 				//dic[2] inlinks suggested by custom parser
 				bot.grabInlinks(dic[0],url,domain,dic[2]);
 				var code=res.statusCode;
-				//#debug#(code,"code")
+				//console.log(code,"code")
 				try{
 				process.send({"bot":"spawn","setCrawled":[url,dic[1],code]});
 				}catch(err){
@@ -381,8 +382,9 @@ var bot={
 		});
 		req.on("error",function(err){
 			//#debug#(err)
+			//console.log("req  ",err,err.type)
 			try{
-				process.send({"bot":"spawn","setCrawled":[url,{},err.type]});
+				process.send({"bot":"spawn","setCrawled":[url,{},err.code]});
 			}catch(errr){
 
 			}
