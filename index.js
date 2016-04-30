@@ -250,7 +250,7 @@ var edit = require('string-editor');
 function editSeedFile(fn){
 	seed.pullSeedFromDB(function(err,results){
 			if(err || (!check.assigned(err) && !check.assigned(results))){
-				edit("{}","seed.json", function(err, result) {
+				edit("[]","seed.json", function(err, result) {
 					// when you are done editing result will contain the string 
 					console.log("Updating seed please wait!");
 					//console.log(result)
@@ -270,7 +270,7 @@ function editSeedFile(fn){
 				edit(JSON.stringify(con,null,2),"seed.json", function(err, result) {
 					// when you are done editing result will contain the string 
 					console.log("Updating seed please wait!");
-					//console.log(result)
+					
 					var dic=JSON.parse(result);
 					seedFile(dic,function(){
 						console.log("Seed updated [SUCCESS]");
@@ -292,7 +292,7 @@ function seedFile(data,fn){
 	//will seed the bot and exit gracefully
 	pool.checkIfNewCrawl(function(newCrawl){
 		//check if crawl is fresh or old
-		//if new crawl it updates cluster info	
+		//if new crawl it updates cluster info
 	if(!check.assigned(data)){
 		//data is not provided
 			var path=process.seedFile;
@@ -348,7 +348,7 @@ function seedFile(data,fn){
 							
 						}
 					});
-				})(keys,obj["parseFile"],obj["phantomjs"],obj["priority"],obj["fetch_interval"]);
+				})(obj["_id"],obj["parseFile"],obj["phantomjs"],obj["priority"],obj["fetch_interval"]);
 			}
 	
 	
