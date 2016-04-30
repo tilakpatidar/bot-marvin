@@ -534,6 +534,32 @@ var pool={
 
 		});
 	},
+	"moveSeedCollection":function(fn){
+		var that = this;
+		that.seed_collection.rename("seed_tmp",function(){
+			that.seed_collection=that.db.collection(config.getConfig("mongodb","seed_collection"));
+			fn();
+		})
+	},
+	"restoreSeedCollection":function(fn){
+		var that = this;
+		that.db.collection(config.getConfig("mongodb","seed_collection")).remove(function(){
+			that.db.collection("seed_tmp").rename(config.getConfig("mongodb","seed_collection"),function(){
+				that.seed_collection=that.db.collection(config.getConfig("mongodb","seed_collection"));
+					that.db.collection("seed_tmp").drop(function(){
+						fn();
+					});
+				
+			});
+
+		});
+	},
+	"successSeedCollection":function(fn){
+		var that = this;
+		that.db.collection("seed_tmp").drop(function(){
+			fn();
+		});
+	},
 	"insertSeed":function(url,parseFile,phantomjs,priority,fetch_interval,fn){
 		if(priority>10){
 			fn(false);

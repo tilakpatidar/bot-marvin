@@ -17,6 +17,7 @@ process.force_mode=false;//enables or disables the process.force_mode
 process.my_timers=[];//stores all the timers used to remove all timers for graceful exit
 process.reset=false;
 process.seedFile=null;
+process.seedFileData=null;
 var check = require('check-types');
 var _=require("underscore");
 var cluster,log;
@@ -224,11 +225,7 @@ function insertSeed(url,parseFile,phantomjs,priority,fetch_interval,fn){
 				return fn(false);
 			}
 			url=url.replace("https://","http://");
-			isSeedPresent(url,function(present){
-				if(present){
-					return fn(false);
-				}
-				else{
+			
 					pool.insertSeed(url,parseFile,phantomjs,priority,fetch_interval,function(inserted){
 					
 						if(inserted){
@@ -238,10 +235,10 @@ function insertSeed(url,parseFile,phantomjs,priority,fetch_interval,fn){
 							return fn(false);
 						}
 					});
-				}
+				
 
 
-});
+
 }
 if(process.env.EDITOR===undefined){
 	process.env.EDITOR="/bin/nano";
@@ -254,8 +251,8 @@ function editSeedFile(fn){
 					// when you are done editing result will contain the string 
 					console.log("Updating seed please wait!");
 					//console.log(result)
-					var dic=JSON.parse(result);
-					seedFile(dic,function(){
+					process.seedFileData=JSON.parse(result);
+					seedFile(function(){
 						console.log("Seed updated [SUCCESS]");
 						process.bot.stopBot(function(){
 							process.exit(0);
@@ -271,8 +268,8 @@ function editSeedFile(fn){
 					// when you are done editing result will contain the string 
 					console.log("Updating seed please wait!");
 					
-					var dic=JSON.parse(result);
-					seedFile(dic,function(){
+					process.seedFileData=JSON.parse(result);
+					seedFile(function(){
 						console.log("Seed updated [SUCCESS]");
 						process.bot.stopBot(function(){
 							process.exit(0);
@@ -288,68 +285,88 @@ function editSeedFile(fn){
 		
 		
 }
-function seedFile(data,fn){
+function seedFile(fn){
 	//will seed the bot and exit gracefully
 	pool.checkIfNewCrawl(function(newCrawl){
 		//check if crawl is fresh or old
 		//if new crawl it updates cluster info
-	if(!check.assigned(data)){
+	var json;
+	if(!check.assigned(process.seedFileData)){
 		//data is not provided
 			var path=process.seedFile;
 			check.assert.assigned(path,"file path cannot be undefined")
 			// \n$ to remove extra \n at end
 			var data=fs.readFileSync(path).toString().replace(/\t{2,}/gi,"\t").replace(/\n{2,}/gi,"\n").replace(/\n$/gi,"");
-			var json=JSON.parse(data);
+			json=JSON.parse(data);
 	}else{
 		//data is provided
-			var json=data;
+			json=process.seedFileData;
 	}
 		
 			var done=0;
 			var success=0;
 			var limit=_.size(json);
 			var parsers={};
-			for(var keys in json){
-				var obj=json[keys];
-				(function(a,b,c,dd,ee){
-					parsers[b]=true;
-					insertSeed(a,b,c,dd,ee,function(status){
-						if(status){
-							success+=1;
-						}
-						else{
-							log.put("Failed to seed url "+a,"error");
-						}
-						done+=1;
-						if(done===limit){	
-							var size=_.size(parsers);
-							var counter=0;
-							for(var parser_keys in parsers){
-								(function(parseFile){
-									pool.insertParseFile(parseFile,function(parseFileUpdated){
-											
-											++counter;
-											if(counter===size){
-												if(!check.assigned(fn)){
-													process.emit("stop_bot_and_exit");
-												}else{
-													fn();
-												}
-												
-												return;
-											}
-											
-									});
+			//backup old seed collection
+			pool.moveSeedCollection(function(){
+				try{
+					for(var keys in json){
+						var obj=json[keys];
+						(function(a,b,c,dd,ee){
+							parsers[b]=true;
+							insertSeed(a,b,c,dd,ee,function(status){
+								if(status){
+									success+=1;
+								}
+								else{
+									log.put("Failed to seed url "+a,"error");
+								}
+								done+=1;
+								if(done===limit){	
+									var size=_.size(parsers);
+									var counter=0;
+									for(var parser_keys in parsers){
+										(function(parseFile){
+											pool.insertParseFile(parseFile,function(parseFileUpdated){
+													
+													++counter;
+													if(counter===size){
+														//drop tmp seed collections
+														pool.successSeedCollection(function(){
+															if(!check.assigned(fn)){
+																process.emit("stop_bot_and_exit");
+															}else{
+																fn();
+															}
+														});
+														
+														
+														return;
+													}
+													
+											});
 
-								})(parser_keys);
-								
-							}
-							
-							
-						}
+										})(parser_keys);
+										
+									}
+									
+									
+								}
+							});
+						})(obj["_id"],obj["parseFile"],obj["phantomjs"],obj["priority"],obj["fetch_interval"]);
+					}
+				}catch(err){
+					//restore from old collection
+					pool.restoreSeedCollection(function(){
+						log.put("Exception occured while updating seed file","error");
+						log.put("Restoring old seed file","info");
 					});
-				})(obj["_id"],obj["parseFile"],obj["phantomjs"],obj["priority"],obj["fetch_interval"]);
-			}
+				}
+
+
+			});
+
+
 	
 	
 	});		
