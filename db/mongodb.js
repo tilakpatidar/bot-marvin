@@ -437,7 +437,7 @@ var pool={
 			var parent=li[i][2];
 			
 			(function(url,domain,parent,hash){
-				that.mongodb_collection.updateOne({"_id":url},{"$set":{"done":true,"domain":domain,"parent":parent,"data":"","hash":hash}},function(err,results){
+				that.mongodb_collection.updateOne({"_id":url},{"$set":{"done":true,"domain":domain,"parent":parent,"data":"","bucket_id":hash}},function(err,results){
 						if(err){
 							//#debug#console.log(err);
 							//link is already present
@@ -481,7 +481,7 @@ var pool={
 	var md5sum = crypto.createHash('md5');
 	md5sum.update(data.toString());
 	var hash=md5sum.digest('hex');
-	that.parsers_collection.update({"_id":filename},{"$set":{"data":data,"hash":hash}},{upsert:true},function(err,results){
+	that.parsers_collection.update({"_id":filename},{"$set":{"data":data,"bucket_id":hash}},{upsert:true},function(err,results){
 		if(err){
 			fn(false);
 			return;
