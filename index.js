@@ -247,36 +247,70 @@ var edit = require('string-editor');
 function editSeedFile(fn){
 	seed.pullSeedFromDB(function(err,results){
 			if(err || (!check.assigned(err) && !check.assigned(results))){
+				var execSeedFile = false;
 				edit("[]","seed.json", function(err, result) {
 					// when you are done editing result will contain the string 
 					console.log("Updating seed please wait!");
 					//console.log(result)
-					process.seedFileData=JSON.parse(result);
-					seedFile(function(){
-						console.log("Seed updated [SUCCESS]");
-						process.bot.stopBot(function(){
-							process.exit(0);
-							fn()
-						});
+					try{
+						process.seedFileData=JSON.parse(result);
+						execSeedFile = true;
+					}catch(err){
+						result = result.replace(/\s/gi,'');
+						if(result === "" || result === "{}" || result === "[]"){
+							process.seedFileData = {};
+						}else{
+							log.put("JSON format error","error");
+							process.bot.stopBot(function(){
+									process.exit(0);
+									fn()
+								});	
+						}
+					}
+					if(execSeedFile){
+						seedFile(function(){
+							console.log("Seed updated [SUCCESS]");
+							process.bot.stopBot(function(){
+								process.exit(0);
+								fn()
+							});
 
-					});
+						});						
+					}
 						
 				});
 			}else{
 				var con=results;
+				var execSeedFile = false;
 				edit(JSON.stringify(con,null,2),"seed.json", function(err, result) {
 					// when you are done editing result will contain the string 
 					console.log("Updating seed please wait!");
-					
-					process.seedFileData=JSON.parse(result);
-					seedFile(function(){
-						console.log("Seed updated [SUCCESS]");
-						process.bot.stopBot(function(){
-							process.exit(0);
-							fn()
-						});
+					try{
+						process.seedFileData=JSON.parse(result);
+						execSeedFile = true;
+					}catch(err){
+						result = result.replace(/\s/gi,'');
+						if(result === "" || result === "{}" || result === "[]"){
+							process.seedFileData = {};
+						}else{
+							log.put("JSON format error","error");
+							process.bot.stopBot(function(){
+									process.exit(0);
+									fn()
+								});	
+						}
+					}
+					if(execSeedFile){
+						seedFile(function(){
+							console.log("Seed updated [SUCCESS]");
+							process.bot.stopBot(function(){
+								process.exit(0);
+								fn()
+							});
 
-					});
+						});						
+					}
+
 						
 				});
 			}
@@ -310,6 +344,12 @@ function seedFile(fn){
 			//backup old seed collection
 			pool.moveSeedCollection(function(){
 				try{
+					if(limit === 0){
+						//empty obj means just clear the seed file
+						return pool.successSeedCollection(function(){
+							fn();
+						});
+					}
 					for(var keys in json){
 						var obj=json[keys];
 						(function(a,b,c,dd,ee){
