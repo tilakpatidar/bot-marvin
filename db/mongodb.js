@@ -481,7 +481,7 @@ var pool={
 	var md5sum = crypto.createHash('md5');
 	md5sum.update(data.toString());
 	var hash=md5sum.digest('hex');
-	that.parsers_collection.update({"_id":filename},{"$set":{"data":data,"bucket_id":hash}},{upsert:true},function(err,results){
+	that.parsers_collection.update({"_id":filename},{"$set":{"data":data,"hash":hash}},{upsert:true},function(err,results){
 		if(err){
 			fn(false);
 			return;
@@ -716,6 +716,7 @@ var pool={
 				md5sum.update(data.toString());
 				var hash=md5sum.digest('hex');
 				if(hash!==doc["hash"]){
+					log.put("Parsers changed from server restarting . . .","info");
 					process.emit("restart");
 				}
 			};
