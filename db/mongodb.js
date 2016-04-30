@@ -48,7 +48,7 @@ var pool={
 								var success=0;
 								var stamp1=new Date().getTime()-2000;//giving less time
 								var stamp=stamp1+""+parseInt(Math.random()*10000);
-								that.bucket_collection.insert({"_id":stamp,"links":links,"score":1,"recrawlLabel":config.getConfig("default_recrawl_interval"),"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":success},function(err,results){
+								that.bucket_collection.insert({"_id":stamp,"links":links,"score":1,"recrawlLabel":config.getConfig("default_recrawl_interval"),"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":(success+1)},function(err,results){
 											
 								for (var i = 0; i < links.length; i++) {
 									var anon=(function(domain,stamp,fetch_interval){
@@ -56,7 +56,7 @@ var pool={
 										that.getLinksFromSiteMap(domain,function(){
 											//#debug#console.log(domain)
 															
-											that.mongodb_collection.insert({"_id":domain,"hash":stamp,"domain":domain,"partitionedBy":config.getConfig("bot_name"),"done":false,"fetch_interval":fetch_interval},function(err,results){
+											that.mongodb_collection.insert({"_id":domain,"bucket_id":stamp,"domain":domain,"partitionedBy":config.getConfig("bot_name"),"done":false,"fetch_interval":fetch_interval},function(err,results){
 												//#debug#console.log(err)
 												if(err){
 													log.put("pool.init maybe seed is already added","error");
@@ -189,7 +189,7 @@ var pool={
 						if(that.bot_pointer>=that.bots_partitions.length){
 							that.bot_pointer=0;
 						}
-						that.mongodb_collection.insert({"_id":url,"done":false,"partitionedBy":bot_partition,"domain":domain,"parent":parent,"data":"","hash":hash,"fetch_interval":refresh_time},function(err,results){
+						that.mongodb_collection.insert({"_id":url,"done":false,"partitionedBy":bot_partition,"domain":domain,"parent":parent,"data":"","bucket_id":hash,"fetch_interval":refresh_time},function(err,results){
 							
 							done+=1;
 							if(done===li.length){
@@ -229,9 +229,10 @@ var pool={
 					//#debug#console.log(object,err1)
 					if( check.assigned(object) && check.assigned(object.value)){
 							var hash=object["value"]["_id"];
+							//#debug#console.log(hash);
 							var refresh_label=object["value"]["recrawlLabel"];
-							that.mongodb_collection.find({"hash":hash},{},{}).toArray(function(err,docs){
-								
+							that.mongodb_collection.find({"bucket_id":hash},{},{}).toArray(function(err,docs){
+								//#debug#console.log(err,docs);
 									if(err){
 
 										log.put("pool.getNextBatch","error");
@@ -1238,7 +1239,7 @@ var pool={
 			var that=this.parent;
 			var li=[];
 			var rem=[];
-				that.mongodb_collection.find({"domain":domain,"hash":null,"done":false,"fetch_interval":interval,"partitionedBy":config.getConfig("bot_name")},{limit:count}).toArray(function(err,object){
+				that.mongodb_collection.find({"domain":domain,"bucket_id":null,"done":false,"fetch_interval":interval,"partitionedBy":config.getConfig("bot_name")},{limit:count}).toArray(function(err,object){
 					
 					//#debug#console.log(object)
 					if(check.assigned(object) && object.length!==0){
