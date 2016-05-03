@@ -9,6 +9,10 @@ Bot Marvin is a highly scalable open source web crawler software project.
 Ex usage --option=value
 .IP --loadSeedFile\ <Absolute\ path\ to\ seed\ file>
 Loading the seedFile
+.IP --editSeedFile
+Opens console for editing seed file. Removing seeds will result in removal of pages belonging to seed from the future crawls.
+.IP --removeSeed <seed>
+Removes seed from seed file and removes future crawls for this seed.
 .IP --force
 Start the bot in force mode
 .IP --childs\ <number\ of\ spawned\ process\ for\ this\ bot>
@@ -35,8 +39,6 @@ Opens the config file in your text editor.
 Does not start the bot but webapp will run.
 .IP --reset
 Reset bot data drops the entire crawled data.
-.IP --editSeedFile
-Opens console for editing seed file
 .SH Running the bot
 .IP bot-marvin
 Starts the web crawler 
