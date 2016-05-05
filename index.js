@@ -18,6 +18,7 @@ process.my_timers=[];//stores all the timers used to remove all timers for grace
 process.reset=false;
 process.seedFile=null;
 process.seedFileData=null;
+process.removeSeed = null;
 var check = require('check-types');
 var _=require("underscore");
 var cluster,log;
@@ -57,9 +58,12 @@ pool.createConnection(function(){
 								log=require(__dirname+"/lib/logger.js");
 								pool.checkIfNewCrawl(function(){
 									if(process.editSeedFile){
-										editSeedFile();
-									}else if(process.seedFile){
-										seedFile();
+										seed.editSeedFile();
+									}else if(process.removeSeed){
+										seed.removeSeed(Object.keys(process.removeSeed)[0]);
+									}
+									else if(process.seedFile){
+										seed.seedFile(process.seedFile, null);
 									}else if(process.reset){
 										reset(function(){
 											process.bot.stopBot(function(){
@@ -216,201 +220,7 @@ function isSeedPresent(url,fn){
 				return fn(false);
 			}
 		}
-function insertSeed(url,parseFile,phantomjs,priority,fetch_interval,fn){
-			if(!check.assigned(fn)){
-				fn=function(){}
-			}
-			if(_.size(arguments)<5){
-				throw new SyntaxError("atleast 5 args expected");
-				return fn(false);
-			}
-			url=url.replace("https://","http://");
-			
-					pool.insertSeed(url,parseFile,phantomjs,priority,fetch_interval,function(inserted){
-					
-						if(inserted){
-							return fn(true);
-						}
-						else{
-							return fn(false);
-						}
-					});
-				
 
-
-
-}
-if(process.env.EDITOR===undefined){
-	process.env.EDITOR="/bin/nano";
-}
-var edit = require('string-editor');
-function editSeedFile(fn){
-	seed.pullSeedFromDB(function(err,results){
-			if(err || (!check.assigned(err) && !check.assigned(results))){
-				var execSeedFile = false;
-				edit("[]","seed.json", function(err, result) {
-					// when you are done editing result will contain the string 
-					console.log("Updating seed please wait!");
-					//console.log(result)
-					try{
-						process.seedFileData=JSON.parse(result);
-						execSeedFile = true;
-					}catch(err){
-						result = result.replace(/\s/gi,'');
-						if(result === "" || result === "{}" || result === "[]"){
-							process.seedFileData = {};
-						}else{
-							log.put("JSON format error","error");
-							process.bot.stopBot(function(){
-									process.exit(0);
-									fn()
-								});	
-						}
-					}
-					if(execSeedFile){
-						seedFile(function(){
-							console.log("Seed updated [SUCCESS]");
-							process.bot.stopBot(function(){
-								process.exit(0);
-								fn()
-							});
-
-						});						
-					}
-						
-				});
-			}else{
-				var con=results;
-				var execSeedFile = false;
-				edit(JSON.stringify(con,null,2),"seed.json", function(err, result) {
-					// when you are done editing result will contain the string 
-					console.log("Updating seed please wait!");
-					try{
-						process.seedFileData=JSON.parse(result);
-						execSeedFile = true;
-					}catch(err){
-						result = result.replace(/\s/gi,'');
-						if(result === "" || result === "{}" || result === "[]"){
-							process.seedFileData = {};
-						}else{
-							log.put("JSON format error","error");
-							process.bot.stopBot(function(){
-									process.exit(0);
-									fn()
-								});	
-						}
-					}
-					if(execSeedFile){
-						seedFile(function(){
-							console.log("Seed updated [SUCCESS]");
-							process.bot.stopBot(function(){
-								process.exit(0);
-								fn()
-							});
-
-						});						
-					}
-
-						
-				});
-			}
-
-		});
-		
-		
-}
-function seedFile(fn){
-	//will seed the bot and exit gracefully
-	pool.checkIfNewCrawl(function(newCrawl){
-		//check if crawl is fresh or old
-		//if new crawl it updates cluster info
-	var json;
-	if(!check.assigned(process.seedFileData)){
-		//data is not provided
-			var path=process.seedFile;
-			check.assert.assigned(path,"file path cannot be undefined")
-			// \n$ to remove extra \n at end
-			var data=fs.readFileSync(path).toString().replace(/\t{2,}/gi,"\t").replace(/\n{2,}/gi,"\n").replace(/\n$/gi,"");
-			json=JSON.parse(data);
-	}else{
-		//data is provided
-			json=process.seedFileData;
-	}
-		
-			var done=0;
-			var success=0;
-			var limit=_.size(json);
-			var parsers={};
-			//backup old seed collection
-			pool.moveSeedCollection(function(){
-				try{
-					if(limit === 0){
-						//empty obj means just clear the seed file
-						return pool.successSeedCollection(function(){
-							fn();
-						});
-					}
-					for(var keys in json){
-						var obj=json[keys];
-						(function(a,b,c,dd,ee){
-							parsers[b]=true;
-							insertSeed(a,b,c,dd,ee,function(status){
-								if(status){
-									success+=1;
-								}
-								else{
-									log.put("Failed to seed url "+a,"error");
-								}
-								done+=1;
-								if(done===limit){	
-									var size=_.size(parsers);
-									var counter=0;
-									for(var parser_keys in parsers){
-										(function(parseFile){
-											pool.insertParseFile(parseFile,function(parseFileUpdated){
-													
-													++counter;
-													if(counter===size){
-														//drop tmp seed collections
-														pool.successSeedCollection(function(){
-															if(!check.assigned(fn)){
-																process.emit("stop_bot_and_exit");
-															}else{
-																fn();
-															}
-														});
-														
-														
-														return;
-													}
-													
-											});
-
-										})(parser_keys);
-										
-									}
-									
-									
-								}
-							});
-						})(obj["_id"],obj["parseFile"],obj["phantomjs"],obj["priority"],obj["fetch_interval"]);
-					}
-				}catch(err){
-					//restore from old collection
-					pool.restoreSeedCollection(function(){
-						log.put("Exception occured while updating seed file","error");
-						log.put("Restoring old seed file","info");
-					});
-				}
-
-
-			});
-
-
-	
-	
-	});		
-}
 function reset(fn){
 			//drop the db				
 		pool.drop(function(){
