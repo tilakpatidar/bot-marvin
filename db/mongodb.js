@@ -257,9 +257,12 @@ var pool={
 		
 
 	},
-	"setCrawled":function(url,data,status){
-		var that=this;
-		var stamp1=new Date().getTime();
+	"setCrawled":function(link_details){
+		var that = this;
+		var url = link_details.url;
+		var data = link_details.parsed_content;
+		var status = link_details.status_code;
+		var stamp1 = new Date().getTime();
 		if(!check.assigned(data)){
 
 			data="";
@@ -269,6 +272,7 @@ var pool={
 			status="0";//no error
 		}
 		that.mongodb_collection.updateOne({"_id":url},{$set:{"done":true,"data":data,"response":status,"lastModified":stamp1,"updatedBy":config.getConfig("bot_name")}},function(err,results){
+			console.log(err,results)
 			if(status!==200){
 				process.bot.updateStats("failedPages",1);
 			}

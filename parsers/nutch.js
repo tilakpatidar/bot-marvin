@@ -46,8 +46,9 @@ var app={
          dic._source["mime"]=indexed["mime"];
          dic._source["title"]=indexed["title"];
          dic._source["file_info"]=indexed["file_info"];
-		 return [indexed["dom"],dic,[]];//cheerio object ,dic to insert ,inlinks to give
+		 return [indexed["dom"],dic,[], indexed["html"]];//cheerio object ,dic to insert ,inlinks to give
 		 //for documents indexed["dom"] is null
+		 //then raw html content
 	},
 	"parseDocument":function(data,url){
 		//data is a {} with keys text,meta
@@ -67,7 +68,7 @@ var app={
 		 ret["dom"]=null;
 		 ret["file_info"]=data["meta"];
 		 ret["mime"]=data["meta"]["Content-Type"];
-		 ret["html"]="";
+		 ret["html"]=data["text"];
 		 return ret;
 	},
 	"parseWebPage":function(data,url){

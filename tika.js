@@ -2,6 +2,7 @@
 var proto=require(__dirname+'/lib/proto.js');
 process.getAbsolutePath=proto.getAbsolutePath;
 var exec = require('child_process').exec;
+var URL=require(__dirname+"/lib/url.js");
 var fs = require('fs');
 var request = require('request');
 var check=require("check-types");
@@ -297,7 +298,12 @@ var app={
 									if(err){
 										log.put("error from fetchFile for "+fileName,"error");
 										try{
-											process.send({"bot":"tika","setCrawled":[fileName,{},err]});
+											var link = URL.url(fileName);
+											link.setStatusCode(err);
+											link.setParsed({});
+											link.setResponseTime(0);
+											link.setContent({});
+											process.send({"bot":"tika","setCrawled":link.details});
 										}catch(errr){
 											log.put(errr.stack,color_debug);
 										}
@@ -308,7 +314,12 @@ var app={
 										var dic=parser.init.parse(body,fileName);//pluggable parser
 										log.put("fetchFile for "+fileName,"success");
 										try{
-											process.send({"bot":"tika","setCrawled":[fileName,dic[1],200]});
+											var link = URL.url(fileName);
+											link.setStatusCode(200);
+											link.setParsed(dic[1]);
+											link.setResponseTime(0);
+											link.setContent(dic[3]);
+											process.send({"bot":"tika","setCrawled":link.details});
 										}catch(e){
 											log.put(e.stack,color_debug);
 										}
@@ -322,7 +333,12 @@ var app={
 							catch(err){
 								log.put("error from fetchFile for "+fileName,"error");
 								try{
-									process.send({"bot":"tika","setCrawled":[fileName,{},"tikaUnknownError"]});
+									var link = URL.url(fileName);
+									link.setStatusCode("tikaUnknownError");
+									link.setParsed({});
+									link.setResponseTime(0);
+									link.setContent({});
+									process.send({"bot":"tika","setCrawled":link.details});
 
 								}catch(e){
 									log.put(e.stack,color_debug);
@@ -383,6 +399,10 @@ if(require.main === module){
 			//making init ready
 			var o=data[key];
 			config=config.init(o[0],o[1],o[2]);
+			regex_urlfilter = {};
+			regex_urlfilter["accept"]=config.getConfig("accept_regex");
+			regex_urlfilter["reject"]=config.getConfig("reject_regex");
+			URL.init(config, regex_urlfilter);
 			process.bot_config=config;
 			var co=config.getConfig("tika_debug");
 			if(co){
