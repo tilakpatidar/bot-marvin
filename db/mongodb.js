@@ -277,8 +277,11 @@ var pool={
 		if(!check.assigned(status)){
 			status="0";//no error
 		}
+		var dict = {"done":true,"data":data,"response":status, "lastModified":stamp1,"updatedBy":config.getConfig("bot_name")};
+
 		if((status+"").charAt(0) === '4' || (status+"").charAt(0) === '5'  || data === ""){
 			//if 4xx or 5XX series status code then add to failed queue
+			dict['abandoned'] = false;
 			(function(link_details){
 				db.parallelize(function() {
 					var failed_info = {};
@@ -289,7 +292,7 @@ var pool={
 				});
 			})(link_details);
 		}
-		var dict = {"done":true,"data":data,"response":status, "lastModified":stamp1,"updatedBy":config.getConfig("bot_name")};
+		
 		
 		if(check.assigned(redirect_url)){
 			dict["redirect_url"] = redirect_url;
