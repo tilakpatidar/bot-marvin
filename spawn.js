@@ -265,24 +265,25 @@ var bot={
 		var done_len=0;
 		var init_time=new Date().getTime();
 		req.on("response",function(res){
+
+			if(check.assigned(res) && res.headers.location !== req_url){
+				//if page is redirect
+				try{
+						if(check.assigned(res.headers.location)){
+							link.setRedirectedURL(res.headers.location);
+						}
+				}catch(err){
+					//log.put("Child killed","error")
+				}
+			}
 //#debug#(arguments)
 			var len = parseInt(res.headers['content-length'], 10);
 			if(!check.assigned(len) || !check.number(len)){
 				len=0;
 			}
 			if(len>config.getConfig("http","max_content_length")){
-					log.put("content-length is more than specified","error");
-					try{
-						link.setStatusCode("ContentOverflow");
-						link.setParsed({});
-						link.setResponseTime(0);
-						link.setContent({});
-						process.send({"bot":"spawn","setCrawled":link.details});
-					}catch(err){
-						//log.put("Child killed","error")
-					}
+					req.emit('error',"ContentOverflow");
 					
-					 return bot.isLinksFetched();
 			}
 			res.on("data",function(chunk){
 				done_len+=chunk.length;
@@ -290,46 +291,16 @@ var bot={
 			 	html += c;
 			 	var t=new Date().getTime();
 			 	if((t-init_time)>config.getConfig("http","timeout")){
-					log.put("Connection timedout change http.timeout setting in config","error");
-					try{
-						link.setStatusCode("ContentTimeOut");
-						link.setParsed({});
-						link.setResponseTime(0);
-						link.setContent({});
-						process.send({"bot":"spawn","setCrawled":link.details});
-					}catch(err){
-						//log.put("Child killed","error")
-					}
-					
-					return bot.isLinksFetched();
+					req.emit('error',"ContentTimeOut");
 			 	}
 			 	if(done_len>config.getConfig("http","max_content_length")){
-					log.put("content-length is more than specified","error");
-					try{
-						link.setStatusCode("ContentOverflow");
-						link.setParsed({});
-						link.setResponseTime(0);
-						link.setContent({});
-						process.send({"bot":"spawn","setCrawled":link.details});
-					}catch(err){
-						//log.put("Child killed","error")
-					}
-					
-					return bot.isLinksFetched();
+					req.emit('error',"ContentOverflow");
 				}
 			});
 			res.on("error",function(err){
 				//#debug#(err )
 				//console.log(err,err.type)
-				try{
-					link.setStatusCode(err.type);
-					link.setParsed({});
-					link.setResponseTime(0);
-					link.setContent({});
-					process.send({"bot":"spawn","setCrawled": link.details});
-				}catch(errr){
-
-				}
+				req.emit("error",err);
 				
 			});
 			res.on("end",function(){
@@ -374,15 +345,45 @@ var bot={
 		req.on("error",function(err){
 			//#debug#(err)
 			//console.log("req  ",err,err.type)
-			try{
-				link.setStatusCode(err.code);
-				link.setParsed({});
-				link.setResponseTime(0);
-				link.setContent({});
-				process.send({"bot":"spawn","setCrawled":link.details});
-			}catch(errr){
+			if(err === "ContentTimeOut"){
+					log.put("Connection timedout change http.timeout setting in config","error");
+					try{
+						link.setStatusCode("ContentTimeOut");
+						link.setParsed({});
+						link.setResponseTime(0);
+						link.setContent({});
+						process.send({"bot":"spawn","setCrawled":link.details});
+					}catch(err){
+						//log.put("Child killed","error")
+					}
+					
+					return bot.isLinksFetched();
+			}else if(err === "ContentOverflow"){
+				log.put("content-length is more than specified","error");
+					try{
+						link.setStatusCode();
+						link.setParsed({});
+						link.setResponseTime(0);
+						link.setContent({});
+						process.send({"bot":"spawn","setCrawled":link.details});
+					}catch(err){
+						//log.put("Child killed","error")
+					}
+					
+					 return bot.isLinksFetched();
 
+			}else{
+					try{
+						link.setStatusCode(err.code);
+						link.setParsed({});
+						link.setResponseTime(0);
+						link.setContent({});
+						process.send({"bot":"spawn","setCrawled":link.details});
+					}catch(errr){
+
+					}
 			}
+
 			
 		});
 
