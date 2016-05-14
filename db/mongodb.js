@@ -1168,10 +1168,7 @@ var pool={
 					var hashes={};
 					var intervals=config.getConfig("recrawl_intervals");
 
-					for(var k in intervals){
-						if(!(k in distinct_fetch_intervals)){
-							continue;
-						}
+					for(var k in distinct_fetch_intervals){
 						hashes[k]={};
 						hashes[k]["id"]=new Date().getTime()+""+parseInt(Math.random()*10000);
 						hashes[k]["links"]=[];
@@ -1181,23 +1178,10 @@ var pool={
 
 					var n_domains=_.size(that.cache);
 					
-					var interval_size=_.size(intervals);
+					var interval_size=_.size(distinct_fetch_intervals);
 					var completed=0;
-					for(var k in intervals){
-						if(!(k in distinct_fetch_intervals)){
-							++completed;
-							if(check.emptyObject(hashes)){
-								process.bucket_creater_locked=false;
-								continue;
-							}
-							//#debug#console.log(hashes)
-							if(completed===interval_size){
-								pusher(hashes,function(){
-									process.bucket_creater_locked=false;
-								});
-							}
-							break;
-						}
+					for(var k in distinct_fetch_intervals){
+						
 						(function(k){
 								log.put('Generating bucket for '+k+' interval','info');
 								var done=0;
