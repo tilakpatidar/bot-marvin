@@ -269,7 +269,7 @@ var pool={
 		var status = link_details.status_code;
 		var stamp1 = new Date().getTime();
 		var redirect_url = link_details.redirect;
-
+		console.log(link_details);
 
 
 		if(!check.assigned(data)){
@@ -288,8 +288,8 @@ var pool={
 			
 			from_failed_queue = true;
 			failed_count = parseInt(link_details.bucket_id.replace('failed_queue_','').split('_').pop()) + 1;
-			failed_id = parseInt(link_details.bucket_id.replace('failed_queue_','').split('_')[0]);
-			console.log(link_details.url+' from failed_queue',failed_id,'\t',failed_count);
+			failed_id = parseInt(link_details.bucket_id.replace('failed_queue_','').split('_')[1]);
+			//console.log(link_details.url+' from failed_queue',failed_id,'\t',failed_count);
 		}
 
 
@@ -303,7 +303,7 @@ var pool={
 					(function(failed_id, url){
 						failed_db.parallelize(function() {
 							failed_db.run("DELETE FROM q WHERE id=?",[failed_id],function(e,r){
-									console.log(e,failed_id,'marked abandoned');
+									//console.log(e,failed_id,'marked abandoned');
 									log.put('Deleted from failed queue and abandoned'+url,'info');
 
 							});
@@ -315,8 +315,8 @@ var pool={
 					//inc by one and status = 0
 					(function(url, failed_id){
 							failed_db.parallelize(function() {
-								failed_db.run("UPDATE q SET count = count+1  AND status=0 WHERE id=?",[failed_id],function(e,r){
-									console.log('counter increased ',failed_id);
+								failed_db.run("UPDATE q SET count = count+1, status=0 WHERE id=?",[failed_id],function(e,r){
+									//console.log('counter increased ',failed_id);
 									log.put('Retry in failed queue '+url,'info');
 								});	
 							});
