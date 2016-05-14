@@ -262,8 +262,9 @@ var bot={
 		bot.active_sockets+=1;
 		
 		var req=request({uri:req_url,followRedirect:true,pool:separateReqPool,timeout:config.getConfig("http", "timeout"),headers:config.getConfig("http","headers")});
-		var html="";
+		var html=[];
 		var done_len=0;
+		var init_time=new Date().getTime();
 		var sent = false;
 		req.on("response",function(res){
 
@@ -285,8 +286,11 @@ var bot={
 			res.on("data",function(chunk){
 				done_len+=chunk.length;
 				var c=chunk.toString();
-			 	html += c;
-			 	
+			 	html.push(c);
+			 	var t=new Date().getTime();
+-			 	if((t-init_time)>config.getConfig("http","callback_timeout")){
+-					req.emit('error',"ETIMEDOUT_CALLBACK");
+-			 	}
 			 	if(done_len>config.getConfig("http","max_content_length")){
 					req.emit('error',"ContentOverflow");
 				}
@@ -299,6 +303,7 @@ var bot={
 			});
 			res.on("end",function(){
 				bot.active_sockets-=1;
+				html = html.join("");
 				if(!check.assigned(html)){
 					//some error with the request return silently
 					log.put("Max sockets reached read docs/maxSockets.txt","error");
@@ -345,7 +350,24 @@ var bot={
 		req.on("error",function(err){
 			//#debug#(err)
 			//console.log("req  ",err,err.type)
-			if(err === "ContentOverflow"){
+			if(err === "ETIMEDOUT_CALLBACK"){
+					log.put("Connection timedout change http.callback_timeout setting in config","error");
+					try{
+						link.setStatusCode("ETIMEDOUT_CALLBACK");
+						link.setParsed({});
+						link.setResponseTime(0);
+						link.setContent({});
+						if(!sent){
+							process.send({"bot":"spawn","setCrawled":link.details});
+							sent = true;
+						}
+					}catch(err){
+						//log.put("Child killed","error")
+					}
+					
+					return bot.isLinksFetched();
+			}
+			else if(err === "ContentOverflow"){
 				log.put("content-length is more than specified","error");
 					try{
 						link.setStatusCode("ContentOverflow");
@@ -385,6 +407,7 @@ var bot={
 					}catch(errr){
 
 					}
+					return bot.isLinksFetched();
 			}
 
 			

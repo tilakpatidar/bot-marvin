@@ -13,7 +13,8 @@ var config={
   "retry_times_failed_pages":3,
   "failed_queue_size":100,
   "http": {
-    "timeout": 10000,
+    "callback_timeout": 20000,
+    "timeout": 5000,
     "max_content_length": 10485760,
     "follow_redirect": true,
     "max_sockets_per_host": 10,
