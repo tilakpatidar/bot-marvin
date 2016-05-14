@@ -288,9 +288,9 @@ var bot={
 				var c=chunk.toString();
 			 	html.push(c);
 			 	var t=new Date().getTime();
--			 	if((t-init_time)>config.getConfig("http","callback_timeout")){
--					req.emit('error',"ETIMEDOUT_CALLBACK");
--			 	}
+			 	if((t-init_time)>config.getConfig("http","callback_timeout")){
+					req.emit('error',"ETIMEDOUT_CALLBACK");
+			 	}
 			 	if(done_len>config.getConfig("http","max_content_length")){
 					req.emit('error',"ContentOverflow");
 				}
