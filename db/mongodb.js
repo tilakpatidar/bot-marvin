@@ -1033,6 +1033,12 @@ var pool={
 		}
 	},
 	"bucketOperation":{
+		/*var descriptions
+		that.bucket_priority type->list when seed file is read it is stored with dicts of each seed info
+		that.bucket_pointer just an int counter to iterate on that.bucket_priority
+		
+
+		*/
 		"getCurrentDomain":function(){
 
 			var that=this.parent;
@@ -1080,6 +1086,7 @@ var pool={
 					var completed=0;
 					for(var k in intervals){
 						(function(k){
+								log.put('Generating bucket for '+k+' interval','info');
 								var done=0;
 								var domains=[];
 								var summer=0;
@@ -1089,7 +1096,9 @@ var pool={
 									var d=that.bucketOperation.getCurrentDomain();
 									//#debug#console.log(d)
 									if(first_pointer===that.bucket_pointer){
+										//when round is complete
 										if(domains.length===0){
+											//entire round is complete and still we got zero domains
 											continue_flag=true; //got nothing skip this fetch_interval
 										}
 										else{
@@ -1100,14 +1109,17 @@ var pool={
 									}
 									
 									if(d["fetch_interval"]!==k){
+											//if fetched domain does not have the fetch interval we are looking for
 											continue;
 									}
 									summer+=d["priority"];
 									domains.push(d);
 									if(summer===10){
+										//when ratio is complete break
 										break;
 									}
 									else if(summer>10){
+										//retrace if sum > 10
 										summer-=d["priority"];
 										that.bucket_pointer-=1;//dec
 										domains.pop();
@@ -1120,6 +1132,7 @@ var pool={
 									//#debug#console.log("skip");
 									return;
 								}
+								log.put('Got domains '+domains+' for fetch_interval '+k+' for bucket creator','info');
 								//#debug#console.log("heree")
 								for (var i = 0; i < domains.length; i++) {
 									//#debug#console.log(i)
@@ -1135,11 +1148,9 @@ var pool={
 											//#debug#console.log(key,eachh,k);
 											that.bucketOperation.dequeue(key,eachh,k,function(l){
 												//#debug#console.log(l,"dequeue	"+l);
-													for (var i = 0; i < l.length; i++) {
-														var urldata=l[i];
 
-														hashes[k]["links"].push(urldata);
-													};
+													hashes[k]["links"] = hashes[k]["links"].concat(l);
+													
 													++done;
 													if(done===limit){
 														++completed;
@@ -1243,6 +1254,7 @@ var pool={
 			var that=this.parent;
 			var li=[];
 			var rem=[];
+				log.put('Fetch '+count+' urls from '+domain+' for bucket creation','info');
 				that.mongodb_collection.find({"domain":domain,"bucket_id":null,"done":false,"fetch_interval":interval,"partitionedBy":config.getConfig("bot_name")},{limit:count}).toArray(function(err,object){
 					
 					//#debug#console.log(object)
