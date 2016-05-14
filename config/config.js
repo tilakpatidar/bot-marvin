@@ -11,6 +11,7 @@ var config={
   "text_editor": "nano",
   "web_graph":true,
   "retry_times_failed_pages":3,
+  "failed_queue_size":100,
   "http": {
     "timeout": 10000,
     "max_content_length": 10485760,
