@@ -330,7 +330,7 @@ var pool={
 							var failed_info = {};
 							failed_info['bucket_id'] = link_details.bucket_id;
 							failed_info['domain'] = link_details.domain;
-							failed_db.run("INSERT OR IGNORE INTO q(failed_url,failed_info,status) VALUES(?,?,0)",[link_details.url,JSON.stringify(failed_info)],function(err,row){
+							failed_db.run("INSERT OR IGNORE INTO q(failed_url,failed_info,status,count) VALUES(?,?,0,0)",[link_details.url,JSON.stringify(failed_info)],function(err,row){
 								
 							});
 						});
