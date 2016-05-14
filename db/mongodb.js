@@ -29,7 +29,7 @@ var fs=require('fs');
 var urllib=require('url');
 var cluster;
 var failed_db = new sqlite3.Database(__dirname+'/db/sqlite/failed_queue');
-db.serialize(function() {
+failed_db.serialize(function() {
 	db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,failed_url TEXT UNIQUE,failed_info TEXT,status INTEGER)");
 });
 //read seed file
