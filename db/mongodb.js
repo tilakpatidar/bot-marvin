@@ -1011,7 +1011,7 @@ var pool={
 					dic["processed_buckets"]=lm;
 						that.mongodb_collection.find({"done":true,"response":{"$eq":200,"$exists":true}}).count(function(err,crawled_count){
 							dic["crawled_count"]=crawled_count;
-							that.mongodb_collection.find({"done":true,"response":{"$nin":[200,"inTikaQueue"],"$exists":true}}).count(function(err,failed_count){
+							that.mongodb_collection.find({"done":true,"abandoned":{"$eq":true,"$exists":true}}).count(function(err,failed_count){
 								dic["failed_count"]=failed_count;
 								fn(dic);
 								return;
