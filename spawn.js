@@ -264,6 +264,7 @@ var bot={
 		var html="";
 		var done_len=0;
 		var init_time=new Date().getTime();
+		var sent = false;
 		req.on("response",function(res){
 
 			if(check.assigned(res) && res.headers.location !== req_url){
@@ -313,7 +314,10 @@ var bot={
 						link.setParsed({});
 						link.setResponseTime(0);
 						link.setContent({});
-						process.send({"bot":"spawn","setCrawled":link.details});
+						if(!sent){
+							process.send({"bot":"spawn","setCrawled":link.details});
+							sent = true;
+						}
 					}catch(err){
 					//	log.put("Child killed","error")
 					}
@@ -333,7 +337,10 @@ var bot={
 					link.setParsed(dic[1]);
 					link.setResponseTime(0);
 					link.setContent(dic[3]);
-					process.send({"bot":"spawn","setCrawled":link.details});
+					if(!sent){
+							process.send({"bot":"spawn","setCrawled":link.details});
+							sent = true;
+					}
 				}catch(err){
 				//log.put("Child killed","error")
 				}
@@ -352,7 +359,10 @@ var bot={
 						link.setParsed({});
 						link.setResponseTime(0);
 						link.setContent({});
-						process.send({"bot":"spawn","setCrawled":link.details});
+						if(!sent){
+							process.send({"bot":"spawn","setCrawled":link.details});
+							sent = true;
+						}
 					}catch(err){
 						//log.put("Child killed","error")
 					}
@@ -365,7 +375,10 @@ var bot={
 						link.setParsed({});
 						link.setResponseTime(0);
 						link.setContent({});
-						process.send({"bot":"spawn","setCrawled":link.details});
+						if(!sent){
+							process.send({"bot":"spawn","setCrawled":link.details});
+							sent = true;
+						}
 					}catch(err){
 						//log.put("Child killed","error")
 					}
@@ -378,7 +391,10 @@ var bot={
 						link.setParsed({});
 						link.setResponseTime(0);
 						link.setContent({});
-						process.send({"bot":"spawn","setCrawled":link.details});
+						if(!sent){
+							process.send({"bot":"spawn","setCrawled":link.details});
+							sent = true;
+						}
 					}catch(errr){
 
 					}
