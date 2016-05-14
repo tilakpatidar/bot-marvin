@@ -227,10 +227,10 @@ var bot={
 			return bot.fetch(link);
 		}
 		else{
-			var lastTime=bot.lastAccess[domain];
+			var lastTime=bot.lastAccess[link.details.domain];
 			if(!check.assigned(lastTime)){
 				//first time visit,set time
-				bot.lastAccess[domain]=new Date().getTime();
+				bot.lastAccess[link.details.domain]=new Date().getTime();
 				bot.fetch(link);
 			}
 			else{
@@ -240,10 +240,10 @@ var bot={
 
 	},
 	"queueWait":function(link, time){
-		var lastTime=bot.lastAccess[domain];
+		var lastTime=bot.lastAccess[link.details.domain];
 			var current_time=new Date().getTime();
 				if(current_time<(lastTime+time)){
-					bot.lastAccess[domain]=current_time;
+					bot.lastAccess[link.details.domain]=current_time;
 					bot.fetch(link);
 				}
 				else{
