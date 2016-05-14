@@ -323,6 +323,7 @@ var pool={
 
 				}
 			}else{
+
 					dict['abandoned'] = false;
 					(function(link_details){
 						failed_db.parallelize(function() {
@@ -338,16 +339,18 @@ var pool={
 		}else{
 			
 				//link is from failed_queue and is successfull now
-				(function(url, failed_id){
-						failed_db.parallelize(function() {
-							failed_db.run("DELETE FROM q WHERE id=?",[failed_id],function(err,row){
-								log.put(url+' from failed_queue is sucessfull now','info');
+				if(from_failed_queue){
+					(function(url, failed_id){
+							failed_db.parallelize(function() {
+								failed_db.run("DELETE FROM q WHERE id=?",[failed_id],function(err,row){
+									log.put(url+' from failed_queue is sucessfull now','info');
+								});
+
 							});
 
-						});
 
-
-				})(link_details.url,failed_id);
+					})(link_details.url,failed_id);
+				}
 
 
 			
