@@ -263,6 +263,7 @@ var pool={
 		var data = link_details.parsed_content;
 		var status = link_details.status_code;
 		var stamp1 = new Date().getTime();
+		var redirect_url = link_details.redirect;
 		if(!check.assigned(data)){
 
 			data="";
@@ -271,7 +272,14 @@ var pool={
 		if(!check.assigned(status)){
 			status="0";//no error
 		}
-		that.mongodb_collection.updateOne({"_id":url},{$set:{"done":true,"data":data,"response":status,"lastModified":stamp1,"updatedBy":config.getConfig("bot_name")}},function(err,results){
+		
+		var dict = {"done":true,"data":data,"response":status, "lastModified":stamp1,"updatedBy":config.getConfig("bot_name")};
+		
+		if(check.assigned(redirect_url)){
+			dict["redirect_url"] = redirect_url;
+		}
+
+		that.mongodb_collection.updateOne({"_id":url},{$set:dict},function(err,results){
 			//console.log(err,results)
 			if(status!==200){
 				process.bot.updateStats("failedPages",1);
