@@ -28,6 +28,7 @@ var seed_collection=config.getConfig("mongodb","seed_collection");
 var fs=require('fs');
 var urllib=require('url');
 var cluster;
+var distinct_fetch_intervals = {}; //keeps track of distinct fetch intervals
 var failed_db = new sqlite3.Database(__dirname+'/sqlite/failed_queue');
 failed_db.serialize(function() {
 	failed_db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,failed_url TEXT UNIQUE,failed_info TEXT,status INTEGER, count INTEGER)");
@@ -464,6 +465,7 @@ var pool={
 				k['parseFile']=dic[key]['parseFile'];
 				k["priority"]=parseInt(dic[key]['priority']);
 				k["fetch_interval"]=dic[key]['fetch_interval'];
+				distinct_fetch_intervals[dic[key]['fetch_interval']] = true; //mark the fetch interval for bucket creation
 				links[URL.normalize(key.replace(/#dot#/gi,"."))]=k;
 				links1.push(URL.normalize(key.replace(/#dot#/gi,".")));
 				links2.push(dic[key]['fetch_interval']);
@@ -1167,7 +1169,9 @@ var pool={
 					var intervals=config.getConfig("recrawl_intervals");
 
 					for(var k in intervals){
-						
+						if(!(k in distinct_fetch_intervals)){
+							continue;
+						}
 						hashes[k]={};
 						hashes[k]["id"]=new Date().getTime()+""+parseInt(Math.random()*10000);
 						hashes[k]["links"]=[];
@@ -1180,6 +1184,10 @@ var pool={
 					var interval_size=_.size(intervals);
 					var completed=0;
 					for(var k in intervals){
+						if(!(k in distinct_fetch_intervals)){
+							++completed;
+							continue;
+						}
 						(function(k){
 								log.put('Generating bucket for '+k+' interval','info');
 								var done=0;
