@@ -283,10 +283,10 @@ var pool={
 			//if 4xx or 5XX series status code then add to failed queue
 			dict['abandoned'] = false;
 			(function(link_details){
-				db.parallelize(function() {
+				failed_db.parallelize(function() {
 					var failed_info = {};
 					failed_info['bucket_id'] = link_details.bucket_id;
-					db.run("INSERT OR IGNORE INTO q(failed_url,failed_info,status) VALUES(?,?,0)",[link_details.url,JSON.stringify(failed_info)],function(err,row){
+					failed_db.run("INSERT OR IGNORE INTO q(failed_url,failed_info,status) VALUES(?,?,0)",[link_details.url,JSON.stringify(failed_info)],function(err,row){
 						
 					});
 				});
