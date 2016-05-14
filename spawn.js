@@ -161,7 +161,7 @@ var bot={
 					
 					try{
 							process.send({"bot":"spawn","addToPool":[link.details.url, link.details.domain, url.details.url, config.getConfig("default_recrawl_interval")]});
-							process.send({"bot":"spawn","graph":[link.details.url, url.details.url]});
+							//process.send({"bot":"spawn","graph":[link.details.url, url.details.url]});
 					}catch(err){
 						//log.put("Child killed","error")
 					}
