@@ -261,7 +261,7 @@ var bot={
 		}
 		bot.active_sockets+=1;
 		
-		var req=request({uri:req_url,followRedirect:true,pool:separateReqPool,timeout:config.get("http", "timeout"),headers:config.getConfig("http","headers")});
+		var req=request({uri:req_url,followRedirect:true,pool:separateReqPool,timeout:config.getConfig("http", "timeout"),headers:config.getConfig("http","headers")});
 		var html="";
 		var done_len=0;
 		var sent = false;
