@@ -372,7 +372,7 @@ var bot={
 			}else if(err === "ContentOverflow"){
 				log.put("content-length is more than specified","error");
 					try{
-						link.setStatusCode();
+						link.setStatusCode("ContentOverflow");
 						link.setParsed({});
 						link.setResponseTime(0);
 						link.setContent({});

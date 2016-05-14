@@ -269,7 +269,6 @@ var pool={
 		var status = link_details.status_code;
 		var stamp1 = new Date().getTime();
 		var redirect_url = link_details.redirect;
-		console.log(link_details);
 
 
 		if(!check.assigned(data)){
@@ -293,7 +292,7 @@ var pool={
 		}
 
 
-		if((status+"").charAt(0) === '4' || (status+"").charAt(0) === '5'  || data === ""){
+		if((status+"").charAt(0) === '4' || (status+"").charAt(0) === '5'  || data === "" || status ==="ContentTimeOut" || status === -1){
 			//if 4xx or 5XX series status code then add to failed queue
 			if(from_failed_queue){
 				//then check the count
