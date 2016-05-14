@@ -1132,7 +1132,7 @@ var pool={
 									//#debug#console.log("skip");
 									return;
 								}
-								log.put('Got domains '+domains+' for fetch_interval '+k+' for bucket creator','info');
+								log.put('Got domains '+JSON.stringify(domains)+' for fetch_interval '+k+' for bucket creator','info');
 								//#debug#console.log("heree")
 								for (var i = 0; i < domains.length; i++) {
 									//#debug#console.log(i)
@@ -1259,6 +1259,7 @@ var pool={
 					
 					//#debug#console.log(object)
 					if(check.assigned(object) && object.length!==0){
+						log.put('Fetched '+object.length+' urls from '+domain+' for bucket creation','info');
 						//console.log(object,domain,interval)
 						rem=_.pluck(object,"_id"); 
 						//#debug#console.log(rem)
