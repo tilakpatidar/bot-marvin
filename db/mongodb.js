@@ -1186,7 +1186,17 @@ var pool={
 					for(var k in intervals){
 						if(!(k in distinct_fetch_intervals)){
 							++completed;
-							continue;
+							if(check.emptyObject(hashes)){
+								process.bucket_creater_locked=false;
+								continue;
+							}
+							//#debug#console.log(hashes)
+							if(completed===interval_size){
+								pusher(hashes,function(){
+									process.bucket_creater_locked=false;
+								});
+							}
+							break;
 						}
 						(function(k){
 								log.put('Generating bucket for '+k+' interval','info');
