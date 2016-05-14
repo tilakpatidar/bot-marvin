@@ -269,6 +269,9 @@ var pool={
 		var status = link_details.status_code;
 		var stamp1 = new Date().getTime();
 		var redirect_url = link_details.redirect;
+
+
+
 		if(!check.assigned(data)){
 
 			data="";
@@ -278,19 +281,76 @@ var pool={
 			status="0";//no error
 		}
 		var dict = {"done":true,"data":data,"response":status, "lastModified":stamp1,"updatedBy":config.getConfig("bot_name")};
+		var from_failed_queue = false;
+		var failed_count = 0;
+		var failed_id = 0;
+		if(link_details.bucket_id.indexOf('failed_queue')>=0){
+			from_failed_queue = true;
+			failed_count = parseInt(link_details.bucket_id.replace('failed_queue_','').split('_').pop()) + 1;
+			failed_id = parseInt(link_details.bucket_id.replace('failed_queue_','').split('_')[0]);
+		}
+
 
 		if((status+"").charAt(0) === '4' || (status+"").charAt(0) === '5'  || data === ""){
 			//if 4xx or 5XX series status code then add to failed queue
-			dict['abandoned'] = false;
-			(function(link_details){
-				failed_db.parallelize(function() {
-					var failed_info = {};
-					failed_info['bucket_id'] = link_details.bucket_id;
-					failed_db.run("INSERT OR IGNORE INTO q(failed_url,failed_info,status) VALUES(?,?,0)",[link_details.url,JSON.stringify(failed_info)],function(err,row){
-						
-					});
-				});
-			})(link_details);
+			if(from_failed_queue){
+				//then check the count
+				if(failed_count >= config.getConfig("retry_times_failed_pages")){
+					dict["abandoned"] = true;
+					//if so mark abandoned and delete from queue
+					(function(failed_id, url){
+						failed_db.parallelize(function() {
+							db.run("DELETE FROM q WHERE id=?",[failed_id],function(e,r){
+
+									log.put('Deleted from failed queue and abandoned'+url,'info');
+
+							});
+						});
+					})(failed_id, link_details.url);
+
+				}
+				else{
+					//inc by one and status = 0
+					(function(url, failed_id){
+							failed_db.parallelize(function() {
+								db.run("UPDATE q SET count = count+1  AND status=0 WHERE id=?",[failed_id],function(e,r){
+									log.put('Retry in failed queue '+url,'info');
+								});	
+							});
+
+
+					})(link_details.url,failed_id);					
+
+				}
+			}else{
+					dict['abandoned'] = false;
+					(function(link_details){
+						failed_db.parallelize(function() {
+							var failed_info = {};
+							failed_info['bucket_id'] = link_details.bucket_id;
+							failed_info['domain'] = link_details.domain;
+							failed_db.run("INSERT OR IGNORE INTO q(failed_url,failed_info,status) VALUES(?,?,0)",[link_details.url,JSON.stringify(failed_info)],function(err,row){
+								
+							});
+						});
+					})(link_details);
+			}
+		}else{
+			
+				//link is from failed_queue and is successfull now
+				(function(url, failed_id){
+						failed_db.parallelize(function() {
+							failed_db.run("DELETE FROM q WHERE id=?",[failed_id],function(err,row){
+								log.put(url+' from failed_queue is sucessfull now','info');
+							});
+
+						});
+
+
+				})(link_details.url,failed_id);
+
+
+			
 		}
 		
 		

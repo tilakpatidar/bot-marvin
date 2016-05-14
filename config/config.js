@@ -10,6 +10,7 @@ var config={
   "env": "/usr/local/bin/node",
   "text_editor": "nano",
   "web_graph":true,
+  "retry_times_failed_pages":3,
   "http": {
     "timeout": 10000,
     "max_content_length": 10485760,
