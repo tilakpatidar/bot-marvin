@@ -302,6 +302,8 @@ var pool={
 					(function(failed_id, url){
 						failed_db.parallelize(function() {
 							failed_db.run("DELETE FROM q WHERE id=?",[failed_id],function(e,r){
+									
+									process.bot.updateStats("failedPages",1);
 									//console.log(e,failed_id,'marked abandoned');
 									log.put('Deleted from failed queue and abandoned'+url,'info');
 
@@ -345,6 +347,7 @@ var pool={
 					(function(url, failed_id){
 							failed_db.parallelize(function() {
 								failed_db.run("DELETE FROM q WHERE id=?",[failed_id],function(err,row){
+									process.bot.updateStats("crawledPages",1);
 									log.put(url+' from failed_queue is sucessfull now','info');
 								});
 
@@ -352,6 +355,8 @@ var pool={
 
 
 					})(link_details.url,failed_id);
+				}else{
+					process.bot.updateStats("crawledPages",1);
 				}
 
 
@@ -365,15 +370,13 @@ var pool={
 
 		that.mongodb_collection.updateOne({"_id":url},{$set:dict},function(err,results){
 			//console.log(err,results)
-			if(status!==200){
-				process.bot.updateStats("failedPages",1);
-			}
+			
 			if(err){
 				log.put("pool.setCrawled","error");
 			}
 			else{
 				log.put(("Updated "+url),"success");
-				process.bot.updateStats("crawledPages",1);
+				
 			}
 			
 		});

@@ -268,15 +268,11 @@ var bot={
 		var sent = false;
 		req.on("response",function(res){
 
-			if(check.assigned(res) && res.headers.location !== req_url){
+			if(check.assigned(res) && check.assigned(res.headers.location) && res.headers.location !== req_url){
 				//if page is redirect
-				try{
-						if(check.assigned(res.headers.location)){
-							link.setRedirectedURL(res.headers.location);
-						}
-				}catch(err){
-					//log.put("Child killed","error")
-				}
+				log.put(req_url+" redirected to "+res.headers.location,'info');
+				link.setRedirectedURL(res.headers.location);
+				
 			}
 //#debug#(arguments)
 			var len = parseInt(res.headers['content-length'], 10);
