@@ -53,6 +53,7 @@ var bot={
 				var url=pools[i]['_id'];
 				var domain=pools[i]['domain'];
 				var link = URL.url(url, domain);
+				link.setBucketId(pools[i]['bucket_id']);
 				(function(link){
 					setTimeout(function(){ bot.processLink(link); }, 100); //to avoid recursion
 				})(link);

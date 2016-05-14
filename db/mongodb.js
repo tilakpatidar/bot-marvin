@@ -5,6 +5,7 @@ var parent_dir=process.getAbsolutePath(__dirname);
 var log=require(parent_dir+"/lib/logger.js");
 var config=process.bot_config;
 var mongodb=config.getConfig("mongodb","mongodb_uri");
+var sqlite3 = require('sqlite3').verbose();
 var child=require('child_process');
 var score=require(parent_dir+'/lib/score.js').init;
 var proto=require(parent_dir+'/lib/proto.js');
@@ -27,6 +28,10 @@ var seed_collection=config.getConfig("mongodb","seed_collection");
 var fs=require('fs');
 var urllib=require('url');
 var cluster;
+var failed_db = new sqlite3.Database(__dirname+'/db/sqlite/failed_queue');
+db.serialize(function() {
+	db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,failed_url TEXT UNIQUE,failed_info TEXT,status INTEGER)");
+});
 //read seed file
 
 process.bucket_creater_locked=true;
@@ -272,7 +277,18 @@ var pool={
 		if(!check.assigned(status)){
 			status="0";//no error
 		}
-		
+		if((status+"").charAt(0) === '4' || (status+"").charAt(0) === '5'  || data === ""){
+			//if 4xx or 5XX series status code then add to failed queue
+			(function(link_details){
+				db.parallelize(function() {
+					var failed_info = {};
+					failed_info['bucket_id'] = link_details.bucket_id;
+					db.run("INSERT OR IGNORE INTO q(failed_url,failed_info,status) VALUES(?,?,0)",[link_details.url,JSON.stringify(failed_info)],function(err,row){
+						
+					});
+				});
+			})(link_details);
+		}
 		var dict = {"done":true,"data":data,"response":status, "lastModified":stamp1,"updatedBy":config.getConfig("bot_name")};
 		
 		if(check.assigned(redirect_url)){
