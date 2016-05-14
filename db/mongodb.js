@@ -272,7 +272,7 @@ var pool={
 			status="0";//no error
 		}
 		that.mongodb_collection.updateOne({"_id":url},{$set:{"done":true,"data":data,"response":status,"lastModified":stamp1,"updatedBy":config.getConfig("bot_name")}},function(err,results){
-			console.log(err,results)
+			//console.log(err,results)
 			if(status!==200){
 				process.bot.updateStats("failedPages",1);
 			}
@@ -851,7 +851,7 @@ var pool={
 				}
 			});
 		},
-		"getBotConfig":function(bot_name,fn){
+		"getBotConfig":function getBotConfig(bot_name,fn){
 			var that=this.parent;
 			that.bot_collection.findOne({"_id":bot_name},function(err,results){
 				fn(err,results);
@@ -859,7 +859,7 @@ var pool={
 
 			});
 		},
-		"getSeed":function(fn){
+		"getSeed":function getSeed(fn){
 			var that=this.parent;
 			that.seed_collection.find({}).toArray(function(err,results){
 					var seeds=results;
@@ -870,7 +870,7 @@ var pool={
 		}
 	},
 	"stats":{
-		"getPage":function(url,fn){
+		"getPage":function stats_getPage(url,fn){
 			var that=this.parent;
 			//#debug#console.log(url)
 			that.mongodb_collection.findOne({"_id":url},function(err,results){
@@ -879,7 +879,7 @@ var pool={
 				return;
 			});
 		},
-		"getBucket":function(url,fn){
+		"getBucket":function stats_getBucket(url,fn){
 			var that=this.parent;
 			//#debug#console.log(url)
 			that.bucket_collection.findOne({"_id":url},function(err,results){
@@ -888,14 +888,14 @@ var pool={
 				return;
 			});
 		},
-		cluster_info:function(id_name,fn){
+		cluster_info:function stats_cluster_info(id_name,fn){
 			var that=this.parent;
 			that.cluster_info_collection.findOne({"_id":id_name},function(err,results){
 				fn(err,results);
 				return;
 			});
 		},
-		"activeBots":function(fn){
+		"activeBots":function stats_activeBots(fn){
 			var that=this.parent;
 			
 			that.bot_collection.find({},{}).toArray(function(err,docs){
@@ -909,7 +909,7 @@ var pool={
 				return;
 			});
 		},
-		"crawlStats":function(fn){
+		"crawlStats":function stats_crawlStats(fn){
 			var dic={};
 			var that=this.parent;
 			that.bucket_collection.find({},{}).count(function(err,bucket_count){
