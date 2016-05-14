@@ -264,7 +264,6 @@ var bot={
 		var req=request({uri:req_url,followRedirect:true,pool:separateReqPool,headers:config.getConfig("http","headers")});
 		var html="";
 		var done_len=0;
-		var init_time=new Date().getTime();
 		var sent = false;
 		req.on("response",function(res){
 
@@ -287,10 +286,7 @@ var bot={
 				done_len+=chunk.length;
 				var c=chunk.toString();
 			 	html += c;
-			 	var t=new Date().getTime();
-			 	if((t-init_time)>config.getConfig("http","timeout")){
-					req.emit('error',"ContentTimeOut");
-			 	}
+			 	
 			 	if(done_len>config.getConfig("http","max_content_length")){
 					req.emit('error',"ContentOverflow");
 				}
@@ -349,23 +345,7 @@ var bot={
 		req.on("error",function(err){
 			//#debug#(err)
 			//console.log("req  ",err,err.type)
-			if(err === "ContentTimeOut"){
-					log.put("Connection timedout change http.timeout setting in config","error");
-					try{
-						link.setStatusCode("ContentTimeOut");
-						link.setParsed({});
-						link.setResponseTime(0);
-						link.setContent({});
-						if(!sent){
-							process.send({"bot":"spawn","setCrawled":link.details});
-							sent = true;
-						}
-					}catch(err){
-						//log.put("Child killed","error")
-					}
-					
-					return bot.isLinksFetched();
-			}else if(err === "ContentOverflow"){
+			if(err === "ContentOverflow"){
 				log.put("content-length is more than specified","error");
 					try{
 						link.setStatusCode("ContentOverflow");
@@ -384,7 +364,17 @@ var bot={
 
 			}else{
 					try{
-						link.setStatusCode(err.code);
+						var code;
+						if(err.code === 'ETIMEDOUT'){
+							if(err.connect === true){
+								code = 'ETIMEDOUT_CONNECTION'
+							}else{
+								code = 'ETIMEDOUT_READ'
+							}
+						}else{
+							code = err.code;
+						}
+						link.setStatusCode(code);
 						link.setParsed({});
 						link.setResponseTime(0);
 						link.setContent({});

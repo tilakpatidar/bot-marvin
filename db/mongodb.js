@@ -293,7 +293,7 @@ var pool={
 		}
 
 
-		if((status+"").charAt(0) === '4' || (status+"").charAt(0) === '5'  || data === "" || status ==="ContentTimeOut" || status === -1){
+		if((status+"").charAt(0) === '4' || (status+"").charAt(0) === '5'  || data === "" || status ==='ETIMEDOUT_CONNECTION' || status ==='ETIMEDOUT_READ' || status === -1){
 			//if 4xx or 5XX series status code then add to failed queue
 			if(from_failed_queue){
 				//then check the count
