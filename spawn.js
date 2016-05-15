@@ -433,24 +433,17 @@ var bot={
 			link.setResponseTime(0);
 			link.setContent({});
 			process.send({"bot":"spawn","setCrawled":link.details});
-			try{
-				process.send({"bot":"spawn","tika":[link.details.url, p]});
-			}catch(err){
-				//add to tika queue otherwise
-				console.log(err);
-				log.put('Tika daemon not running storing job info in sqlite','error');
-				tika_db.parallelize(function() {
-						tika_db.run("INSERT OR IGNORE INTO q(fileName,parseFile,status) VALUES(?,?,0)",[link.details.url,p],function(err,row){
-							if(!err){
-								log.put('Tika job info inserted','success');
-							}
-							
-							//console.log(err+"pushQ");
-							//console.log(JSON.stringify(row)+"pushQ");
-							
-						});
+			tika_db.parallelize(function() {
+				tika_db.run("INSERT OR IGNORE INTO q(fileName,parseFile,status) VALUES(?,?,0)",[link.details.url,p],function(err,row){
+					if(!err){
+						log.put('Tika job info inserted '+link_details.url,'success');
+					}
+					
+					//console.log(err+"pushQ");
+					//console.log(JSON.stringify(row)+"pushQ");
+					
 				});
-			}
+			});
 		}catch(err){
 			//console.log(err);
 		}

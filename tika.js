@@ -437,15 +437,6 @@ if(require.main === module){
 			log.put("pdf-store cache reset","success");
 			separateReqPool = {maxSockets: config.getConfig("tika_max_sockets_per_host")};
 			tika.startServer();
-		}else if(key==="tika"){
-			var d=data["tika"];
-			//console.log(d)
-			queue.enqueue(d[0],d[1],function(row){
-	        	//console.log(fileName+"PUSHED");
-	        	log.put("Tika Got request for "+d[0]+" with parse file "+d[1],"info");
-		        tika.processNext();
-		     
-	        });
 		}
 	        
 
