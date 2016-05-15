@@ -194,8 +194,9 @@ var bot={
 	"addProto":function(robot){
 		robot.canFetch=function(user_agent,url,allowed){
 			var crawl_delay=parseInt(this.defaultEntry["crawl_delay"])*1000;//into milliseconds
-			if(isNaN(crawl_delay)){
-				crawl_delay=0;
+			if(isNaN(crawl_delay) || !check.assigned(crawl_delay)){
+
+				crawl_delay=config.getConfig("http","delay_request_same_host");
 			}
 			if(this.allowAll){
 				return allowed(true,crawl_delay);
@@ -281,7 +282,7 @@ var bot={
 			}
 			if(check.assigned(res) && check.assigned(res.headers['content-type'])){
 				var allowed = config.getConfig('http','accepted_mime_types');
-				var tika_allowed = config.getConfig('tika',"tika_supported_mime");
+				var tika_allowed = config.getConfig("tika_supported_mime");
 				var match = false;
 				var tika_match =false;
 				for(var index in allowed){

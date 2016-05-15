@@ -20,6 +20,7 @@ var config={
     "follow_redirect": true,
     "max_sockets_per_host": 10,
     "max_concurrent_sockets": 10,
+    "delay_request_same_host":3000,
     "accepted_mime_types":["text/html","text/plain","application/xhtml+xml"],
     "headers": {
       "User-Agent": "Mozilla/5.0",
