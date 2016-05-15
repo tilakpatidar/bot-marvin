@@ -75,6 +75,11 @@ var pool={
 													success+=1;
 													log.put(("Added  "+domain+" to initialize pool"),"success");
 												}
+												if(success === 0){
+													that.bucket_collection.removeOne({"_id":stamp},function(){
+														log.put("empty bucket removed ",'success');
+													});
+												}
 												
 												done+=1;
 												if(done===links.length){
@@ -243,6 +248,19 @@ var pool={
 							var refresh_label=object["value"]["recrawlLabel"];
 							that.mongodb_collection.find({"bucket_id":hash},{},{}).toArray(function(err,docs){
 								//#debug#console.log(err,docs);
+								if(!check.assigned(err) && docs.length === 0){
+									//we got empty bucket remove it 
+									//every time seed bucket is readded if seeds are already added
+									//this could lead to empty bucket
+									//remove it if you encouter an empty bucket
+
+									//fixed from seed but still removing any empty bucket
+
+									that.bucket_collection.removeOne({"_id":hash},function(){
+
+										log.put("empty bucket removed ",'success');
+									});
+								}
 									if(err){
 
 										log.put("pool.getNextBatch","error");
