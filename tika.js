@@ -57,14 +57,13 @@ var queue={
 		
 
 	},
-	remove:function (idd,fn){
-		db.serialize(function() {
+	remove:function (idd){
+		db.parallelize(function() {
 			db.run("DELETE FROM q WHERE id=?",[idd],function(err,row){
 					//console.log(err+"QLength");
 					//console.log(JSON.stringify(row)+"QLength");
-					fn(err,row);
-				});
 			});
+		});
 	},
 	length:function (fn){
 		db.serialize(function() {
@@ -288,29 +287,30 @@ var app={
 
 	},
 	"processNext":function(){
-		if(busy){
+		if(process.busy){
 			return;
 		}
-		busy = true;
+		process.busy = true;
 		try{
 				queue.length(function(count){
 					if(!check.assigned(count)){
-						busy =false;
+						process.busy =false;
 						return;
 					}
 					if(check.assigned(count) && count!==0){
-						busy=true;
+						process.busy=true;
 						try{
 							queue.dequeue(function(li){
 								//console.log(li);
 								if(!check.assigned(li)){
-									busy =false;
+									process.busy =false;
 									return;
 								}
 								if(check.assigned(li) && li.length===0){
-									busy=false;
+									process.busy=false;
 									return;
 								}
+								var done = 0;
 								for (var i = li.length - 1; i >= 0; i--) {
 									var obj=li[i];
 										(function(fileName,parseFile,uniqueId){
@@ -398,10 +398,13 @@ var app={
 												
 											}
 											finally{
-												busy=false;
-												queue.remove(uniqueId,function(err,row){
-												//	console.log(row);
-												});
+												++done;
+												if(done === li.length){
+													log.put("Tika batch completed",'success');
+													process.busy=false;
+												}
+												
+												queue.remove(uniqueId);
 												
 													
 											
@@ -413,7 +416,7 @@ var app={
 
 							},config.getConfig("tika_batch_size"));//[[],[]]
 						}catch(e){
-							busy = false;
+							process.busy = false;
 						}
 
 
@@ -424,7 +427,7 @@ var app={
 
 				});
 		}catch(e){
-			busy = false;
+			process.busy = false;
 		}
 
 		
@@ -442,7 +445,7 @@ var app={
 
 };
 exports.init=app;
-var busy=false;
+process.busy=false;
 var tika=app;
 if(require.main === module){
 	
