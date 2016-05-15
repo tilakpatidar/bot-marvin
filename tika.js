@@ -293,7 +293,7 @@ var app={
 				//console.log(li);
 				if(li.length===0){
 					busy=false;
-					return setImmediate(function(){tika.processNext();});
+					return;
 				}
 				for (var i = li.length - 1; i >= 0; i--) {
 					var obj=li[i];
@@ -359,7 +359,6 @@ var app={
 								//	console.log(row);
 								});
 								busy=false;
-								setImmediate(function(){tika.processNext();});
 									
 							
 							}
@@ -398,11 +397,8 @@ if(require.main === module){
 	process.on("message",function(data){
 		//console.log(data);
 		var key=Object.keys(data)[0];
-		if(key==="ping"){
-			//console.log(data[0])
-			//occasional pings to keep queue working
-			return tika.processNext();
-		}else if(key==="init"){
+
+		if(key==="init"){
 			//making init ready
 			var o=data[key];
 			config=config.init(o[0],o[1],o[2]);
@@ -442,6 +438,6 @@ if(require.main === module){
 
 	});
 
- 
+ setInterval(processNext,1000);
 
 }
