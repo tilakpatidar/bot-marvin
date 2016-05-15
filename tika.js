@@ -439,6 +439,6 @@ if(require.main === module){
 
 	});
 
- setInterval(processNext,1000);
+ setInterval(tika.processNext,1000);
 
 }
