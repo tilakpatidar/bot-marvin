@@ -20,7 +20,7 @@ var config={
     "follow_redirect": true,
     "max_sockets_per_host": 10,
     "max_concurrent_sockets": 10,
-    'accepted_mime_types':["text/html","text/plain","application/xhtml+xml"],
+    "accepted_mime_types":["text/html","text/plain","application/xhtml+xml"],
     "headers": {
       "User-Agent": "Mozilla/5.0",
     }
@@ -40,6 +40,7 @@ var config={
   "tika": true,
   "tika_debug":true,
   "tika_supported_files": "__REGEXP /\\.(ppt|doc|pdf|docx|pptx)$/gi",
+  "tika_supported_mime":["application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/vnd.ms-powerpoint","application/vnd.openxmlformats-officedocument.presentationml.presentation","application/pdf","application/x-pdf","application/acrobat", "applications/vnd.pdf", "text/pdf", "text/x-pdf"],
   "tika_batch_size": 5,
   "tika_content_length": 104857600,
   "tika_timeout": 300000,

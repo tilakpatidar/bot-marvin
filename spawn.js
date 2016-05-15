@@ -281,14 +281,28 @@ var bot={
 			}
 			if(check.assigned(res) && check.assigned(res.headers['content-type'])){
 				var allowed = config.getConfig('http','accepted_mime_types');
+				var tika_allowed = config.getConfig('tika',"tika_supported_mime");
 				var match = false;
+				var tika_match =false;
 				for(var index in allowed){
 					if(res.headers['content-type'].indexOf(allowed[index])>=0){
 						match = true;
 					}
+
 				}
-				if(!match){
+				for(var index in tika_allowed){
+					if(res.headers['content-type'].indexOf(tika_allowed[index])>=0){
+						tika_match = true;
+					}
+				}
+
+				if(!match && !tika_match){
 					req.emit('error',"MimeTypeRejected");
+				}
+				if(tika_match){
+					log.put("Tika mime type found transfer to tika queue "+link.details.url,'info');
+					bot.fetchFile(link);
+					req.emit('error','TikaMimeTypeFound');
 				}
 
 			}
@@ -421,7 +435,10 @@ var bot={
 					
 					 return bot.isLinksFetched();
 
-			}else{
+			}else if(msg === "'TikaMimeTypeFound'"){
+				//we already called fetch file just pass 
+			}
+			else{
 					try{
 						var code;
 						if(err.code === 'ETIMEDOUT'){
