@@ -62,7 +62,7 @@ var pool={
 										that.getLinksFromSiteMap(domain,function(){
 											//#debug#console.log(domain)
 															
-											that.mongodb_collection.insert({"_id":domain,"bucket_id":stamp,"domain":domain,"partitionedBy":config.getConfig("bot_name"),"done":false,"fetch_interval":fetch_interval},function(err,results){
+											that.mongodb_collection.insert({"_id":domain,"bucket_id":stamp,"domain":domain,"partitionedBy":config.getConfig("bot_name"),"bucketed":false,"fetch_interval":fetch_interval},function(err,results){
 												//#debug#console.log(err)
 												if(err){
 													log.put("pool.init maybe seed is already added","error");
@@ -195,7 +195,7 @@ var pool={
 						if(that.bot_pointer>=that.bots_partitions.length){
 							that.bot_pointer=0;
 						}
-						that.mongodb_collection.insert({"_id":url,"done":false,"partitionedBy":bot_partition,"domain":domain,"parent":parent,"data":"","bucket_id":hash,"fetch_interval":refresh_time},function(err,results){
+						that.mongodb_collection.insert({"_id":url,"bucketed":false,"partitionedBy":bot_partition,"domain":domain,"parent":parent,"data":"","bucket_id":hash,"fetch_interval":refresh_time},function(err,results){
 							
 							done+=1;
 							if(done===li.length){
@@ -369,6 +369,9 @@ var pool={
 				}else{
 					process.bot.updateStats("crawledPages",1);
 				}
+
+
+				dict["crawled"] = true; //final marker for crawled page
 
 
 			
@@ -554,7 +557,7 @@ var pool={
 			var parent=li[i][2];
 			
 			(function(url,domain,parent,hash){
-				that.mongodb_collection.updateOne({"_id":url},{"$set":{"done":true,"domain":domain,"parent":parent,"data":"","bucket_id":hash}},function(err,results){
+				that.mongodb_collection.updateOne({"_id":url},{"$set":{"bucketed":true,"domain":domain,"parent":parent,"data":"","bucket_id":hash}},function(err,results){
 						if(err){
 							//#debug#console.log(err);
 							//link is already present
@@ -1028,9 +1031,9 @@ var pool={
 				dic["bucket_count"]=bucket_count;
 				that.bucket_collection.find({"lastModified":{"$exists":true}}).count(function(err,lm){
 					dic["processed_buckets"]=lm;
-						that.mongodb_collection.find({"done":true,"response":{"$eq":200,"$exists":true}}).count(function(err,crawled_count){
+						that.mongodb_collection.find({'crawled':{$exists:true}}).count(function(err,crawled_count){
 							dic["crawled_count"]=crawled_count;
-							that.mongodb_collection.find({"done":true,"abandoned":{"$eq":true,"$exists":true}}).count(function(err,failed_count){
+							that.mongodb_collection.find({'crawled':{$exists:false}}).count(function(err,failed_count){
 								dic["failed_count"]=failed_count;
 								fn(dic);
 								return;
@@ -1367,7 +1370,7 @@ var pool={
 			var li=[];
 			var rem=[];
 				log.put('Fetch '+count+' urls from '+domain+' for bucket creation','info');
-				that.mongodb_collection.find({"domain":domain,"bucket_id":null,"done":false,"fetch_interval":interval,"partitionedBy":config.getConfig("bot_name")},{limit:count}).toArray(function(err,object){
+				that.mongodb_collection.find({"domain":domain,"bucket_id":null,"bucketed":false,"fetch_interval":interval,"partitionedBy":config.getConfig("bot_name")},{limit:count}).toArray(function(err,object){
 					
 					//#debug#console.log(object)
 					if(check.assigned(object) && object.length!==0){

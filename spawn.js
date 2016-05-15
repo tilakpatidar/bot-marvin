@@ -428,7 +428,11 @@ var bot={
 			link.setResponseTime(0);
 			link.setContent({});
 			process.send({"bot":"spawn","setCrawled":link.details});
-			process.send({"bot":"spawn","tika":[link.details.url, p]});
+			try{
+
+			}catch(err){
+				process.send({"bot":"spawn","tika":[link.details.url, p]});
+			}
 		}catch(err){
 			//console.log(err);
 		}
