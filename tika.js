@@ -167,7 +167,7 @@ var app={
 	"addFileToStore":function(url,callback){
 		var st=fs.createWriteStream(app.getFileName(url)).on('error',function(err){
 				log.put(err.stack,color_debug);
-				callback("TikeFileStreamError");
+				return callback("TikeFileStreamError");
 		});
 			var req=request({uri: url,pool:separateReqPool,headers:config.getConfig("http","headers")});
 			var done_len=0;
@@ -179,7 +179,7 @@ var app={
 				}
 				if(len>config.getConfig("tika_content_length")){
 						log.put("content-length is more than specified","error");
-						return callback("TikaContentOverflow");
+						res.emit('error',"TikaContentOverflow");
 				}
 				res.on("data",function(chunk){
 					done_len+=chunk.length;
@@ -187,24 +187,30 @@ var app={
 				 	if((t-init_time)>config.getConfig("tika_timeout")){
 				 		//console.log((t-init_time)+"ContentTimeOut");
 						log.put("Connection timedout change tika_timeout setting in config","error");
-						return callback("TikaContentTimeout");
+						res.emit('error',"TikaContentTimeout");
 				 	}
 				 	if(done_len>config.getConfig("tika_content_length")){
 						//console.log(done_len+"ContentOverflowTka");
 						log.put("content-length is more than specified","error");
-						return callback("TikaContentOverflow");
+						res.emit('error',"TikaContentOverflow");
 					}
 				});
 					res.on('error',function(err){
-						log.put(err.stack,color_debug);
-						callback("TikaDownloadFailed");
+						if(err === "TikaContentOverflow" || err === "TikaContentTimeout"){
+							return callback(err);
+						}else{
+							log.put(err.stack,color_debug);
+							return callback("TikaDownloadFailed");	
+						}
+						
+
 
 					}).pipe(st).on('error',function(err){
 						log.put(err.stack,color_debug);
-						callback("TikaFileStoreWriteError");
+						return callback("TikaFileStoreWriteError");
 					}).on('close',function(err){
 						if(!err){
-							callback(null);
+							return callback(null);
 						}else{
 							log.put(err.stack,color_debug);
 						}
