@@ -279,6 +279,20 @@ var bot={
 				link.setRedirectedURL(res.headers.location);
 				
 			}
+			if(check.assigned(res) && check.assigned(res.headers['content-type'])){
+				var allowed = config.getConfig('http','accepted_mime_types');
+				var match = false;
+				for(var index in allowed){
+					if(res.headers['content-type'].indexOf(allowed[index])>=0){
+						match = true;
+					}
+				}
+				if(!match){
+					req.emit('error',"MimeTypeRejected");
+				}
+
+			}
+			
 //#debug#(arguments)
 			var len = parseInt(res.headers['content-length'], 10);
 			if(!check.assigned(len) || !check.number(len)){
@@ -377,6 +391,23 @@ var bot={
 				log.put("content-length is more than specified","error");
 					try{
 						link.setStatusCode("ContentOverflow");
+						link.setParsed({});
+						link.setResponseTime(0);
+						link.setContent({});
+						if(!sent){
+							process.send({"bot":"spawn","setCrawled":link.details});
+							sent = true;
+						}
+					}catch(err){
+						//log.put("Child killed","error")
+					}
+					
+					 return bot.isLinksFetched();
+
+			}else if(msg === "MimeTypeRejected"){
+				log.put("mime type rejected for "+link.details.url,"error");
+					try{
+						link.setStatusCode("MimeTypeRejected");
 						link.setParsed({});
 						link.setResponseTime(0);
 						link.setContent({});

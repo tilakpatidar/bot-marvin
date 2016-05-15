@@ -355,7 +355,15 @@ var pool={
 						});
 					})(link_details);
 			}
-		}else{
+		}else if(status === "MimeTypeRejected"){
+			//do not retry reject 
+			dict["abandoned"] = true;
+			abandoned = true;
+			//if so mark abandoned 
+			process.bot.updateStats("failedPages",1);
+			log.put('Abandoned due to mime type rejection'+url,'info');
+		}
+		else{
 			
 				//link is from failed_queue and is successfull now
 				if(from_failed_queue){

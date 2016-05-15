@@ -20,8 +20,9 @@ var config={
     "follow_redirect": true,
     "max_sockets_per_host": 10,
     "max_concurrent_sockets": 10,
+    'accepted_mime_types':["text/html","text/plain","application/xhtml+xml"],
     "headers": {
-      "User-Agent": "Mozilla/5.0"
+      "User-Agent": "Mozilla/5.0",
     }
   },
   "log_buffer_lines": 100,
