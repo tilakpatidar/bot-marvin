@@ -291,123 +291,142 @@ var app={
 		if(busy){
 			return;
 		}
-		queue.length(function(count){
-			if(check.assigned(count) && count!==0){
-				busy=true;
-				queue.dequeue(function(li){
-				//console.log(li);
-				if(li.length===0){
-					busy=false;
-					return;
-				}
-				for (var i = li.length - 1; i >= 0; i--) {
-					var obj=li[i];
-						(function(fileName,parseFile,uniqueId){
-							try{
-									tika.submitFile(fileName,function(err,body){
-										//console.log(err);
-										//console.log(body);
-									if(err){
-										log.put("error from fetchFile for "+fileName,"error");
-										try{
-											var link = URL.url(fileName);
-											link.setStatusCode(err);
-											link.setParsed({});
-											link.setResponseTime(0);
-											link.setContent({});
-											(function(link){
-												tika_f_db.parallelize(function() {
-													tika_f_db.run("INSERT OR IGNORE INTO q(content) VALUES (?)",[JSON.stringify(link.details)],function(err,row){
-														//console.log(err+"QLength");
-														//console.log(JSON.stringify(row)+"QLength");
-														log.put('Tika doc dumped for indexing','info');
-													});
-											});
-
-									})(link);
-										}catch(errr){
-											log.put(errr.stack,color_debug);
-										}
-										
-									}else{
-										//console.log(body);
-										var parser=require(__dirname+"/parsers/"+parseFile);
-										var dic=parser.init.parse(body,fileName);//pluggable parser
-										log.put("fetchFile for "+fileName,"success");
-										try{
-											var link = URL.url(fileName);
-											link.setStatusCode(200);
-											link.setParsed(dic[1]);
-											link.setResponseTime(0);
-											link.setContent(dic[3]);
-											(function(link){
-												tika_f_db.parallelize(function() {
-													tika_f_db.run("INSERT OR IGNORE INTO q(content) VALUES (?)",[JSON.stringify(link.details)],function(err,row){
-														//console.log(err+"QLength");
-														//console.log(JSON.stringify(row)+"QLength");
-														log.put('Tika doc dumped for indexing','info');
-													});
-												});
-
-											})(link);
-										}catch(e){
-											log.put(e.stack,color_debug);
-										}
-										
-
-									}
-									
-										
-									});
-							}
-							catch(err){
-								log.put("error from fetchFile for "+fileName,"error");
-								try{
-									var link = URL.url(fileName);
-									link.setStatusCode("tikaUnknownError");
-									link.setParsed({});
-									link.setResponseTime(0);
-									link.setContent({});
-									(function(link){
-											tika_f_db.parallelize(function() {
-												tika_f_db.run("INSERT OR IGNORE INTO q(content) VALUES (?)",[JSON.stringify(link.details)],function(err,row){
-														//console.log(err+"QLength");
-														//console.log(JSON.stringify(row)+"QLength");
-														log.put('Tika doc dumped for indexing','info');
-													});
-											});
-
-									})(link);
-
-
-								}catch(e){
-									log.put(e.stack,color_debug);
+		busy = true;
+		try{
+				queue.length(function(count){
+					if(!check.assigned(count)){
+						busy =false;
+						return;
+					}
+					if(check.assigned(count) && count!==0){
+						busy=true;
+						try{
+							queue.dequeue(function(li){
+								//console.log(li);
+								if(!check.assigned(li)){
+									busy =false;
+									return;
 								}
-								
-								
-							}
-							finally{
-								
-								queue.remove(uniqueId,function(err,row){
-								//	console.log(row);
-								});
-								busy=false;
-									
-							
-							}
+								if(check.assigned(li) && li.length===0){
+									busy=false;
+									return;
+								}
+								for (var i = li.length - 1; i >= 0; i--) {
+									var obj=li[i];
+										(function(fileName,parseFile,uniqueId){
+											try{
+													tika.submitFile(fileName,function(err,body){
+														//console.log(err);
+														//console.log(body);
+														if(err){
+															log.put("error from fetchFile for "+fileName,"error");
+															try{
+																var link = URL.url(fileName);
+																link.setStatusCode(err);
+																link.setParsed({});
+																link.setResponseTime(0);
+																link.setContent({});
+																(function(link){
+																	tika_f_db.parallelize(function() {
+																		tika_f_db.run("INSERT OR IGNORE INTO q(content) VALUES (?)",[JSON.stringify(link.details)],function(err,row){
+																			//console.log(err+"QLength");
+																			//console.log(JSON.stringify(row)+"QLength");
+																			log.put('Tika doc dumped for indexing','info');
+																		});
+																	});
+
+																})(link);
+															}catch(errr){
+																log.put(errr.stack,color_debug);
+															}
+															
+														}else{
+															//console.log(body);
+															var parser=require(__dirname+"/parsers/"+parseFile);
+															var dic=parser.init.parse(body,fileName);//pluggable parser
+															log.put("fetchFile for "+fileName,"success");
+															try{
+																var link = URL.url(fileName);
+																link.setStatusCode(200);
+																link.setParsed(dic[1]);
+																link.setResponseTime(0);
+																link.setContent(dic[3]);
+																(function(link){
+																	tika_f_db.parallelize(function() {
+																		tika_f_db.run("INSERT OR IGNORE INTO q(content) VALUES (?)",[JSON.stringify(link.details)],function(err,row){
+																			//console.log(err+"QLength");
+																			//console.log(JSON.stringify(row)+"QLength");
+																			log.put('Tika doc dumped for indexing','info');
+																		});
+																	});
+
+																})(link);
+															}catch(e){
+																log.put(e.stack,color_debug);
+															}
+															
+
+														}
+														
+														
+													});
+											}
+											catch(err){
+												log.put("error from fetchFile for "+fileName,"error");
+												try{
+													var link = URL.url(fileName);
+													link.setStatusCode("tikaUnknownError");
+													link.setParsed({});
+													link.setResponseTime(0);
+													link.setContent({});
+													(function(link){
+															tika_f_db.parallelize(function() {
+																tika_f_db.run("INSERT OR IGNORE INTO q(content) VALUES (?)",[JSON.stringify(link.details)],function(err,row){
+																		//console.log(err+"QLength");
+																		//console.log(JSON.stringify(row)+"QLength");
+																		log.put('Tika doc dumped for indexing','info');
+																	});
+															});
+
+													})(link);
 
 
-						})(obj.fileName,obj.parseFile,obj.uid);
-				};
+												}catch(e){
+													log.put(e.stack,color_debug);
+												}
+												
+												
+											}
+											finally{
+												busy=false;
+												queue.remove(uniqueId,function(err,row){
+												//	console.log(row);
+												});
+												
+													
+											
+											}
 
-				},config.getConfig("tika_batch_size"));//[[],[]]
 
-				
-				
-			}
-			return;
+										})(obj.fileName,obj.parseFile,obj.uid);
+								};
 
-		})
+							},config.getConfig("tika_batch_size"));//[[],[]]
+						}catch(e){
+							busy = false;
+						}
+
+
+						
+						
+					}
+					return;
+
+				});
+		}catch(e){
+			busy = false;
+		}
+
 		
 				
 			
