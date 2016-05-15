@@ -404,7 +404,22 @@ if(require.main === module){
 			return tika.processNext();
 		}else if(key==="init"){
 			//making init ready
+			var o=data[key];
+			config=config.init(o[0],o[1],o[2]);
+			regex_urlfilter = {};
+			regex_urlfilter["accept"]=config.getConfig("accept_regex");
+			regex_urlfilter["reject"]=config.getConfig("reject_regex");
+			URL.init(config, regex_urlfilter);
+			process.bot_config=config;
+			var co=config.getConfig("tika_debug");
+			if(co){
+				color_debug="error";
+			}else{
+				color_debug="no_verbose";
+			}
 			log=require(__dirname+"/lib/logger.js");
+
+
 			var files=fs.readdirSync(__dirname+'/pdf-store/');
 			for (var i = 0; i < files.length; i++) {
 				if(files[i].indexOf(".")===0){
@@ -420,20 +435,6 @@ if(require.main === module){
 		
 			});
 			log.put("pdf-store cache reset","success");
-			var o=data[key];
-			config=config.init(o[0],o[1],o[2]);
-			regex_urlfilter = {};
-			regex_urlfilter["accept"]=config.getConfig("accept_regex");
-			regex_urlfilter["reject"]=config.getConfig("reject_regex");
-			URL.init(config, regex_urlfilter);
-			process.bot_config=config;
-			var co=config.getConfig("tika_debug");
-			if(co){
-				color_debug="error";
-			}else{
-				color_debug="no_verbose";
-			}
-			
 			separateReqPool = {maxSockets: config.getConfig("tika_max_sockets_per_host")};
 			tika.startServer();
 		}else if(key==="tika"){
