@@ -285,7 +285,7 @@ var bot={
 				len=0;
 			}
 			if(len>config.getConfig("http","max_content_length")){
-					throw new Error("ContentOverflow");
+					req.emit('error',"ContentOverflow");
 					
 			}
 			res.on("data",function(chunk){
@@ -294,10 +294,10 @@ var bot={
 			 	html.push(c);
 			 	var t=new Date().getTime();
 			 	if((t-init_time)>config.getConfig("http","callback_timeout")){
-					throw new Error("ETIMEDOUT_CALLBACK");
+					req.emit('error',"ETIMEDOUT_CALLBACK");
 			 	}
 			 	if(done_len>config.getConfig("http","max_content_length")){
-					throw new Error("ContentOverflow");
+					req.emit('error',"ContentOverflow");
 				}
 			});
 			res.on("error",function(err){
@@ -355,7 +355,7 @@ var bot={
 		req.on("error",function(err){
 			//#debug#(err)
 			//console.log("req  ",err,err.type)
-			var msg = err.message;
+			var msg = err;
 			if(msg === "ETIMEDOUT_CALLBACK"){
 					log.put("Connection timedout change http.callback_timeout setting in config","error");
 					try{
