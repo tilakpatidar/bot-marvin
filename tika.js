@@ -291,6 +291,7 @@ var app={
 			return;
 		}
 		process.busy = true;
+		process.last_lock_time = new Date().getTime();
 		try{
 				queue.length(function(count){
 					if(!check.assigned(count)){
@@ -299,6 +300,7 @@ var app={
 					}
 					if(check.assigned(count) && count!==0){
 						process.busy=true;
+						process.last_lock_time = new Date().getTime();
 						try{
 							queue.dequeue(function(li){
 								//console.log(li);
@@ -444,6 +446,16 @@ var app={
 	}
 
 };
+process.last_lock_time = new Date().getTime();
+function failSafe(){
+	if((new Date().getTime() - process.last_lock_time) >=(1000*60*10)){ //10 min check
+		log.put("Unlocking tika queue",'info');
+		process.busy = false;
+
+	}
+}
+
+
 exports.init=app;
 process.busy=false;
 var tika=app;
@@ -494,5 +506,6 @@ if(require.main === module){
 	});
 
  setInterval(tika.processNext,1000);
+ setInterval(failSafe,1000);
 
 }
