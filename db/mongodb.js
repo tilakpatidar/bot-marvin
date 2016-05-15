@@ -33,6 +33,10 @@ var failed_db = new sqlite3.Database(__dirname+'/sqlite/failed_queue');
 failed_db.serialize(function() {
 	failed_db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,failed_url TEXT UNIQUE,failed_info TEXT,status INTEGER, count INTEGER)");
 });
+var tika_f_db = new sqlite3.Database(__dirname+'/sqlite/tika_f_queue');
+tika_f_db.serialize(function() {
+	tika_db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,content TEXT)");
+});
 //read seed file
 
 process.bucket_creater_locked=true;
@@ -1404,6 +1408,29 @@ var pool={
 	"links":{}
 };
 pool.setParent();//setting the parent reference
+
+var tika_indexer_busy = false;
+function indexTikaDocs(){
+	if(tika_indexer_busy){
+		return;
+	}
+	tika_indexer_busy = true;
+	tika_f_db.parallelize(function(){
+		tika_f_db.each("SELECT * FROM q LIMIT 0,100",function(e,row){
+			var link_details = JSON.parse(row.content);
+			pool.setCrawled(link_details);
+			tika_f_db.parallelize(function(){
+				tika_f_db.run("DELETE FROM q WHERE id=?",[row.id],function(){
+						log.put('Tika doc indexed','success');
+				});
+			});
+
+		},function(){
+			tika_indexer_busy = false;
+
+		});
+	});
+}
 process.pool_check_mode=setInterval(function(){
 	if(process.MODE==='exec' && !process.tika_setup && process.begin_intervals){
 		var d=setInterval(function(){
@@ -1420,6 +1447,9 @@ process.pool_check_mode=setInterval(function(){
 		},10000);
 		process.my_timers.push(e);
 		clearInterval(process.pool_check_mode);//once intervals are set clear the main interval
+		
+		var tika_indexer = setInterval(indexTikaDocs,1000);
+		process.my_timers.push(tika_indexer);
 	}
 },5000);
 

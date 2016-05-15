@@ -11,9 +11,13 @@ var config=require(__dirname+"/lib/spawn_config.js");
 var color_debug;
 var sqlite3 = require('sqlite3').verbose();
 var db = new sqlite3.Database(__dirname+'/db/sqlite/tika_queue');
+var tika_f_db = new sqlite3.Database(__dirname+'/db/sqlite/tika_f_queue');
 var separateReqPool;
 db.serialize(function() {
 	db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,fileName TEXT UNIQUE,parseFile TEXT,status INTEGER)");
+});
+tika_f_db.serialize(function() {
+	tika_db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,content TEXT)");
 });
 var queue={
 	enqueue:function (fileName,parseFile,fn){
@@ -311,7 +315,16 @@ var app={
 											link.setParsed({});
 											link.setResponseTime(0);
 											link.setContent({});
-											process.send({"bot":"tika","setCrawled":link.details});
+											(function(link){
+												tika_f_db.parallelize(function() {
+													tika_f_db.run("INSERT OR IGNORE INTO q VALUES(content) (?)",[JSON.stringify(link.details)],function(err,row){
+														//console.log(err+"QLength");
+														//console.log(JSON.stringify(row)+"QLength");
+														fn(err,row);
+													});
+											});
+
+									})(link);
 										}catch(errr){
 											log.put(errr.stack,color_debug);
 										}
@@ -327,7 +340,16 @@ var app={
 											link.setParsed(dic[1]);
 											link.setResponseTime(0);
 											link.setContent(dic[3]);
-											process.send({"bot":"tika","setCrawled":link.details});
+											(function(link){
+												tika_f_db.parallelize(function() {
+													tika_f_db.run("INSERT OR IGNORE INTO q VALUES(content) (?)",[JSON.stringify(link.details)],function(err,row){
+														//console.log(err+"QLength");
+														//console.log(JSON.stringify(row)+"QLength");
+														fn(err,row);
+													});
+												});
+
+											})(link);
 										}catch(e){
 											log.put(e.stack,color_debug);
 										}
@@ -346,7 +368,17 @@ var app={
 									link.setParsed({});
 									link.setResponseTime(0);
 									link.setContent({});
-									process.send({"bot":"tika","setCrawled":link.details});
+									(function(link){
+											tika_f_db.parallelize(function() {
+												tika_f_db.run("INSERT OR IGNORE INTO q VALUES(content) (?)",[JSON.stringify(link.details)],function(err,row){
+														//console.log(err+"QLength");
+														//console.log(JSON.stringify(row)+"QLength");
+														fn(err,row);
+													});
+											});
+
+									})(link);
+
 
 								}catch(e){
 									log.put(e.stack,color_debug);
