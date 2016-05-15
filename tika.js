@@ -214,6 +214,7 @@ var app={
 							return callback(null);
 						}else{
 							log.put(err.stack,color_debug);
+							return callback(err);
 						}
 						
 					});
