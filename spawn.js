@@ -388,6 +388,7 @@ var bot={
 					try{
 						var code;
 						if(err.code === 'ETIMEDOUT'){
+							console.log(err);
 							if(err.connect === true){
 								code = 'ETIMEDOUT_CONNECTION'
 							}else{
