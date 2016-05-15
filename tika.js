@@ -404,6 +404,7 @@ if(require.main === module){
 			return tika.processNext();
 		}else if(key==="init"){
 			//making init ready
+			log=require(__dirname+"/lib/logger.js");
 			var files=fs.readdirSync(__dirname+'/pdf-store/');
 			for (var i = 0; i < files.length; i++) {
 				if(files[i].indexOf(".")===0){
@@ -432,7 +433,7 @@ if(require.main === module){
 			}else{
 				color_debug="no_verbose";
 			}
-			log=require(__dirname+"/lib/logger.js");
+			
 			separateReqPool = {maxSockets: config.getConfig("tika_max_sockets_per_host")};
 			tika.startServer();
 		}else if(key==="tika"){
