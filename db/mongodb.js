@@ -75,14 +75,15 @@ var pool={
 													success+=1;
 													log.put(("Added  "+domain+" to initialize pool"),"success");
 												}
-												if(success === 0){
-													that.bucket_collection.removeOne({"_id":stamp},function(){
-														log.put("empty bucket removed ",'success');
-													});
-												}
+
 												
 												done+=1;
 												if(done===links.length){
+													if(success === 0){
+														that.bucket_collection.removeOne({"_id":stamp},function(){
+															log.put("empty bucket removed ",'success');
+														});
+													}
 														fn(true);
 														return;
 														
