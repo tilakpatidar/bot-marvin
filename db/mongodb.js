@@ -58,7 +58,7 @@ var pool={
 								var success=0;
 								var stamp1=new Date().getTime()-2000;//giving less time
 								var stamp=stamp1+""+parseInt(Math.random()*10000);
-								that.bucket_collection.insert({"_id":stamp,"links":links,"score":1,"recrawlLabel":config.getConfig("default_recrawl_interval"),"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":(success+1)},function(err,results){
+								
 											
 								for (var i = 0; i < links.length; i++) {
 									var anon=(function(domain,stamp,fetch_interval){
@@ -80,12 +80,16 @@ var pool={
 												done+=1;
 												if(done===links.length){
 													if(success === 0){
-														that.bucket_collection.removeOne({"_id":stamp},function(){
-															log.put("empty bucket removed ",'success');
-														});
-													}
 														fn(true);
 														return;
+													}
+													that.bucket_collection.insert({"_id":stamp,"links":links,"score":1,"recrawlLabel":config.getConfig("default_recrawl_interval"),"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":(success+1)},function(err,results){
+														fn(true);
+														return;
+															
+													});
+													
+														
 														
 												}
 
@@ -107,7 +111,7 @@ var pool={
 									
 									
 								};
-							});
+					
 								
 							
 						
