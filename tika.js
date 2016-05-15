@@ -317,7 +317,7 @@ var app={
 											link.setContent({});
 											(function(link){
 												tika_f_db.parallelize(function() {
-													tika_f_db.run("INSERT OR IGNORE INTO q VALUES(content) (?)",[JSON.stringify(link.details)],function(err,row){
+													tika_f_db.run("INSERT OR IGNORE INTO q(content) VALUES (?)",[JSON.stringify(link.details)],function(err,row){
 														//console.log(err+"QLength");
 														//console.log(JSON.stringify(row)+"QLength");
 														log.put('Tika doc dumped for indexing','info');
@@ -342,7 +342,7 @@ var app={
 											link.setContent(dic[3]);
 											(function(link){
 												tika_f_db.parallelize(function() {
-													tika_f_db.run("INSERT OR IGNORE INTO q VALUES(content) (?)",[JSON.stringify(link.details)],function(err,row){
+													tika_f_db.run("INSERT OR IGNORE INTO q(content) VALUES (?)",[JSON.stringify(link.details)],function(err,row){
 														//console.log(err+"QLength");
 														//console.log(JSON.stringify(row)+"QLength");
 														log.put('Tika doc dumped for indexing','info');
@@ -370,7 +370,7 @@ var app={
 									link.setContent({});
 									(function(link){
 											tika_f_db.parallelize(function() {
-												tika_f_db.run("INSERT OR IGNORE INTO q VALUES(content) (?)",[JSON.stringify(link.details)],function(err,row){
+												tika_f_db.run("INSERT OR IGNORE INTO q(content) VALUES (?)",[JSON.stringify(link.details)],function(err,row){
 														//console.log(err+"QLength");
 														//console.log(JSON.stringify(row)+"QLength");
 														log.put('Tika doc dumped for indexing','info');
