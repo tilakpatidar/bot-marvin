@@ -280,7 +280,7 @@ var bot={
 				len=0;
 			}
 			if(len>config.getConfig("http","max_content_length")){
-					req.emit('error',"ContentOverflow");
+					throw new Error("ContentOverflow");
 					
 			}
 			res.on("data",function(chunk){
@@ -289,10 +289,10 @@ var bot={
 			 	html.push(c);
 			 	var t=new Date().getTime();
 			 	if((t-init_time)>config.getConfig("http","callback_timeout")){
-					req.emit('error',"ETIMEDOUT_CALLBACK");
+					throw new Error("ETIMEDOUT_CALLBACK");
 			 	}
 			 	if(done_len>config.getConfig("http","max_content_length")){
-					req.emit('error',"ContentOverflow");
+					throw new Error("ContentOverflow");
 				}
 			});
 			res.on("error",function(err){
@@ -350,7 +350,8 @@ var bot={
 		req.on("error",function(err){
 			//#debug#(err)
 			//console.log("req  ",err,err.type)
-			if(err === "ETIMEDOUT_CALLBACK"){
+			var msg = err.message;
+			if(msg === "ETIMEDOUT_CALLBACK"){
 					log.put("Connection timedout change http.callback_timeout setting in config","error");
 					try{
 						link.setStatusCode("ETIMEDOUT_CALLBACK");
@@ -367,7 +368,7 @@ var bot={
 					
 					return bot.isLinksFetched();
 			}
-			else if(err === "ContentOverflow"){
+			else if(msg === "ContentOverflow"){
 				log.put("content-length is more than specified","error");
 					try{
 						link.setStatusCode("ContentOverflow");

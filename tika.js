@@ -179,7 +179,7 @@ var app={
 				}
 				if(len>config.getConfig("tika_content_length")){
 						log.put("content-length is more than specified","error");
-						res.emit('error',"TikaContentOverflow");
+						throw new Error("TikaContentOverflow");
 				}
 				res.on("data",function(chunk){
 					done_len+=chunk.length;
@@ -187,16 +187,17 @@ var app={
 				 	if((t-init_time)>config.getConfig("tika_timeout")){
 				 		//console.log((t-init_time)+"ContentTimeOut");
 						log.put("Connection timedout change tika_timeout setting in config","error");
-						res.emit('error',"TikaContentTimeout");
+						throw new Error("TikaContentTimeout");
 				 	}
 				 	if(done_len>config.getConfig("tika_content_length")){
 						//console.log(done_len+"ContentOverflowTka");
 						log.put("content-length is more than specified","error");
-						res.emit('error',"TikaContentOverflow");
+						throw new Error("TikaContentOverflow");
 					}
 				});
 					res.on('error',function(err){
-						if(err === "TikaContentOverflow" || err === "TikaContentTimeout"){
+						var msg = err.message;
+						if(msg === "TikaContentOverflow" || msg === "TikaContentTimeout"){
 							return callback(err);
 						}else{
 							log.put(err.stack,color_debug);
