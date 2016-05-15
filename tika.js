@@ -320,7 +320,7 @@ var app={
 													tika_f_db.run("INSERT OR IGNORE INTO q VALUES(content) (?)",[JSON.stringify(link.details)],function(err,row){
 														//console.log(err+"QLength");
 														//console.log(JSON.stringify(row)+"QLength");
-														fn(err,row);
+														log.put('Tika doc dumped for indexing','info');
 													});
 											});
 
@@ -345,7 +345,7 @@ var app={
 													tika_f_db.run("INSERT OR IGNORE INTO q VALUES(content) (?)",[JSON.stringify(link.details)],function(err,row){
 														//console.log(err+"QLength");
 														//console.log(JSON.stringify(row)+"QLength");
-														fn(err,row);
+														log.put('Tika doc dumped for indexing','info');
 													});
 												});
 
@@ -373,7 +373,7 @@ var app={
 												tika_f_db.run("INSERT OR IGNORE INTO q VALUES(content) (?)",[JSON.stringify(link.details)],function(err,row){
 														//console.log(err+"QLength");
 														//console.log(JSON.stringify(row)+"QLength");
-														fn(err,row);
+														log.put('Tika doc dumped for indexing','info');
 													});
 											});
 
