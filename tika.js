@@ -404,6 +404,21 @@ if(require.main === module){
 			return tika.processNext();
 		}else if(key==="init"){
 			//making init ready
+			var files=fs.readdirSync(__dirname+'/pdf-store/');
+			for (var i = 0; i < files.length; i++) {
+				if(files[i].indexOf(".")===0){
+					//do not take hidden files
+					continue;
+				}
+				var data=fs.unlinkSync(__dirname+'/pdf-store/'+files[i]);
+			};
+			db.serialize(function(){
+				db.run("UPDATE q SET status=0 WHERE status=?",[1],function(e,r){
+					log.put("pdf-store queue sqlite reverted","success");
+				});	
+		
+			});
+			log.put("pdf-store cache reset","success");
 			var o=data[key];
 			config=config.init(o[0],o[1],o[2]);
 			regex_urlfilter = {};
