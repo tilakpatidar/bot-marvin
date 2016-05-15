@@ -73,7 +73,7 @@ var bot={
 	},
 	"processLink":function(link){
 		var bot=this;//inside setTimeout no global access
-		if(bot.active_sockets>config.getConfig("http","max_concurrent_sockets")){
+		if(bot.active_sockets>=config.getConfig("http","max_concurrent_sockets")){
 			//pooling to avoid socket hanging
 			 return (function(link){
 					setTimeout(function(){ bot.processLink(link); }, 1000); //to avoid recursion
