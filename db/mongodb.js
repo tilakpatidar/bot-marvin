@@ -263,6 +263,13 @@ var pool={
 		
 
 	},
+	"checkUnCrawled":function(links,callback){
+		var that =this;
+		links = _.pluck(links, '_id');
+		that.mongodb_collection.find({"response":{"$exists":false},"_id":{"$in":links}}).toArray(function(err,docs){
+			return callback(err,docs);
+		});
+	},
 	"setCrawled":function(link_details){
 		var that = this;
 		var url = link_details.url;
@@ -282,6 +289,7 @@ var pool={
 		}
 		var dict = {"done":true,"data":data,"response":status, "lastModified":stamp1,"updatedBy":config.getConfig("bot_name")};
 		var from_failed_queue = false;
+		var abandoned = false;
 		var failed_count = 0;
 		var failed_id = 0;
 		if(check.assigned(link_details.bucket_id) && link_details.bucket_id.indexOf('failed_queue')>=0){
@@ -299,8 +307,10 @@ var pool={
 				//then check the count
 				if(failed_count >= config.getConfig("retry_times_failed_pages")){
 					dict["abandoned"] = true;
+					abandoned = true;
 					//if so mark abandoned and delete from queue
 					(function(failed_id, url){
+
 						failed_db.parallelize(function() {
 							failed_db.run("DELETE FROM q WHERE id=?",[failed_id],function(e,r){
 									
@@ -376,7 +386,10 @@ var pool={
 				log.put("pool.setCrawled","error");
 			}
 			else{
-				log.put(("Updated "+url),"success");
+				if(!abandoned){
+					log.put(("Updated "+url),"success");
+				}
+				
 				
 			}
 			

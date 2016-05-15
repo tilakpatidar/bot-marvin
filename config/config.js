@@ -4,6 +4,7 @@ var JSONX=proto.JSONX;
 var config={
   "robot_agent": "*",
   "childs": 2,
+  "child_timeout":1800000,
   "verbose": true,
   "logging": true,
   "parse_sitemaps": true,
