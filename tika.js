@@ -17,7 +17,7 @@ db.serialize(function() {
 	db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,fileName TEXT UNIQUE,parseFile TEXT,status INTEGER)");
 });
 tika_f_db.serialize(function() {
-	tika_db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,content TEXT)");
+	tika_f_db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,content TEXT)");
 });
 var queue={
 	enqueue:function (fileName,parseFile,fn){

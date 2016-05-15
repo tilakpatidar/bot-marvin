@@ -35,7 +35,7 @@ failed_db.serialize(function() {
 });
 var tika_f_db = new sqlite3.Database(__dirname+'/sqlite/tika_f_queue');
 tika_f_db.serialize(function() {
-	tika_db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,content TEXT)");
+	tika_f_db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,content TEXT)");
 });
 //read seed file
 
