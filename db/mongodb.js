@@ -1033,7 +1033,7 @@ var pool={
 					dic["processed_buckets"]=lm;
 						that.mongodb_collection.find({'crawled':{$exists:true}}).count(function(err,crawled_count){
 							dic["crawled_count"]=crawled_count;
-							that.mongodb_collection.find({'crawled':{$exists:false}}).count(function(err,failed_count){
+							that.mongodb_collection.find({'abandoned':true}).count(function(err,failed_count){
 								dic["failed_count"]=failed_count;
 								fn(dic);
 								return;
