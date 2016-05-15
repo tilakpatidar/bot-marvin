@@ -436,7 +436,7 @@ var bot={
 			tika_db.parallelize(function() {
 				tika_db.run("INSERT OR IGNORE INTO q(fileName,parseFile,status) VALUES(?,?,0)",[link.details.url,p],function(err,row){
 					if(!err){
-						log.put('Tika job info inserted '+link_details.url,'success');
+						log.put('Tika job info inserted '+link.details.url,'success');
 					}
 					
 					//console.log(err+"pushQ");
