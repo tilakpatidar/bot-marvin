@@ -62,7 +62,7 @@ var pool={
 										that.getLinksFromSiteMap(domain,function(){
 											//#debug#console.log(domain)
 															
-											that.mongodb_collection.insert({"_id":domain,"bucket_id":stamp,"domain":domain,"partitionedBy":config.getConfig("bot_name"),"bucketed":false,"fetch_interval":fetch_interval},function(err,results){
+											that.mongodb_collection.insert({"_id":domain,"bucket_id":stamp,"domain":domain,"partitionedBy":config.getConfig("bot_name"),"bucketed":true,"fetch_interval":fetch_interval},function(err,results){
 												//#debug#console.log(err)
 												if(err){
 													log.put("pool.init maybe seed is already added","error");
@@ -287,7 +287,7 @@ var pool={
 		if(!check.assigned(status)){
 			status="0";//no error
 		}
-		var dict = {"done":true,"data":data,"response":status, "lastModified":stamp1,"updatedBy":config.getConfig("bot_name")};
+		var dict = {"bucketed":true,"data":data,"response":status, "lastModified":stamp1,"updatedBy":config.getConfig("bot_name")};
 		var from_failed_queue = false;
 		var abandoned = false;
 		var failed_count = 0;
@@ -389,7 +389,7 @@ var pool={
 				log.put("pool.setCrawled","error");
 			}
 			else{
-				if(!abandoned){
+				if( !abandoned && dict["response"] !=="inTikaQueue"){
 					log.put(("Updated "+url),"success");
 				}
 				

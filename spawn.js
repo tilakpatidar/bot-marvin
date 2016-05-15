@@ -13,6 +13,11 @@ var config=require(__dirname+"/lib/spawn_config.js");
 var log;
 var separateReqPool;
 var regex_urlfilter={};
+var sqlite3 = require('sqlite3').verbose();
+var tika_db = new sqlite3.Database(__dirname+'/db/sqlite/tika_queue');
+tika_db.serialize(function() {
+	tika_db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,fileName TEXT UNIQUE,parseFile TEXT,status INTEGER)");
+});
 var bot={
 	"queued":0,
 	"active_sockets":0,
@@ -429,9 +434,22 @@ var bot={
 			link.setContent({});
 			process.send({"bot":"spawn","setCrawled":link.details});
 			try{
-
-			}catch(err){
 				process.send({"bot":"spawn","tika":[link.details.url, p]});
+			}catch(err){
+				//add to tika queue otherwise
+				console.log(err);
+				log.put('Tika daemon not running storing job info in sqlite','error');
+				tika_db.parallelize(function() {
+						tika_db.run("INSERT OR IGNORE INTO q(fileName,parseFile,status) VALUES(?,?,0)",[link.details.url,p],function(err,row){
+							if(!err){
+								log.put('Tika job info inserted','success');
+							}
+							
+							//console.log(err+"pushQ");
+							//console.log(JSON.stringify(row)+"pushQ");
+							
+						});
+				});
 			}
 		}catch(err){
 			//console.log(err);
