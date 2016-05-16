@@ -862,7 +862,7 @@ var pool={
 	},
 	"parserReloader":function(){
 		var that=this;
-		that.parsers_collection.find({},{}).toArray(function(err,results){
+		that.parsers_collection.find({}).toArray(function(err,results){
 			for (var i = 0; i < results.length; i++) {
 				var doc=results[i];
 				var data=fs.readFileSync(parent_dir+'/parsers/'+doc["_id"]+".js");

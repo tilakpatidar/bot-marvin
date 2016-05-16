@@ -88,8 +88,8 @@ var app={
 		 ret["output"]=this.getID(url);
 		 ret["id"]=ret["output"][0];
 		 ret["host"]=ret["output"][1];
-		 ret["meta_keywords"]=$('meta[name="keywords"]').data('content');
-		 ret["description"]=$('meta[name="description"]').data('content');
+		 ret["meta_keywords"]=$('meta[name="keywords"]').attr('content');
+		 ret["description"]=$('meta[name="description"]').attr('content');
 		 if(ret["description"]===undefined || ret["description"]===""){
 		 	ret["description"]="";
 		 }
