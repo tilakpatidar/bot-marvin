@@ -122,17 +122,17 @@ var app={
 
 		 ret["author"] = $('link[rel="author"]').attr('href');
 
-		 if(ret["author"].length === 0){
+		 if( !check.assigned(ret["author"])){
 		 	ret["author"] = $('a[rel="author"]').attr('href');
 		 }
-		 if(ret["author"].length === 0){
+		 if(!check.assigned(ret["author"])){
 		 	ret["author"] = $('a[rel="me"]').attr('href');
 		 }
-		 if(ret["author"].length === 0){
+		 if(!check.assigned(ret["author"])){
 		 	ret["author"] = $('link[rel="publisher"]').attr('href');
 		 }
 
-		 if(ret["author"].length === 0){
+		 if(!check.assigned(ret["author"])){
 		 	delete ret["author"];
 		 }
 
@@ -191,10 +191,10 @@ var app={
 
 		 //meta bot msg
 		 var bot_meta = $('meta[name="robots"]');
-		 if(bot_meta.length === 0){
+		 if(!check.assigned(bot_meta) || bot_meta.length === 0){
 		 	bot_meta = $('meta[name="googlebot"]');
 		 }
-		 if(bot_meta.length !== 0){
+		 if(check.assigned(bot_meta) && bot_meta.length !== 0){
 		 	ret['msg'] = bot_meta.attr("content").replace(/\s/gi,"").split(",");
 		 }
 
