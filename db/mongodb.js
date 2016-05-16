@@ -386,6 +386,14 @@ var pool={
 			process.bot.updateStats("failedPages",1);
 			log.put('Abandoned due to mime type rejection'+url,'info');
 		}
+		else if(status === "NOINDEX"){
+			//do not retry reject 
+			dict["abandoned"] = true;
+			abandoned = true;
+			//if so mark abandoned 
+			process.bot.updateStats("failedPages",1);
+			log.put('Abandoned due to no INDEX from meta'+url,'info');
+		}
 		else{
 			
 				//link is from failed_queue and is successfull now

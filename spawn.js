@@ -338,6 +338,8 @@ var bot={
 			res.on("end",function(){
 				bot.active_sockets-=1;
 				html = html.join("");
+				var t=new Date().getTime();
+				var response_time = t-init_time;
 				if(!check.assigned(html)){
 					//some error with the request return silently
 					log.put("Max sockets reached read docs/maxSockets.txt","error");
@@ -356,28 +358,98 @@ var bot={
 					
 					return bot.isLinksFetched();
 				}
+				
 				var parser=require(__dirname+"/parsers/"+bot.links[link.details.domain]["parseFile"]);
 				var dic=parser.init.parse(html,link.details.url);//pluggable parser
-				//dic[0] is cheerio object
-				//dic[1] is dic to be inserted
-				//dic[2] inlinks suggested by custom parser
-				bot.grabInlinks(dic[0],link.details.url,link.details.domain,dic[2]);
-				var code=res.statusCode;
-				//console.log(code,"code")
-				try{
-					link.setStatusCode(code);
-					link.setParsed(dic[1]);
-					link.setResponseTime(0);
-					link.setContent(dic[3]);
-					if(!sent){
+				
+				var parser_msgs = dic[4];
+				var default_opt = false;
+				var special_opt = false;
+				if(check.assigned(parser_msgs)){
+					link.setStatusCode("META_BOT"); //bec going to concat status
+					for (var index in parser_msgs){
+						var parser_msg = parser_msgs[index];
+						switch(parser_msg){
+							case "noindex":
+								special_opt = true;
+								try{
+									link.setStatusCode(link.getStatusCode()+"_NOINDEX");
+									link.setParsed({});
+									link.setResponseTime(response_time);
+									link.setContent({});
+									//no index but follow links from this page
+									bot.grabInlinks(dic[0],link.details.url,link.details.domain,dic[2]);
+								}catch(error){
+
+								}
+							break;
+							case "nofollow":
+								special_opt = true;
+								try{
+									link.setStatusCode(link.getStatusCode()+"_NOFOLLOW");
+									link.setParsed(dic[1]);
+									link.setResponseTime(response_time);
+									link.setContent(dic[3]);
+									//do not grab links from this page
+								}catch(error){
+									
+								}
+							break;
+							case "none":
+								special_opt = true;
+								try{
+									link.setStatusCode(link.getStatusCode()+"_NOFOLLOW_NOINDEX");
+									link.setParsed({});
+									link.setResponseTime(response_time);
+									link.setContent({});
+								}catch(error){
+									
+								}
+							break;
+							default:
+								default_opt = true;
+
+
+						};
+					}
+				}
+
+				if(check.assigned(parser_msgs) && special_opt){
+					//means one of the above cases met just send the response to setCrawled
+					try{
+						if(!sent){
 							process.send({"bot":"spawn","setCrawled":link.details});
 							sent = true;
+						}
+					}catch(err){
+							//log.put("Child killed","error")
 					}
-				}catch(err){
-				//log.put("Child killed","error")
+						bot.isLinksFetched();
+				}else{
+					//no msg recieved or no cases matched
+					//go for default send
+					if(!check.assigned(parser_msgs) || default_opt){	
+								//dic[0] is cheerio object
+								//dic[1] is dic to be inserted
+								//dic[2] inlinks suggested by custom parser
+								bot.grabInlinks(dic[0],link.details.url,link.details.domain,dic[2]);
+								var code=res.statusCode;
+								//console.log(code,"code")
+								try{
+									link.setStatusCode(code);
+									link.setParsed(dic[1]);
+									link.setResponseTime(response_time);
+									link.setContent(dic[3]);
+									if(!sent){
+											process.send({"bot":"spawn","setCrawled":link.details});
+											sent = true;
+									}
+								}catch(err){
+								//log.put("Child killed","error")
+								}
+								bot.isLinksFetched();
+						}	
 				}
-				bot.isLinksFetched();
-					
 
 			});
 		});

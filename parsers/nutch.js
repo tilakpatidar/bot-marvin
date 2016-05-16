@@ -72,8 +72,9 @@ var app={
          	dic._source["rss_feeds"] = indexed["rss_feeds"];
          }
 
-		 return [indexed["dom"],dic,[], indexed["html"]];//cheerio object ,dic to insert ,inlinks to give
+		 return [indexed["dom"],dic,[], indexed["html"], indexed["msg"]];//cheerio object ,dic to insert ,inlinks to give
 		 //for documents indexed["dom"] is null
+		 //last element is for special bot meta content
 		 //then raw html content
 	},
 	"parseDocument":function(data,url){
@@ -180,12 +181,24 @@ var app={
 		 		delete ret['twitter'][key];
 		 	}
 		 }
-		 
+
 		 for(var index in ret['rss_feeds']){
 		 	if(!check.assigned(ret['rss_feeds'][index])){
 		 		delete ret['rss_feeds'][index];
 		 	}
 		 }
+
+
+		 //meta bot msg
+		 var bot_meta = $('meta[name="robots"]');
+		 if(!check.assigned(bot_meta)){
+		 	bot_meta = $('meta[name="googlebot"]');
+		 }
+		 if(check.assigned(bot_meta)){
+		 	ret['msg'] = bot_meta.attr("content").replace(/\s/gi,"").split(",");
+		 }
+
+
 
 		 if(ret["description"]===undefined || ret["description"]===""){
 		 	ret["description"]="";
