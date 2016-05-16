@@ -4,10 +4,10 @@ var config=process.bot_config;
 var check = require('check-types');
 
 
-function fetchMultipleAttr($(selector, attribute){
+function fetchMultipleAttr(selector, attribute){
 
 	var list = [];
-	$(selector).each(function (index, element) {
+	selector.each(function (index, element) {
 	  list.push($(element).attr(attribute));
 	});
 
