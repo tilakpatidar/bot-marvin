@@ -304,7 +304,7 @@ var pool={
 		var status = link_details.status_code;
 		var stamp1 = new Date().getTime();
 		var redirect_url = link_details.redirect;
-
+		var response_time = link_details.response_time;
 
 		if(!check.assigned(data)){
 
@@ -319,6 +319,10 @@ var pool={
 		var abandoned = false;
 		var failed_count = 0;
 		var failed_id = 0;
+		if(check.assigned(response_time)){
+
+			dict["response_time"] = response_time;
+		}
 		if(check.assigned(link_details.bucket_id) && link_details.bucket_id.indexOf('failed_queue')>=0){
 			
 			from_failed_queue = true;
