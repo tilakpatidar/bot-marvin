@@ -140,7 +140,7 @@ var pool={
 				//insert sitemap urls
 				var sitemap = require(parent_dir+'/lib/sitemap_parser');
 				var regex_urlfilter = {'accept':config.getConfig('accept_regex'),'reject':config.getConfig('reject_regex')};
-				sitemap.init(config. regex_urlfilter);
+				sitemap.init(config, regex_urlfilter);
 				sitemap.getSites(abs, function(err, sites) {
 				    if(!err) {
 				    	
