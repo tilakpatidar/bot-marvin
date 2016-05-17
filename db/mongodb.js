@@ -80,6 +80,13 @@ function lazy_sitemap_updator(index){
 			    }
 			});
 		}
+		else{
+			(function(){
+
+			        		process.nextTick(function(){lazy_sitemap_updator(index+1);});
+
+			})(index);
+		}
 	});
 }
 
