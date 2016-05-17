@@ -8,6 +8,7 @@ var config={
   "verbose": true,
   "logging": true,
   "parse_sitemaps": true,
+  "sitemap_parser_timeout":60000,
   "env": "/usr/local/bin/node",
   "text_editor": "nano",
   "web_graph":true,
