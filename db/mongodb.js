@@ -43,6 +43,42 @@ tika_f_db.serialize(function() {
 process.bucket_creater_locked=true;
 
 
+function lazy_sitemap_updator(index){
+
+	var abs = sitemap_queue[index][0];
+	var domain = sitemap_queue[index][1];
+	
+	log.put("Lazy loading sitemaps for "+domain, "info");
+
+	var sitemap = require(parent_dir+'/lib/sitemap_parser');
+	var regex_urlfilter = {'accept':config.getConfig('accept_regex'),'reject':config.getConfig('reject_regex')};
+	sitemap.init(config, regex_urlfilter);
+	sitemap.getSites(abs, function(err, sites) {
+	    if(!err) {
+	    	
+	    	sites=JSON.parse(JSON.stringify(sites).replace(/https:/g,"http:"));
+	        pool.updateSiteMap(domain,sites,function(){
+	        	(function(){
+
+	        		process.nextTick(function(){lazy_sitemap_updator(index+1);});
+
+	        	})(index);
+	        	
+	        });
+	    }
+	    else {
+	       	log.put("Sitemap could not be downloaded for "+domain,"error");
+	        pool.updateSiteMap(domain,[],function(){
+	        	(function(){
+
+	        		process.nextTick(function(){lazy_sitemap_updator(index+1);});
+
+	        	})(index);
+	        });
+	    }
+	});
+}
+
 var pool={
 	"seed":function(links,links_fetch_interval,fn){
 		//this method runs first when crawler starts
@@ -1463,37 +1499,7 @@ function indexTikaDocs(){
 }
 
 
-function lazy_sitemap_updator(index){
-	var abs = sitemap_queue[index][0];
-	var domain = sitemap_queue[index][1];
-	var sitemap = require(parent_dir+'/lib/sitemap_parser');
-	var regex_urlfilter = {'accept':config.getConfig('accept_regex'),'reject':config.getConfig('reject_regex')};
-	sitemap.init(config, regex_urlfilter);
-	sitemap.getSites(abs, function(err, sites) {
-	    if(!err) {
-	    	
-	    	sites=JSON.parse(JSON.stringify(sites).replace(/https:/g,"http:"));
-	        that.updateSiteMap(domain,sites,function(){
-	        	(function(){
 
-	        		process.nextTick(function(){lazy_sitemap_updator(index+1);});
-
-	        	})(index);
-	        	
-	        });
-	    }
-	    else {
-	       	log.put("Sitemap could not be downloaded for "+domain,"error");
-	        that.updateSiteMap(domain,[],function(){
-	        	(function(){
-
-	        		process.nextTick(function(){lazy_sitemap_updator(index+1);});
-
-	        	})(index);
-	        });
-	    }
-	});
-}
 
 process.pool_check_mode=setInterval(function(){
 	if(process.MODE==='exec' && !process.tika_setup && process.begin_intervals){
