@@ -60,7 +60,7 @@ function lazy_sitemap_updator(index){
 			    	
 			    	sites=JSON.parse(JSON.stringify(sites).replace(/https:/g,"http:"));
 			        pool.updateSiteMap(domain,sites,function(){
-			        	(function(){
+			        	(function(index){
 
 			        		process.nextTick(function(){lazy_sitemap_updator(index+1);});
 
@@ -71,7 +71,7 @@ function lazy_sitemap_updator(index){
 			    else {
 			       	log.put("Sitemap could not be downloaded for "+domain,"error");
 			        pool.updateSiteMap(domain,[],function(){
-			        	(function(){
+			        	(function(index){
 
 			        		process.nextTick(function(){lazy_sitemap_updator(index+1);});
 
@@ -81,7 +81,7 @@ function lazy_sitemap_updator(index){
 			});
 		}
 		else{
-			(function(){
+			(function(index){
 
 			        		process.nextTick(function(){lazy_sitemap_updator(index+1);});
 
@@ -1251,6 +1251,62 @@ var pool={
 			}
 			return domain;
 		},
+		'new_creator':function(is_first, fetch_interval){
+			/*
+			var that = this.parent;
+			process.bucket_creater_locked=true;
+			//just pinging so that we do not run short of buckets
+			//while we have links in our mongodb cache
+			//generating new buckets based on refresh interval and uniformity
+			if(!check.assigned(that.cache)){
+				process.bucket_creater_locked=false;
+				return;
+			}
+			var d=that.bucketOperation.getCurrentDomain();
+			if(process.first_pointer===that.bucket_pointer){
+				//when round is complete
+				//process.bucket_domains[[domain,len],]
+				if(process.bucket_domains.length===0){
+					//entire round is complete and still we got zero domains
+					return; //got nothing skip this fetch_interval
+				}
+				else{
+					 //was not able to add up to 10 
+					 // so let us push
+				}
+				
+				return;
+			}
+			if(d["fetch_interval"]!==fetch_interval){
+				//if fetched domain does not have the fetch interval we are looking for
+				continue;
+			}
+			var first_pointer;
+			if(is_first){
+				process.first_pointer=that.bucket_pointer;
+				process.summer = 0;
+			}
+			that.bucketOperation.getElgibleCount(d,function(length){
+				var batchSize = config.getConfig("batch_size");
+				var req = int( batchSize / 10 )*d['priority'];
+				if(length>=req){
+					process.summer+=req;
+				}else{
+					process.summer+=length;
+				}
+
+				if(process.summer === batchSize ){
+
+				}else if(process.summer > batchSize){
+					process.bucket_domains.pop();
+				}else{
+					process.nextTick(function(){that.new_creator(false, fetch_interval);});
+				}
+
+
+			});
+			*/
+		},
 		"creator":function(){
 			var that=this.parent;
 			//#debug#console.log("pinging")
@@ -1280,7 +1336,6 @@ var pool={
 					var interval_size=_.size(distinct_fetch_intervals);
 					var completed=0;
 					for(var k in distinct_fetch_intervals){
-						
 						(function(k){
 								log.put('Generating bucket for '+k+' interval','info');
 								var done=0;
@@ -1288,8 +1343,9 @@ var pool={
 								var summer=0;
 								var first_pointer=that.bucket_pointer;
 								var continue_flag=false;
-								while(summer<10){
+								while(summer<config.getConfig("batch_size")){
 									var d=that.bucketOperation.getCurrentDomain();
+
 									//#debug#console.log(d)
 									if(first_pointer===that.bucket_pointer){
 										//when round is complete
@@ -1310,11 +1366,11 @@ var pool={
 									}
 									summer+=d["priority"];
 									domains.push(d);
-									if(summer===10){
+									if(summer===config.getConfig('batch_size')){
 										//when ratio is complete break
 										break;
 									}
-									else if(summer>10){
+									else if(summer>config.getConfig('batch_size')){
 										//retrace if sum > 10
 										summer-=d["priority"];
 										that.bucket_pointer-=1;//dec
