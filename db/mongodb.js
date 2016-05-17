@@ -49,34 +49,38 @@ function lazy_sitemap_updator(index){
 	var domain = sitemap_queue[index][1];
 	
 	log.put("Lazy loading sitemaps for "+domain, "info");
+	var temp=domain.replace(/\./gi,"#dot#");
+	pool.sitemap_collection.findOne({"_id":temp},function(err,docs){
+		if(check.assigned(err) || !check.assigned(docs)){
+			var sitemap = require(parent_dir+'/lib/sitemap_parser');
+			var regex_urlfilter = {'accept':config.getConfig('accept_regex'),'reject':config.getConfig('reject_regex')};
+			sitemap.init(config, regex_urlfilter);
+			sitemap.getSites(abs, function(err, sites) {
+			    if(!err) {
+			    	
+			    	sites=JSON.parse(JSON.stringify(sites).replace(/https:/g,"http:"));
+			        pool.updateSiteMap(domain,sites,function(){
+			        	(function(){
 
-	var sitemap = require(parent_dir+'/lib/sitemap_parser');
-	var regex_urlfilter = {'accept':config.getConfig('accept_regex'),'reject':config.getConfig('reject_regex')};
-	sitemap.init(config, regex_urlfilter);
-	sitemap.getSites(abs, function(err, sites) {
-	    if(!err) {
-	    	
-	    	sites=JSON.parse(JSON.stringify(sites).replace(/https:/g,"http:"));
-	        pool.updateSiteMap(domain,sites,function(){
-	        	(function(){
+			        		process.nextTick(function(){lazy_sitemap_updator(index+1);});
 
-	        		process.nextTick(function(){lazy_sitemap_updator(index+1);});
+			        	})(index);
+			        	
+			        });
+			    }
+			    else {
+			       	log.put("Sitemap could not be downloaded for "+domain,"error");
+			        pool.updateSiteMap(domain,[],function(){
+			        	(function(){
 
-	        	})(index);
-	        	
-	        });
-	    }
-	    else {
-	       	log.put("Sitemap could not be downloaded for "+domain,"error");
-	        pool.updateSiteMap(domain,[],function(){
-	        	(function(){
+			        		process.nextTick(function(){lazy_sitemap_updator(index+1);});
 
-	        		process.nextTick(function(){lazy_sitemap_updator(index+1);});
-
-	        	})(index);
-	        });
-	    }
-	});
+			        	})(index);
+			        });
+			    }
+			});
+		}
+	}
 }
 
 var pool={
