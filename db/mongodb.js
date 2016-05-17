@@ -27,6 +27,7 @@ var graph_collection=config.getConfig("mongodb","graph_collection");
 var seed_collection=config.getConfig("mongodb","seed_collection");
 var fs=require('fs');
 var urllib=require('url');
+var sitemap_queue = [];
 var cluster;
 var distinct_fetch_intervals = {}; //keeps track of distinct fetch intervals
 var failed_db = new sqlite3.Database(__dirname+'/sqlite/failed_queue');
@@ -79,6 +80,7 @@ var pool={
 												
 												done+=1;
 												if(done===links.length){
+													setTimeout(function(){lazy_sitemap_updator(0);},1000);
 													if(success === 0){
 														fn(true);
 														return;
@@ -138,26 +140,9 @@ var pool={
 				log.put("Downloading sitemap index for "+domain,"info");
 				log.put("Seeding from sitemap.xml this could take some minutes ","info");
 				//insert sitemap urls
-				var sitemap = require(parent_dir+'/lib/sitemap_parser');
-				var regex_urlfilter = {'accept':config.getConfig('accept_regex'),'reject':config.getConfig('reject_regex')};
-				sitemap.init(config, regex_urlfilter);
-				sitemap.getSites(abs, function(err, sites) {
-				    if(!err) {
-				    	
-				    	sites=JSON.parse(JSON.stringify(sites).replace(/https:/g,"http:"));
-				        that.updateSiteMap(domain,sites,function(){
-				        	fn(true);
-				        	return;
-				        });
-				    }
-				    else {
-				       	log.put("Sitemap could not be downloaded for "+domain,"error");
-				        that.updateSiteMap(domain,[],function(){
-				        	fn(false);
-				        	return;
-				        });
-				    }
-				});
+				sitemap_queue.push([abs,domain]);
+				fn(true);
+				return;
 			}
 			else{
 				fn(false);
@@ -1476,6 +1461,40 @@ function indexTikaDocs(){
 		});
 	});
 }
+
+
+function lazy_sitemap_updator(index){
+	var abs = sitemap_queue[index][0];
+	var domain = sitemap_queue[index][1];
+	var sitemap = require(parent_dir+'/lib/sitemap_parser');
+	var regex_urlfilter = {'accept':config.getConfig('accept_regex'),'reject':config.getConfig('reject_regex')};
+	sitemap.init(config, regex_urlfilter);
+	sitemap.getSites(abs, function(err, sites) {
+	    if(!err) {
+	    	
+	    	sites=JSON.parse(JSON.stringify(sites).replace(/https:/g,"http:"));
+	        that.updateSiteMap(domain,sites,function(){
+	        	(function(){
+
+	        		process.nextTick(function(){lazy_sitemap_updator(index+1);});
+
+	        	})(index);
+	        	
+	        });
+	    }
+	    else {
+	       	log.put("Sitemap could not be downloaded for "+domain,"error");
+	        that.updateSiteMap(domain,[],function(){
+	        	(function(){
+
+	        		process.nextTick(function(){lazy_sitemap_updator(index+1);});
+
+	        	})(index);
+	        });
+	    }
+	});
+}
+
 process.pool_check_mode=setInterval(function(){
 	if(process.MODE==='exec' && !process.tika_setup && process.begin_intervals){
 		var d=setInterval(function(){
