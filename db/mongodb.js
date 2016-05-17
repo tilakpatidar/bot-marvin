@@ -139,6 +139,8 @@ var pool={
 				log.put("Seeding from sitemap.xml this could take some minutes ","info");
 				//insert sitemap urls
 				var sitemap = require(parent_dir+'/lib/sitemap_parser');
+				var regex_urlfilter = {'accept':config.getConfig('accept_regex'),'reject':config.getConfig('reject_regex')};
+				sitemap.init(config. regex_urlfilter);
 				sitemap.getSites(abs, function(err, sites) {
 				    if(!err) {
 				    	
