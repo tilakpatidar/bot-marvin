@@ -80,7 +80,7 @@ function lazy_sitemap_updator(index){
 			    }
 			});
 		}
-	}
+	});
 }
 
 var pool={
