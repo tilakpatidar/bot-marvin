@@ -167,7 +167,14 @@ var bot={
 					
 					try{
 							process.send({"bot":"spawn","addToPool":[link.details.url, link.details.domain, url.details.url, config.getConfig("default_recrawl_interval")]});
-							//process.send({"bot":"spawn","graph":[link.details.url, url.details.url]});
+							if(config.getConfig("web_graph")){
+								try{
+									process.send({"bot":"spawn","graph":[link.details.url, url.details.url]});
+								}catch(errr){
+
+								}
+							}
+							
 					}catch(err){
 						//log.put("Child killed","error")
 					}
@@ -394,7 +401,7 @@ var bot={
 								}catch(error){
 									
 								}
-							break;
+							break;id
 							case "none":
 								special_opt = true;
 								try{
