@@ -1108,22 +1108,30 @@ var pool={
 		"crawlStats":function stats_crawlStats(fn){
 			var dic={};
 			var that=this.parent;
-			that.bucket_collection.find({},{}).count(function(err,bucket_count){
-				dic["bucket_count"]=bucket_count;
-				that.bucket_collection.find({"lastModified":{"$exists":true}}).count(function(err,lm){
-					dic["processed_buckets"]=lm;
-						that.mongodb_collection.find({'crawled':{$exists:true}}).count(function(err,crawled_count){
-							dic["crawled_count"]=crawled_count;
-							that.mongodb_collection.find({'abandoned':true}).count(function(err,failed_count){
-								dic["failed_count"]=failed_count;
-								fn(dic);
-								return;
+			that.bot_collection.find({},{}).toArray(function(err,docs){
+				if(!check.assigned(err) && check.assigned(docs)){
+					var processed_buckets = 0;
+					var crawled_count = 0;
+					var failed_count = 0;
+					for(var index in docs){
+						var doc = docs[index];
+						if(check.assigned(doc['processedBuckets'])){
+							processed_buckets += doc['processedBuckets'];
+						}
+						if(check.assigned(doc['crawledPages'])){
+							crawled_count += doc['crawledPages'];
+						}
+						if(check.assigned(doc['failedPages'])){
+							failed_count += doc['failedPages'];
+						}
 
-
-							});
-
-						});
-				});
+					};
+					fn({"processed_buckets":processed_buckets, "crawled_count":crawled_count,"failed_count":failed_count});
+					return;
+				}else{
+					fn({"processed_buckets":0, "crawled_count":0,"failed_count":0});
+					return;
+				}
 
 
 			});
