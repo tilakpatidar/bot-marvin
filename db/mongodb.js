@@ -1593,29 +1593,53 @@ function speedUpBucketCreation(){
 		return;
 	}
 	process.lock_speed_bucket = true;
-	pool.stats.crawlStats(function(dic){
+	try{
+		pool.stats.crawlStats(function(dic){
 
-		var processed_buckets = dic["processed_buckets"];
-		var created_buckets = dic["bucket_count"];
-		if(check.assigned(processed_buckets) && check.assigned(created_buckets)){
-			var ratio = processed_buckets/created_buckets;
-			if(ratio > 0.4){
-				process.bucket_time_interval = 2000;
-				log.put("Speed up the process of bucket creation","info");
-				//speed up bucket creation
+			var processed_buckets = dic["processed_buckets"];
+			var created_buckets = dic["bucket_count"];
+			if(check.assigned(processed_buckets) && check.assigned(created_buckets)){
+				var ratio = processed_buckets/created_buckets;
+				if(ratio > 0.4){
+					process.bucket_time_interval = 2000;
+					log.put("Speed up the process of bucket creation","info");
+					//speed up bucket creation
+				}else{
+					process.bucket_time_interval = 10000;
+					log.put("Slow up the process of bucket creation","info");
+					//slow up bucket creation
+				}
 			}else{
-				process.bucket_time_interval = 10000;
-				log.put("Slow up the process of bucket creation","info");
-				//slow up bucket creation
+					process.bucket_time_interval = 2000;
+					log.put("Speed up the process of bucket creation","info");	
+					//speed up bucket creation		
 			}
-		}else{
-				process.bucket_time_interval = 2000;
-				log.put("Speed up the process of bucket creation","info");	
-				//speed up bucket creation		
-		}
-		process.lock_speed_bucket = false;
+			process.lock_speed_bucket = false;
+			clearInterval(process.bucket_timer);
+			process.bucket_timer=setInterval(function(){
+				if(!process.webappOnly && !process.bucket_creater_locked){
+					
+					pool.bucketOperation.creator();
+				}
+				
+			}, process.bucket_time_interval);
+			process.my_timers.push(process.bucket_timer);
 
-	});
+
+		});
+	}catch(err){
+			process.lock_speed_bucket = false;
+			clearInterval(process.bucket_timer);
+			process.bucket_timer=setInterval(function(){
+				if(!process.webappOnly && !process.bucket_creater_locked){
+					
+					pool.bucketOperation.creator();
+				}
+				
+			}, process.bucket_time_interval);
+			process.my_timers.push(process.bucket_timer);		
+	}
+
 
 }
 
@@ -1627,20 +1651,20 @@ process.pool_check_mode=setInterval(function(){
 
 		},10000);
 		process.my_timers.push(d);
-		var e=setInterval(function(){
+		process.bucket_timer=setInterval(function(){
 			if(!process.webappOnly && !process.bucket_creater_locked){
 				
 				pool.bucketOperation.creator();
 			}
 			
 		},10000);
-		process.my_timers.push(e);
+		process.my_timers.push(process.bucket_timer);
 		clearInterval(process.pool_check_mode);//once intervals are set clear the main interval
 		
 		var sb = setInterval(function(){
 			speedUpBucketCreation();
 		},10000);
-		
+
 		process.my_timers.push(sb);
 		var tika_indexer = setInterval(indexTikaDocs,1000);
 		process.my_timers.push(tika_indexer);
