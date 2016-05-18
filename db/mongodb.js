@@ -588,7 +588,7 @@ var pool={
 		
 		
 	},
-	"batchFinished":function(hash,refresh_label,fn){
+	"batchFinished":function(hash,refresh_label,fn, updateStats){
 		var that=this;
 		var stamp1=new Date().getTime()+config.getConfig("recrawl_intervals",refresh_label);
 		var lm=new Date().getTime();
@@ -596,7 +596,10 @@ var pool={
 			if(object.value!==null){
 					var hash=object["value"]["_id"];
 					log.put(("Bucket "+hash+" completed !"),"success");
-					process.bot.updateStats("processedBuckets",1);
+					if(updateStats){
+						process.bot.updateStats("processedBuckets",1);						
+					}
+
 			}
 			if(check.assigned(fn)){
 				return fn();
