@@ -39,7 +39,7 @@ tika_f_db.serialize(function() {
 	tika_f_db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,content TEXT)");
 });
 //read seed file
-
+process.bucket_time_interval = 10000;
 process.bucket_creater_locked=true;
 
 
@@ -1585,6 +1585,39 @@ function indexTikaDocs(){
 }
 
 
+process.lock_speed_bucket = false;
+
+function speedUpBucketCreation(){
+
+	if(process.lock_speed_bucket){
+		return;
+	}
+	process.lock_speed_bucket = true;
+	pool.stats.crawlStats(function(dic){
+
+		var processed_buckets = dic["processed_buckets"];
+		var created_buckets = dic["bucket_count"];
+		if(check.assigned(processed_buckets) && check.assigned(created_buckets)){
+			var ratio = processed_buckets/created_buckets;
+			if(ratio > 0.4){
+				process.bucket_time_interval = 2000;
+				log.put("Speed up the process of bucket creation","info");
+				//speed up bucket creation
+			}else{
+				process.bucket_time_interval = 10000;
+				log.put("Slow up the process of bucket creation","info");
+				//slow up bucket creation
+			}
+		}else{
+				process.bucket_time_interval = 2000;
+				log.put("Speed up the process of bucket creation","info");	
+				//speed up bucket creation		
+		}
+		process.lock_speed_bucket = false;
+
+	});
+
+}
 
 
 process.pool_check_mode=setInterval(function(){
@@ -1604,6 +1637,11 @@ process.pool_check_mode=setInterval(function(){
 		process.my_timers.push(e);
 		clearInterval(process.pool_check_mode);//once intervals are set clear the main interval
 		
+		var sb = setInterval(function(){
+			speedUpBucketCreation();
+		},10000);
+		
+		process.my_timers.push(sb);
 		var tika_indexer = setInterval(indexTikaDocs,1000);
 		process.my_timers.push(tika_indexer);
 	}
