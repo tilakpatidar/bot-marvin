@@ -427,7 +427,7 @@ var pool={
 			process.bot.updateStats("failedPages",1);
 			log.put('Abandoned due to mime type rejection'+url,'info');
 		}
-		else if(status.indexOf("NOINDEX")>=0){
+		else if((status+"").indexOf("NOINDEX")>=0){
 			//do not retry reject 
 			dict["abandoned"] = true;
 			abandoned = true;
