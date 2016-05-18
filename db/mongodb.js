@@ -310,6 +310,7 @@ var pool={
 										return;
 									}
 									else{
+										process.bot.updateStats("processedBuckets",1);	
 										//#debug#console.log(docs);
 										log.put(("Got "+docs.length+" for next Batch"),"success");
 										result(err,docs,hash,refresh_label);		
@@ -596,9 +597,7 @@ var pool={
 			if(object.value!==null){
 					var hash=object["value"]["_id"];
 					log.put(("Bucket "+hash+" completed !"),"success");
-					if(updateStats){
-						process.bot.updateStats("processedBuckets",1);						
-					}
+					
 
 			}
 			if(check.assigned(fn)){
