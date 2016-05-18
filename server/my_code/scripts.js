@@ -328,11 +328,17 @@
 				      if(Object.keys(js)!==0){
 				      	for (var i = 0; i < js.length; i++) {
 				      		var obj=js[i];
-				      		try{
-				      			var title=obj['data']['_source']['title'];
-				      		}catch(err){
-				      			var title=obj['data'][1]['_source']['meta_description'].substring(0,100);
-				      		}
+				      		if(obj['data']['_source']){
+				      			var title = "Untitled Title";
+				      		}else{
+
+
+					      		try{
+					      			var title=obj['data']['_source']['title'];
+					      		}catch(err){
+					      			var title=obj['data'][1]['_source']['meta_description'].substring(0,100);
+					      		}
+					      	}
 				      		var dum=rowGenerator(obj,TABLES[1][3],"page");
 				      		fin=fin.add(dum);
 				      	};
