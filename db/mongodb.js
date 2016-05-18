@@ -1113,8 +1113,12 @@ var pool={
 					var processed_buckets = 0;
 					var crawled_count = 0;
 					var failed_count = 0;
+					var created_buckets = 0;
 					for(var index in docs){
 						var doc = docs[index];
+						if(check.assigned(doc['createdBuckets'])){
+							created_buckets += doc['createdBuckets'];
+						}
 						if(check.assigned(doc['processedBuckets'])){
 							processed_buckets += doc['processedBuckets'];
 						}
@@ -1126,10 +1130,10 @@ var pool={
 						}
 
 					};
-					fn({"processed_buckets":processed_buckets, "crawled_count":crawled_count,"failed_count":failed_count});
+					fn({"processed_buckets":processed_buckets, "crawled_count":crawled_count,"failed_count":failed_count,"created_buckets":created_buckets});
 					return;
 				}else{
-					fn({"processed_buckets":0, "crawled_count":0,"failed_count":0});
+					fn({"processed_buckets":0, "crawled_count":0,"failed_count":0,"created_buckets":0});
 					return;
 				}
 
@@ -1351,7 +1355,7 @@ var pool={
 								var summer=0;
 								var first_pointer=that.bucket_pointer;
 								var continue_flag=false;
-								while(summer<config.getConfig("batch_size")){
+								while(summer<10){
 									var d=that.bucketOperation.getCurrentDomain();
 
 									//#debug#console.log(d)
@@ -1374,11 +1378,11 @@ var pool={
 									}
 									summer+=d["priority"];
 									domains.push(d);
-									if(summer===config.getConfig('batch_size')){
+									if(summer===10){
 										//when ratio is complete break
 										break;
 									}
-									else if(summer>config.getConfig('batch_size')){
+									else if(summer>10){
 										//retrace if sum > 10
 										summer-=d["priority"];
 										that.bucket_pointer-=1;//dec
