@@ -1130,10 +1130,10 @@ var pool={
 						}
 
 					};
-					fn({"processed_buckets":processed_buckets, "crawled_count":crawled_count,"failed_count":failed_count,"created_buckets":created_buckets});
+					fn({"processed_buckets":processed_buckets, "crawled_count":crawled_count,"failed_count":failed_count,"bucket_count":created_buckets});
 					return;
 				}else{
-					fn({"processed_buckets":0, "crawled_count":0,"failed_count":0,"created_buckets":0});
+					fn({"processed_buckets":0, "crawled_count":0,"failed_count":0,"bucket_count":0});
 					return;
 				}
 
