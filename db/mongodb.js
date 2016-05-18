@@ -44,7 +44,10 @@ process.bucket_creater_locked=true;
 
 
 function lazy_sitemap_updator(index){
-
+	if(!check.assigned(sitemap_queue[index])){
+		log.put("Lazy loading finished for all domains","success");
+		return;
+	}
 	var abs = sitemap_queue[index][0];
 	var domain = sitemap_queue[index][1];
 	
@@ -62,7 +65,7 @@ function lazy_sitemap_updator(index){
 			        pool.updateSiteMap(domain,sites,function(){
 			        	(function(index){
 
-			        		process.nextTick(function(){lazy_sitemap_updator(index+1);});
+			        		setTimeout(function(){lazy_sitemap_updator(index+1);},1000);
 
 			        	})(index);
 			        	
@@ -73,7 +76,7 @@ function lazy_sitemap_updator(index){
 			        pool.updateSiteMap(domain,[],function(){
 			        	(function(index){
 
-			        		process.nextTick(function(){lazy_sitemap_updator(index+1);});
+			        		setTimeout(function(){lazy_sitemap_updator(index+1);},1000);
 
 			        	})(index);
 			        });
@@ -83,7 +86,7 @@ function lazy_sitemap_updator(index){
 		else{
 			(function(index){
 
-			        		process.nextTick(function(){lazy_sitemap_updator(index+1);});
+			        		setTimeout(function(){lazy_sitemap_updator(index+1);},1000);
 
 			})(index);
 		}
@@ -498,6 +501,7 @@ var pool={
 			that.robots_collection=db.collection(robots_collection);
 			that.graph_collection=db.collection(graph_collection);
 			that.seed_collection=db.collection(seed_collection);
+			that.mongodb_collection.createIndex( { bucketed: 1, fetch_interval: 1, partitionedBy: 1,domain: 1,bucket_id: 1 } );
 			//create partitions for all the cluster bots
 			that.bots_partitions=[];
 			that.stats.activeBots(function(errr,docs){
@@ -1562,6 +1566,9 @@ function indexTikaDocs(){
 	tika_indexer_busy = true;
 	tika_f_db.parallelize(function(){
 		tika_f_db.each("SELECT * FROM q LIMIT 0,100",function(e,row){
+			if(!check.assigned(row) || check.assigned(e)){
+				return;
+			}
 			var link_details = JSON.parse(row.content);
 			pool.setCrawled(link_details);
 			tika_f_db.parallelize(function(){
