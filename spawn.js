@@ -55,10 +55,11 @@ var bot={
 		bot.queued=0;
 		for (var i = 0; i < pools.length; i++) {
 			if(check.assigned(pools)){
-				var url=pools[i]['_id'];
+				var url=pools[i]['url'];
 				var domain=pools[i]['domain'];
 				var link = URL.url(url, domain);
 				link.setBucketId(pools[i]['bucket_id']);
+				link.setUrlId(pools[i]['_id']);
 				(function(link){
 					setTimeout(function(){ bot.processLink(link); }, 100); //to avoid recursion
 				})(link);

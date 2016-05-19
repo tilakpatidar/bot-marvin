@@ -1,5 +1,6 @@
 //global connection to mongodb
 //mongodb connection file
+var ObjectId = require('mongodb').ObjectId;
 var MongoClient = require('mongodb').MongoClient;
 var parent_dir=process.getAbsolutePath(__dirname);
 var log=require(parent_dir+"/lib/logger.js");
@@ -101,70 +102,75 @@ var pool={
 		that.mongodb_collection.createIndex({"$**":"text"},{"weights": {"data._source.id":5,"data._source.host":5,"data._source.meta_description":5,"data._source.title":5,"data._source.body":1}},function(err){
 				//#debug#console.log(err);
 			});
-		//#debug#console.log("FUCKED")
 		that.bucket_collection.createIndex({recrawlAt:1},function(err){});//asc order sort for recrawlAt
 		that.bucket_collection.createIndex({score:1},function(err){});//asc order sort for score
 					that.getParsers(function(){
 								var done=0;
 								var success=0;
 								var stamp1=new Date().getTime()-2000;//giving less time
-								var stamp=stamp1+""+parseInt(Math.random()*10000);
-								
+								that.bucket_collection.insert({"links":links,"score":1,"recrawlLabel":config.getConfig("default_recrawl_interval"),"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":success},function(err,results){
+										var stamp = results["ops"][0]["_id"];			
 											
-								for (var i = 0; i < links.length; i++) {
-									var anon=(function(domain,stamp,fetch_interval){
-										that.cache[domain]=true;
-										that.getLinksFromSiteMap(domain,function(){
-											//#debug#console.log(domain)
-															
-											that.mongodb_collection.insert({"_id":domain,"bucket_id":stamp,"domain":domain,"partitionedBy":config.getConfig("bot_name"),"bucketed":true,"fetch_interval":fetch_interval},function(err,results){
-												//#debug#console.log(err)
-												if(err){
-													log.put("pool.init maybe seed is already added","error");
-												}
-												else{
-													success+=1;
-													log.put(("Added  "+domain+" to initialize pool"),"success");
-												}
+										for (var i = 0; i < links.length; i++) {
+											var anon=(function(domain,stamp,fetch_interval){
+												that.cache[domain]=true;
+												that.getLinksFromSiteMap(domain,function(){
+													//#debug#console.log(domain)
+																	
+													that.mongodb_collection.insert({"url":domain,"bucket_id":ObjectId(stamp),"domain":domain,"partitionedBy":config.getConfig("bot_name"),"bucketed":true,"fetch_interval":fetch_interval},function(err,results){
+														//#debug#console.log(err)
+														if(err){
+															log.put("pool.init maybe seed is already added","error");
+														}
+														else{
+															success+=1;
+															log.put(("Added  "+domain+" to initialize pool"),"success");
+														}
 
-												
-												done+=1;
-												if(done===links.length){
-													setTimeout(function(){lazy_sitemap_updator(0);},1000);
-													if(success === 0){
-														fn(true);
-														return;
-													}
-													that.bucket_collection.insert({"_id":stamp,"links":links,"score":1,"recrawlLabel":config.getConfig("default_recrawl_interval"),"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":(success+1)},function(err,results){
-														fn(true);
-														return;
+														
+														done+=1;
+														if(done===links.length){
+															setTimeout(function(){lazy_sitemap_updator(0);},1000);
+															if(success === 0){
+																//if links were already present then remove the bucket
+																that.bucket_collection.removeOne({"_id":ObjectId(stamp)},function(){
+
+																		fn(true);
+																		return;	
+
+																});
 															
-													});
+															}else{
+																fn(true);
+																return;	
+															}
+															
+																
+														
+																
+																
+														}
+
+																		
+																		
+														});
+														
+											
 													
-														
-														
-												}
-
-																
-																
 												});
 												
-									
-											
-										});
-										
-										
-										
-										
+												
+												
+												
 
-									});
-									
-									anon(links[i],stamp,links_fetch_interval[i]);
-									
-									
-								};
+											});
+											
+											anon(links[i],stamp,links_fetch_interval[i]);
+											
+											
+										};
 					
-								
+								});
 							
 						
 			
@@ -246,7 +252,7 @@ var pool={
 						if(that.bot_pointer>=that.bots_partitions.length){
 							that.bot_pointer=0;
 						}
-						that.mongodb_collection.insert({"_id":url,"bucketed":false,"partitionedBy":bot_partition,"domain":domain,"parent":parent,"data":"","bucket_id":hash,"fetch_interval":refresh_time},function(err,results){
+						that.mongodb_collection.insert({"url":url,"bucketed":false,"partitionedBy":bot_partition,"domain":domain,"parent":parent,"data":"","bucket_id":null,"fetch_interval":refresh_time},function(err,results){
 							
 							done+=1;
 							if(done===li.length){
@@ -289,7 +295,7 @@ var pool={
 							//#debug#console.log(hash);
 							var refresh_label=object["value"]["recrawlLabel"];
 							that.mongodb_collection.find({"bucket_id":hash},{},{}).toArray(function(err,docs){
-								//#debug#console.log(err,docs);
+								console.log(err,docs);
 								if(!check.assigned(err) && docs.length === 0){
 									//we got empty bucket remove it 
 									//every time seed bucket is readded if seeds are already added
@@ -298,7 +304,7 @@ var pool={
 
 									//fixed from seed but still removing any empty bucket
 
-									that.bucket_collection.removeOne({"_id":hash},function(){
+									that.bucket_collection.removeOne({"_id":ObjectId(hash)},function(){
 
 										log.put("empty bucket removed ",'success');
 									});
@@ -338,6 +344,7 @@ var pool={
 	"setCrawled":function(link_details){
 		var that = this;
 		var url = link_details.url;
+		var urlID = link_details.urlID;
 		var data = link_details.parsed_content;
 		var status = link_details.status_code;
 		var stamp1 = new Date().getTime();
@@ -352,7 +359,7 @@ var pool={
 		if(!check.assigned(status)){
 			status="0";//no error
 		}
-		var dict = {"bucketed":true,"data":data,"response":status, "lastModified":stamp1,"updatedBy":config.getConfig("bot_name")};
+		var dict = {"bucketed":true,"url":url,"data":data,"response":status, "lastModified":stamp1,"updatedBy":config.getConfig("bot_name")};
 		var from_failed_queue = false;
 		var abandoned = false;
 		var failed_count = 0;
@@ -411,10 +418,7 @@ var pool={
 					dict['abandoned'] = false;
 					(function(link_details){
 						failed_db.parallelize(function() {
-							var failed_info = {};
-							failed_info['bucket_id'] = link_details.bucket_id;
-							failed_info['domain'] = link_details.domain;
-							failed_db.run("INSERT OR IGNORE INTO q(failed_url,failed_info,status,count) VALUES(?,?,0,0)",[link_details.url,JSON.stringify(failed_info)],function(err,row){
+							failed_db.run("INSERT OR IGNORE INTO q(failed_url,failed_info,status,count) VALUES(?,?,0,0)",[link_details.url,JSON.stringify(link_details)],function(err,row){
 								
 							});
 						});
@@ -466,9 +470,9 @@ var pool={
 		if(check.assigned(redirect_url)){
 			dict["redirect_url"] = redirect_url;
 		}
-
-		that.mongodb_collection.updateOne({"_id":url},{$set:dict},function(err,results){
-			//console.log(err,results)
+		console.log(dict);
+		that.mongodb_collection.updateOne({"_id":ObjectId(urlID)},{$set:dict},function(err,results){
+			console.log(err,results)
 			
 			if(err){
 				log.put("pool.setCrawled","error");
@@ -504,6 +508,7 @@ var pool={
 			that.seed_collection=db.collection(seed_collection);
 			that.mongodb_collection.createIndex( { bucketed: 1, fetch_interval: 1, partitionedBy: 1,domain: 1,bucket_id: 1 } );
 			//create partitions for all the cluster bots
+			that.mongodb_collection.createIndex({url :1},{unique: true});
 			that.bots_partitions=[];
 			that.stats.activeBots(function(errr,docs){
 				//#debug#console.log(docs)
@@ -593,7 +598,7 @@ var pool={
 		var that=this;
 		var stamp1=new Date().getTime()+config.getConfig("recrawl_intervals",refresh_label);
 		var lm=new Date().getTime();
-		that.bucket_collection.findAndModify({"_id":hash},[],{$set:{"underProcess":false,"recrawlAt":stamp1,"lastModified":lm}},{"remove":false},function(err,object){
+		that.bucket_collection.findAndModify({"_id":ObjectId(hash)},[],{$set:{"underProcess":false,"recrawlAt":stamp1,"lastModified":lm}},{"remove":false},function(err,object){
 			if(check.assigned(object)){
 				if(object.value!==null){
 						var hash=object["value"]["_id"];
@@ -641,12 +646,11 @@ var pool={
 		}
 		var success=0;
 		for (var i = 0; i < li.length; i++) {
-			var key=li[i][1];
-			var item=li[i][0];
-			var parent=li[i][2];
-			
-			(function(url,domain,parent,hash){
-				that.mongodb_collection.updateOne({"_id":url},{"$set":{"bucketed":true,"domain":domain,"parent":parent,"data":"","bucket_id":hash}},function(err,results){
+			(function(url, hash){
+				//url has to be updated to urlID
+
+				that.mongodb_collection.updateOne({"_id":ObjectId(url["_id"])},{"$set":{"bucketed":true,"domain":url.domain,"parent":url.parent,"data":"","bucket_id":ObjectId(hash)}},function(err,results){
+						//console.log(arguments);
 						if(err){
 							//#debug#console.log(err);
 							//link is already present
@@ -658,11 +662,11 @@ var pool={
 						}
 						done+=1;
 						if(done===li.length){
-							fn(hash,success);
+							fn(success);
 							return;
 						}				
 				});
-			})(item,key,parent,hashes_obj["id"]);
+			})(li[i], hashes_obj["_id"]);
 
 
 			
@@ -1077,7 +1081,7 @@ var pool={
 		"getPage":function stats_getPage(url,fn){
 			var that=this.parent;
 			//#debug#console.log(url)
-			that.mongodb_collection.findOne({"_id":url},function(err,results){
+			that.mongodb_collection.findOne({"url":url},function(err,results){
 				
 				fn(err,results);
 				return;
@@ -1086,7 +1090,7 @@ var pool={
 		"getBucket":function stats_getBucket(url,fn){
 			var that=this.parent;
 			//#debug#console.log(url)
-			that.bucket_collection.findOne({"_id":url},function(err,results){
+			that.bucket_collection.findOne({"_id":ObjectId(url)},function(err,results){
 				
 				fn(err,results);
 				return;
@@ -1104,6 +1108,10 @@ var pool={
 			
 			that.bot_collection.find({},{}).toArray(function(err,docs){
 				//this method is called by cluster in some interval which will also update the new added bots for partioning
+				if(check.assigned(err)){
+					fn(err,[]);
+					return;
+				}
 				that.bots_partitions=[];
 				for (var i = 0; i < docs.length; i++) {
 						var obj=docs[i]["_id"];
@@ -1345,7 +1353,7 @@ var pool={
 
 					for(var k in distinct_fetch_intervals){
 						hashes[k]={};
-						hashes[k]["id"]=new Date().getTime()+""+parseInt(Math.random()*10000);
+						hashes[k]["_id"] = ObjectId();
 						hashes[k]["links"]=[];
 						
 					}
@@ -1475,7 +1483,8 @@ var pool={
 			for(var key in hashes){
 				(function(key){
 					//first links are added to the db to avoid same links
-					that.addLinksToDB(hashes[key],key,function(hash,numOfLinks){
+					//console.log(hashes[key]);
+					that.addLinksToDB(hashes[key],key,function(numOfLinks){
 						//uniform pool of urls are generated
 						//console.log("numOfLinks "+numOfLinks+" "+key);
 						if(!check.assigned(numOfLinks)|| numOfLinks===0){
@@ -1489,16 +1498,16 @@ var pool={
 							
 						}
 							var stamp1=new Date().getTime();
-							var links_to_be_inserted=_.pluck(hashes[key]["links"],0);
-							//#debug#console.log({"_id":hash,"recrawlLabel":key,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":numOfLinks});
-							that.bucket_collection.insert({"_id":hash,"links":links_to_be_inserted,"score":hashes[key]["score"],"recrawlLabel":key,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":numOfLinks},function(err,results){
+							var links_to_be_inserted=_.pluck(hashes[key]["links"],'url');
+							that.bucket_collection.insert({"_id":hashes[key]["_id"],"links":links_to_be_inserted,"score":hashes[key]["score"],"recrawlLabel":key,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":numOfLinks},function(err,results){
+								//console.log(arguments);
 								if(err){
 									log.put(("pool.addToPool"+err),"error");
 									//fn(false);
 									//return;
 								}
 								else{
-									log.put(("Updated bucket "+hash),"success");
+									log.put(("Updated bucket "+results["ops"][0]["_id"]),"success");
 									process.bot.updateStats("createdBuckets",1);
 									//fn(true);
 									//return;
@@ -1533,14 +1542,8 @@ var pool={
 					if(check.assigned(object) && object.length!==0){
 						log.put('Fetched '+object.length+' urls from '+domain+' for bucket creation','info');
 						//console.log(object,domain,interval)
-						rem=_.pluck(object,"_id"); 
-						//#debug#console.log(rem)
-						var domains=_.pluck(object,"domain");
-						var parents=_.pluck(object,"parent");
-						_.each(rem,function(item,index){li.push([item,domains[index],parents[index]]);});
-						
-							fn(li)
-							return;
+						fn(object)
+						return;
 						
 						
 					}
