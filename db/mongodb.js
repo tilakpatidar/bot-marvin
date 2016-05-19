@@ -1537,7 +1537,7 @@ var pool={
 			var that=this.parent;
 			var li=[];
 			var rem=[];
-				log.put('Fetch '+count+' urls from '+domain+' for bucket creation','info');
+				//log.put('Fetch '+count+' urls from '+domain+' for bucket creation','info');
 				that.mongodb_collection.find({"domain":domain,"bucket_id":null,"bucketed":false,"fetch_interval":interval,"partitionedBy":config.getConfig("bot_name")},{limit:count,sort:{level:1}}).toArray(function(err,object){
 					
 					//#debug#console.log(object)
