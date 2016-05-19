@@ -117,7 +117,7 @@ var pool={
 												that.getLinksFromSiteMap(domain,function(){
 													//#debug#console.log(domain)
 																	
-													that.mongodb_collection.insert({"url":domain,"bucket_id":ObjectId(stamp),"domain":domain,"partitionedBy":config.getConfig("bot_name"),"bucketed":true,"fetch_interval":fetch_interval},function(err,results){
+													that.mongodb_collection.insert({"url":domain,"bucket_id":ObjectId(stamp),"domain":domain,"partitionedBy":config.getConfig("bot_name"),"bucketed":true,"fetch_interval":fetch_interval,"level":1},function(err,results){
 														//#debug#console.log(err)
 														if(err){
 															log.put("pool.init maybe seed is already added","error");
@@ -252,7 +252,8 @@ var pool={
 						if(that.bot_pointer>=that.bots_partitions.length){
 							that.bot_pointer=0;
 						}
-						that.mongodb_collection.insert({"url":url,"bucketed":false,"partitionedBy":bot_partition,"domain":domain,"parent":parent,"data":"","bucket_id":null,"fetch_interval":refresh_time},function(err,results){
+						var level = url.replace('http://','').split('/').length;
+						that.mongodb_collection.insert({"url":url,"bucketed":false,"partitionedBy":bot_partition,"domain":domain,"parent":parent,"data":"","bucket_id":null,"fetch_interval":refresh_time, "level":level},function(err,results){
 							
 							done+=1;
 							if(done===li.length){
@@ -295,7 +296,7 @@ var pool={
 							//#debug#console.log(hash);
 							var refresh_label=object["value"]["recrawlLabel"];
 							that.mongodb_collection.find({"bucket_id":hash},{},{}).toArray(function(err,docs){
-								console.log(err,docs);
+								//console.log(err,docs);
 								if(!check.assigned(err) && docs.length === 0){
 									//we got empty bucket remove it 
 									//every time seed bucket is readded if seeds are already added
@@ -470,9 +471,9 @@ var pool={
 		if(check.assigned(redirect_url)){
 			dict["redirect_url"] = redirect_url;
 		}
-		console.log(dict);
+		//console.log(dict);
 		that.mongodb_collection.updateOne({"_id":ObjectId(urlID)},{$set:dict},function(err,results){
-			console.log(err,results)
+			//console.log(err,results)
 			
 			if(err){
 				log.put("pool.setCrawled","error");
@@ -509,6 +510,7 @@ var pool={
 			that.mongodb_collection.createIndex( { bucketed: 1, fetch_interval: 1, partitionedBy: 1,domain: 1,bucket_id: 1 } );
 			//create partitions for all the cluster bots
 			that.mongodb_collection.createIndex({url :1},{unique: true});
+			that.bucket_collection.createIndex({level:1},function(err){});//asc order sort for score
 			that.bots_partitions=[];
 			that.stats.activeBots(function(errr,docs){
 				//#debug#console.log(docs)
@@ -1536,7 +1538,7 @@ var pool={
 			var li=[];
 			var rem=[];
 				log.put('Fetch '+count+' urls from '+domain+' for bucket creation','info');
-				that.mongodb_collection.find({"domain":domain,"bucket_id":null,"bucketed":false,"fetch_interval":interval,"partitionedBy":config.getConfig("bot_name")},{limit:count}).toArray(function(err,object){
+				that.mongodb_collection.find({"domain":domain,"bucket_id":null,"bucketed":false,"fetch_interval":interval,"partitionedBy":config.getConfig("bot_name")},{limit:count,sort:{level:1}}).toArray(function(err,object){
 					
 					//#debug#console.log(object)
 					if(check.assigned(object) && object.length!==0){
