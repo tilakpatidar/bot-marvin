@@ -594,14 +594,16 @@ var pool={
 		var stamp1=new Date().getTime()+config.getConfig("recrawl_intervals",refresh_label);
 		var lm=new Date().getTime();
 		that.bucket_collection.findAndModify({"_id":hash},[],{$set:{"underProcess":false,"recrawlAt":stamp1,"lastModified":lm}},{"remove":false},function(err,object){
-			if(object.value!==null){
-					var hash=object["value"]["_id"];
-					log.put(("Bucket "+hash+" completed !"),"success");
-					
+			if(check.assigned(object)){
+				if(object.value!==null){
+						var hash=object["value"]["_id"];
+						log.put(("Bucket "+hash+" completed !"),"success");
+						
 
-			}
-			if(check.assigned(fn)){
-				return fn();
+				}
+				if(check.assigned(fn)){
+					return fn();
+				}
 			}
 				
 
