@@ -153,9 +153,14 @@ var bot={
 			var count=a.length;
 			url = URL.url(url, domain);
 			a.each(function(){
-				
-				
-				var href = $(this).attr("href")
+
+				//do not follow links with rel = 'nofollow'
+				var rel = $(this).attr('rel');
+				if(check.assigned(rel) && rel === "nofollow"){
+					return;
+				}
+
+				var href = $(this).attr("href");
 				if(check.assigned(href)){
 					//#debug#("url "+href);
 					
