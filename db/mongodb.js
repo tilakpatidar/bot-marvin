@@ -351,7 +351,10 @@ var pool={
 		var stamp1 = new Date().getTime();
 		var redirect_url = link_details.redirect;
 		var response_time = link_details.response_time;
-
+		var canonical_url = link_details.canonical_url;
+		var alternate_urls = link_details.alternate_urls;
+		var md5 = link_details.content_md5;
+		console.log(alternate_urls);
 		if(!check.assigned(data)){
 
 			data="";
@@ -360,15 +363,66 @@ var pool={
 		if(!check.assigned(status)){
 			status="0";//no error
 		}
+
+		var add_docs = [];
+
 		var dict = {"bucketed":true,"url":url,"data":data,"response":status, "lastModified":stamp1,"updatedBy":config.getConfig("bot_name")};
 		var from_failed_queue = false;
 		var abandoned = false;
 		var failed_count = 0;
 		var failed_id = 0;
+
+		if(check.assigned(md5)){
+			dict["md5"] = md5;
+		}
+
+		if(check.assigned(alternate_urls) && !check.emptyObject(alternate_urls)){
+			dict["alternate_urls_lang"] = alternate_urls;
+
+		}
+		if(check.assigned(canonical_url)){
+			//if we are getting canonical_url val this means page was successfull and was parsed
+			var new_dict = JSON.parse(JSON.stringify(dict));
+			new_dict['url'] = canonical_url;
+			new_dict["alternate_urls"] = [url];
+			new_dict["bucket_id"] = link_details.bucket_id;
+			that.mongodb_collection.findOne({"url":canonical_url},function(err,doc){
+				console.log("Find canonical_url ",err,doc," find canonical_url");
+				if(check.assigned(err) || !check.assigned(doc)){
+					//canonical url not present
+					that.mongodb_collection.insert(new_dict,function(err1,res1){
+						//insert the new canonical url in the same bucket
+						console.log("Insert canonical_url ",err1,res1," insert canonical_url");
+
+					});
+				}
+				else{
+					//url already present update it
+					var aul = [];
+					if(check.assigned(alternate_urls) && !check.emptyObject(alternate_urls)){
+						aul = alternate_urls;
+					}
+					that.mongodb_collection.updateOne({"_id":doc["_id"]}, {"$push":{"alternate_urls":url}, "$pushAll":{"alternate_urls_lang": alternate_urls}}, function(e,r){
+						console.log("update canonical_url ",e,r," update canonical_url");
+
+
+					});
+				}
+			});
+
+
+			//now changes to this page
+			dict["abandoned"] = true;
+			dict["data"] = "";
+			dict["canonical_url"] = canonical_url;
+ 		}
+
 		if(check.assigned(response_time)){
 
 			dict["response_time"] = response_time;
 		}
+
+		
 		if(check.assigned(link_details.bucket_id) && link_details.bucket_id.indexOf('failed_queue')>=0){
 			
 			from_failed_queue = true;

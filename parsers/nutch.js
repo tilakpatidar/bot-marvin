@@ -188,17 +188,34 @@ var app={
 		 	}
 		 }
 
-
+		 ret['msg'] = {};
 		 //meta bot msg
 		 var bot_meta = $('meta[name="robots"]');
 		 if(!check.assigned(bot_meta) || bot_meta.length === 0){
 		 	bot_meta = $('meta[name="googlebot"]');
 		 }
 		 if(check.assigned(bot_meta) && bot_meta.length !== 0){
-		 	ret['msg'] = bot_meta.attr("content").replace(/\s/gi,"").split(",");
+		 	var val = bot_meta.attr("content").replace(/\s/gi,"").split(",");
+		 	ret['msg'][val] = true;
 		 }
 
+		 var canonical = $('link[rel="canonical"]');
+		 if(check.assigned(canonical) && canonical.length !== 0){
+		 	var key = "canonical";
+		 	var val = canonical.attr('href');
+		 	if(check.assigned(val)){
+		 		ret['msg'][key] = val;
+		 	}
+		 	
+		 }
 
+		 var alternate = $('link[rel="alternate"]');
+		 if(check.assigned(alternate) && alternate.length!== 0){
+		 	var mul = fetchMultipleAttr(alternate, "href");
+		 	if(check.assigned(mul)){
+		 		ret["msg"]["alternate"] = mul;
+		 	}
+		 }
 
 		 if(ret["description"]===undefined || ret["description"]===""){
 		 	ret["description"]="";

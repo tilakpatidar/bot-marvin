@@ -9,6 +9,7 @@ var request = require("request");
 var check=require("check-types");
 var colors = require('colors');
 var urllib = require('url');
+var crypto = require('crypto');
 var config=require(__dirname+"/lib/spawn_config.js");
 var log;
 var separateReqPool;
@@ -274,6 +275,7 @@ var bot={
 	},
 	"fetchWebPage":function(link){
 		var req_url=link.details.url;
+		console.log(bot.links, link.details.domain);
 		if(bot.links[link.details.domain]["phantomjs"]){
 			//new url if phantomjs is being used
 			req_url="http://127.0.0.1:"+config.getConfig("phantomjs_port")+"/?q="+req_url;
@@ -371,18 +373,28 @@ var bot={
 					
 					return bot.isLinksFetched();
 				}
+				try{
+					var md5sum = crypto.createHash('md5');
+					md5sum.update(html);
+					var hash=md5sum.digest('hex');
+					link.setContentMd5(hash);
+				}catch(err_md){
+					
+				}
 				
 				var parser=require(__dirname+"/parsers/"+bot.links[link.details.domain]["parseFile"]);
 				var dic=parser.init.parse(html,link.details.url);//pluggable parser
-				
+				console.log(dic);
 				var parser_msgs = dic[4];
 				var default_opt = false;
 				var special_opt = false;
-				if(check.assigned(parser_msgs)){
+				if(check.assigned(parser_msgs) && !check.emptyObject(parser_msgs)){
 					link.setStatusCode("META_BOT"); //bec going to concat status
-					for (var index in parser_msgs){
-						var parser_msg = parser_msgs[index];
-						switch(parser_msg){
+					for (var parser_msg_key in parser_msgs){
+
+						var parser_msg = parser_msgs[parser_msg_key];
+						console.log("############## PARSER MSG ############",parser_msg_key,parser_msg);
+						switch(parser_msg_key){
 							case "noindex":
 								special_opt = true;
 								try{
@@ -407,7 +419,36 @@ var bot={
 								}catch(error){
 									
 								}
-							break;id
+							break;
+							case "canonical":
+								special_opt = true;
+								console.log("############## HERE canonical################");
+								try{
+									link.setCanonicalUrl(parser_msg);
+									link.setStatusCode(res.statusCode);
+									link.setParsed(dic[1]);
+									link.setResponseTime(response_time);
+									link.setContent(dic[3]);
+									//do not grab links from this page
+								}catch(error){
+									console.log(error);
+								}
+							break;
+							case "alternate":
+								special_opt = true;
+									console.log(parser_msg);
+									for(var ind in parser_msg){
+										console.log(parser_msg[ind][0],"##############",parser_msg[ind][1]);
+										link.addAlternateUrl(parser_msg[ind][0], parser_msg[ind][1]);
+									}
+									
+									link.setStatusCode(res.statusCode);
+									link.setParsed(dic[1]);
+									link.setResponseTime(response_time);
+									link.setContent(dic[3]);
+									//do not grab links from this page
+								
+							break;
 							case "none":
 								special_opt = true;
 								try{
@@ -427,7 +468,7 @@ var bot={
 					}
 				}
 
-				if(check.assigned(parser_msgs) && special_opt){
+				if((check.assigned(parser_msgs) && !check.emptyObject(parser_msgs)) && special_opt){
 					//means one of the above cases met just send the response to setCrawled
 					try{
 						if(!sent){
@@ -441,7 +482,7 @@ var bot={
 				}else{
 					//no msg recieved or no cases matched
 					//go for default send
-					if(!check.assigned(parser_msgs) || default_opt){	
+					if((!check.assigned(parser_msgs) || check.emptyObject(parser_msgs)) || default_opt){	
 								//dic[0] is cheerio object
 								//dic[1] is dic to be inserted
 								//dic[2] inlinks suggested by custom parser
