@@ -102,7 +102,7 @@ var app={
 		//data is text
 			data=data.replace(/(\n+)|(\t+)|(\s+)|(\r+)/g,' ');
 			data=data.replace(/\s+/g," ");
-		 $ = cheerio.load(data);
+		 $ = cheerio.load(data, {lowerCaseTags: true, lowerCaseAttributeNames : true });
 		 //clear dom
 		 for (var i = 0; i < config.getConfig("remove_tags").length; i++) {
 		 	$(config.getConfig("remove_tags")[i]).remove();
@@ -115,21 +115,21 @@ var app={
 		 ret["output"]=this.getID(url);
 		 ret["id"]=ret["output"][0];
 		 ret["host"]=ret["output"][1];
-		 ret["meta_keywords"]=$('meta[name="keywords"]').attr('content');
-		 ret["description"]=$('meta[name="description"]').attr('content');
+		 ret["meta_keywords"]=$('meta[name="keywords" i]').attr('content');
+		 ret["description"]=$('meta[name="description" i]').attr('content');
 
 		 //get page author
 
-		 ret["author"] = $('link[rel="author"]').attr('href');
+		 ret["author"] = $('link[rel="author" i]').attr('href');
 
 		 if( !check.assigned(ret["author"])){
-		 	ret["author"] = $('a[rel="author"]').attr('href');
+		 	ret["author"] = $('a[rel="author" i]').attr('href');
 		 }
 		 if(!check.assigned(ret["author"])){
-		 	ret["author"] = $('a[rel="me"]').attr('href');
+		 	ret["author"] = $('a[rel="me" i]').attr('href');
 		 }
 		 if(!check.assigned(ret["author"])){
-		 	ret["author"] = $('link[rel="publisher"]').attr('href');
+		 	ret["author"] = $('link[rel="publisher" i]').attr('href');
 		 }
 
 		 if(!check.assigned(ret["author"])){
@@ -140,11 +140,11 @@ var app={
 
 		 ret['open_graph'] = {};
 
-		 ret['open_graph']['title'] = fetchMultipleAttr($('meta[property="og:title"]'),'content');
-		 ret['open_graph']['type'] = fetchMultipleAttr($('meta[property="og:type"]'),'content');
-		 ret['open_graph']['image'] = fetchMultipleAttr($('meta[property="og:image"]'),'content');
-		 ret['open_graph']['url'] = fetchMultipleAttr($('meta[property="og:url"]'),'content');
-		 ret['open_graph']['description'] = fetchMultipleAttr($('meta[property="og:description"]'),'content');
+		 ret['open_graph']['title'] = fetchMultipleAttr($('meta[property="og:title" i]'),'content');
+		 ret['open_graph']['type'] = fetchMultipleAttr($('meta[property="og:type" i]'),'content');
+		 ret['open_graph']['image'] = fetchMultipleAttr($('meta[property="og:image" i]'),'content');
+		 ret['open_graph']['url'] = fetchMultipleAttr($('meta[property="og:url" i]'),'content');
+		 ret['open_graph']['description'] = fetchMultipleAttr($('meta[property="og:description" i]'),'content');
 
 		 for(var key in ret['open_graph']){
 		 	if(!check.assigned(ret['open_graph'][key])){
@@ -157,21 +157,21 @@ var app={
 
 		 ret['twitter'] = {};
 
-		 ret['twitter']['title'] = fetchMultipleAttr($('meta[name="twitter:title"]'),'content');
-		 ret['twitter']['card'] =fetchMultipleAttr($('meta[name="twitter:card"]'),'content');
-		 ret['twitter']['image'] = fetchMultipleAttr($('meta[name="twitter:image"]'),'content');
-		 ret['twitter']['image_alt'] = fetchMultipleAttr($('meta[name="twitter:image:alt"]'),'content');
-		 ret['twitter']['description'] = fetchMultipleAttr($('meta[name="twitter:description"]'),'content');
-		 ret['twitter']['domain'] = fetchMultipleAttr($('meta[name="twitter:domain"]'),'content');
-		 ret['twitter']['creator_id'] = fetchMultipleAttr($('meta[name="twitter:creator:id"]'),'content');
-		 ret['twitter']['creator_username'] = fetchMultipleAttr($('meta[name="twitter:creator"]'),'content');
-		 ret['twitter']['site_username'] = fetchMultipleAttr($('meta[name="twitter:site"]'),'content');
-		 ret['twitter']['site_id'] = fetchMultipleAttr($('meta[name="twitter:site:id"]'),'content');
+		 ret['twitter']['title'] = fetchMultipleAttr($('meta[name="twitter:title" i]'),'content');
+		 ret['twitter']['card'] =fetchMultipleAttr($('meta[name="twitter:card" i]'),'content');
+		 ret['twitter']['image'] = fetchMultipleAttr($('meta[name="twitter:image" i]'),'content');
+		 ret['twitter']['image_alt'] = fetchMultipleAttr($('meta[name="twitter:image:alt" i]'),'content');
+		 ret['twitter']['description'] = fetchMultipleAttr($('meta[name="twitter:description" i]'),'content');
+		 ret['twitter']['domain'] = fetchMultipleAttr($('meta[name="twitter:domain" i]'),'content');
+		 ret['twitter']['creator_id'] = fetchMultipleAttr($('meta[name="twitter:creator:id" i]'),'content');
+		 ret['twitter']['creator_username'] = fetchMultipleAttr($('meta[name="twitter:creator" i]'),'content');
+		 ret['twitter']['site_username'] = fetchMultipleAttr($('meta[name="twitter:site" i]'),'content');
+		 ret['twitter']['site_id'] = fetchMultipleAttr($('meta[name="twitter:site:id" i]'),'content');
 
 
 		 //gather rss feeds from pages
 
-		 ret['rss_feeds'] = fetchMultipleAttr($('link[rel="alternate"][type="application/rss+xml"]'),'href');
+		 ret['rss_feeds'] = fetchMultipleAttr($('link[rel="alternate" i][type="application/rss+xml" i]'),'href');
 
 
 
@@ -190,16 +190,16 @@ var app={
 
 		 ret['msg'] = {};
 		 //meta bot msg
-		 var bot_meta = $('meta[name="robots"]');
+		 var bot_meta = $('meta[name="robots" i]');
 		 if(!check.assigned(bot_meta) || bot_meta.length === 0){
-		 	bot_meta = $('meta[name="googlebot"]');
+		 	bot_meta = $('meta[name="googlebot" i]');
 		 }
 		 if(check.assigned(bot_meta) && bot_meta.length !== 0){
 		 	var val = bot_meta.attr("content").replace(/\s/gi,"").split(",");
 		 	ret['msg'][val] = true;
 		 }
 
-		 var canonical = $('link[rel="canonical"]');
+		 var canonical = $('link[rel="canonical" i]');
 		 if(check.assigned(canonical) && canonical.length !== 0){
 		 	var key = "canonical";
 		 	var val = canonical.attr('href');
@@ -209,7 +209,7 @@ var app={
 		 	
 		 }
 
-		 var alternate = $('link[rel="alternate"]');
+		 var alternate = $('link[rel="alternate" i]');
 		 if(check.assigned(alternate) && alternate.length!== 0){
 		 	var mul = fetchMultipleAttr(alternate, "href");
 		 	if(check.assigned(mul)){

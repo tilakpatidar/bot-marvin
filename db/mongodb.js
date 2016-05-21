@@ -564,6 +564,7 @@ var pool={
 			that.mongodb_collection.createIndex( { bucketed: 1, fetch_interval: 1, partitionedBy: 1,domain: 1,bucket_id: 1 } );
 			//create partitions for all the cluster bots
 			that.mongodb_collection.createIndex({url :1},{unique: true});
+			that.mongodb_collection.createIndex({md5 :1},{unique: true});
 			that.bucket_collection.createIndex({level:1},function(err){});//asc order sort for score
 			that.bots_partitions=[];
 			that.stats.activeBots(function(errr,docs){
