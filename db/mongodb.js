@@ -519,7 +519,8 @@ var pool={
 		}
 		//console.log(dict);
 
-		if(check.assigned(canonical_url)){
+		if(check.assigned(canonical_url) && canonical_url !== url){
+			    	//if both urls are same then no need to mark abandoned
 				delete dict["crawled"]; //remove crawled marker
 				//if we are getting canonical_url val this means page was successfull and was parsed
 				var new_dict = JSON.parse(JSON.stringify(dict));
