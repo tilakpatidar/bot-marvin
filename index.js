@@ -142,7 +142,7 @@ function entire_body(){
 
 					var botObjs={};//will store robots.txt data for seed links
 
-					if(config.getConfig("allow_robots")){
+					if(config.getConfig("allow_robots") && !process.webappOnly){
 
 						/*	
 							if robots.txt has to be followed

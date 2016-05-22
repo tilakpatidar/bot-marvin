@@ -26,7 +26,7 @@
 		"Cause": "44px",
 		"Last Modified": "90px",
 		"Reported By": "78px"
-	},[["_id","string"],["domain","string"],["data._source.mime","string"],["hash","string"],["response","string"],["lastModified","date"],["updatedBy","string"]]],
+	},[["url","string"],["domain","string"],["data._source.mime","string"],["hash","string"],["response","string"],["lastModified","date"],["updatedBy","string"]]],
 	['crawled_pages', 'crawled-pages', {
 		"url": "250px",
 		"Title": "100px",
@@ -37,7 +37,7 @@
 		"Cause": "44px",
 		"Last Modified": "90px",
 		"Reported By": "78px"
-	},[["_id","string"],["data._source.title","string"],["domain","string"],["data._source.body","string"],["data._source.mime","string"],["hash","string"],["response","string"],["lastModified","date"],["updatedBy","string"]]],
+	},[["url","string"],["data._source.title","string"],["domain","string"],["data._source.body","string"],["data._source.mime","string"],["hash","string"],["response","string"],["lastModified","date"],["updatedBy","string"]]],
 	["processed_buckets", "processed-buckets", {
 		"Bucket id": "250px",
 		"Added By": "100px",
