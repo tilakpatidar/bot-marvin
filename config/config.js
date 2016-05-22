@@ -24,7 +24,11 @@ var config={
     "delay_request_same_host":3000,
     "accepted_mime_types":["text/html","text/plain","application/xhtml+xml"],
     "headers": {
-      "User-Agent": "Mozilla/5.0",
+      "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:45.0) Gecko/20100101 Firefox/45.0",
+      "Accept": "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.5",
+      "Accept-Encoding": "gzip, deflate",
+      "Connection": "keep-alive"
     },
     "html_lang_regex":"^en(-.*|)"
   },

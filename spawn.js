@@ -304,6 +304,7 @@ var bot={
 				
 			}
 			if(check.assigned(res) && check.assigned(res.headers['content-type'])){
+				link.setHeaderContentType(res.headers['content-type']);
 				var allowed = config.getConfig('http','accepted_mime_types');
 				var tika_allowed = config.getConfig("tika_supported_mime");
 				var match = false;
