@@ -354,7 +354,7 @@ var pool={
 		var response_time = link_details.response_time;
 		var canonical_url = link_details.canonical_url;
 		var alternate_urls = link_details.alternate_urls;
-		var content_type = link_details.header_content_type;
+		var header_content_type = link_details.header_content_type;
 		var md5 = link_details.content_md5;
 		//console.log(link_details,"############FOR UPDATE#############");
 		if(!check.assigned(data)){
