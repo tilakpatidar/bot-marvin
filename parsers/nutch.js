@@ -190,6 +190,45 @@ var app={
 
 		 ret['msg'] = {};
 		 //meta bot msg
+
+
+		 //check content-type
+		 var content_tag = $('meta[http-equiv="content-type" i]');
+		 if(check.assigned(content_tag) && content_tag.length!==0){
+		 	var content_tag_content = content_tag.attr("content");
+		 	if(check.assigned(content_tag_content)){
+		 		content_tag_content = content_tag_content.toLowerCase();
+		 		var accepted_types = config.getConfig("http","accepted_mime_types");
+		 		var accepted = false;
+		 		for(var index in accepted_types){
+		 			var a_t = accepted_types[index];
+		 			if(content_tag_content.indexOf(a_t)>=0){
+		 				accepted = true;
+		 				break;
+
+			 		}
+		 		}
+		 		if(!accepted){
+		 			ret['msg']['content-type-reject'] = content_tag_content;
+		 		}
+		 		
+		 	}
+		 }
+
+
+		 //check lang type
+		 var html_tag = $('html');
+		 if(check.assigned(html_tag) && html_tag.length!==0){
+		 	var language = html_tag.attr("lang");
+		 	if(check.assigned(language)){
+		 		var re = new RegExp(config.getConfig("http","html_lang_regex"), "gi");
+		 		if(!check.assigned(language.match(re))){
+		 			ret["msg"]["content-lang-reject"] = language;
+		 		}
+		 	}
+		 }
+
+
 		 var bot_meta = $('meta[name="robots" i]');
 		 if(!check.assigned(bot_meta) || bot_meta.length === 0){
 		 	bot_meta = $('meta[name="googlebot" i]');

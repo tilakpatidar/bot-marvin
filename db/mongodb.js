@@ -11,7 +11,6 @@ var child=require('child_process');
 var score=require(parent_dir+'/lib/score.js').init;
 var proto=require(parent_dir+'/lib/proto.js');
 var JSONX=proto.JSONX;
-var URL=proto.URL;
 var ObjectX=proto.ObjectX;
 var _ = require("underscore");
 var check = require('check-types');
@@ -116,8 +115,8 @@ var pool={
 												that.cache[domain]=true;
 												that.getLinksFromSiteMap(domain,function(){
 													//#debug#console.log(domain)
-																	
-													that.mongodb_collection.insert({"url":domain,"bucket_id":ObjectId(stamp),"domain":domain,"partitionedBy":config.getConfig("bot_name"),"bucketed":true,"fetch_interval":fetch_interval,"level":1},function(err,results){
+													var md5 = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);				
+													that.mongodb_collection.insert({"url":domain,"bucket_id":ObjectId(stamp),"domain":domain,"partitionedBy":config.getConfig("bot_name"),"bucketed":true,"fetch_interval":fetch_interval,"level":1, "md5": md5},function(err,results){
 														//#debug#console.log(err)
 														if(err){
 															log.put("pool.init maybe seed is already added","error");
@@ -253,8 +252,9 @@ var pool={
 							that.bot_pointer=0;
 						}
 						var level = url.replace('http://','').split('/').length;
-						that.mongodb_collection.insert({"url":url,"bucketed":false,"partitionedBy":bot_partition,"domain":domain,"parent":parent,"data":"","bucket_id":null,"fetch_interval":refresh_time, "level":level},function(err,results){
-							
+						var md5 = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);
+						that.mongodb_collection.insert({"url":url,"bucketed":false,"partitionedBy":bot_partition,"domain":domain,"parent":parent,"data":"","bucket_id":null,"fetch_interval":refresh_time, "level":level, "md5": md5},function(err,results){
+							//console.log(arguments);
 							done+=1;
 							if(done===li.length){
 								fn();
@@ -348,13 +348,14 @@ var pool={
 		var urlID = link_details.urlID;
 		var data = link_details.parsed_content;
 		var status = link_details.status_code;
+		//console.log("############# RESPONSE STATUS ########### ",status);
 		var stamp1 = new Date().getTime();
 		var redirect_url = link_details.redirect;
 		var response_time = link_details.response_time;
 		var canonical_url = link_details.canonical_url;
 		var alternate_urls = link_details.alternate_urls;
 		var md5 = link_details.content_md5;
-		console.log(alternate_urls);
+		//console.log(link_details,"############FOR UPDATE#############");
 		if(!check.assigned(data)){
 
 			data="";
@@ -380,42 +381,7 @@ var pool={
 			dict["alternate_urls_lang"] = alternate_urls;
 
 		}
-		if(check.assigned(canonical_url)){
-			//if we are getting canonical_url val this means page was successfull and was parsed
-			var new_dict = JSON.parse(JSON.stringify(dict));
-			new_dict['url'] = canonical_url;
-			new_dict["alternate_urls"] = [url];
-			new_dict["bucket_id"] = link_details.bucket_id;
-			that.mongodb_collection.findOne({"url":canonical_url},function(err,doc){
-				console.log("Find canonical_url ",err,doc," find canonical_url");
-				if(check.assigned(err) || !check.assigned(doc)){
-					//canonical url not present
-					that.mongodb_collection.insert(new_dict,function(err1,res1){
-						//insert the new canonical url in the same bucket
-						console.log("Insert canonical_url ",err1,res1," insert canonical_url");
 
-					});
-				}
-				else{
-					//url already present update it
-					var aul = [];
-					if(check.assigned(alternate_urls) && !check.emptyObject(alternate_urls)){
-						aul = alternate_urls;
-					}
-					that.mongodb_collection.updateOne({"_id":doc["_id"]}, {"$push":{"alternate_urls":url}, "$pushAll":{"alternate_urls_lang": alternate_urls}}, function(e,r){
-						console.log("update canonical_url ",e,r," update canonical_url");
-
-
-					});
-				}
-			});
-
-
-			//now changes to this page
-			dict["abandoned"] = true;
-			dict["data"] = "";
-			dict["canonical_url"] = canonical_url;
- 		}
 
 		if(check.assigned(response_time)){
 
@@ -483,6 +449,8 @@ var pool={
 			//do not retry reject 
 			dict["abandoned"] = true;
 			abandoned = true;
+			delete dict["response_time"];
+
 			//if so mark abandoned 
 			process.bot.updateStats("failedPages",1);
 			log.put('Abandoned due to mime type rejection'+url,'info');
@@ -491,9 +459,28 @@ var pool={
 			//do not retry reject 
 			dict["abandoned"] = true;
 			abandoned = true;
+			delete dict["response_time"];
 			//if so mark abandoned 
 			process.bot.updateStats("failedPages",1);
 			log.put('Abandoned due to no INDEX from meta'+url,'info');
+		}
+		else if(status === "ContentTypeRejected"){
+			//do not retry reject 
+			dict["abandoned"] = true;
+			abandoned = true;
+			delete dict["response_time"];
+			//if so mark abandoned 
+			process.bot.updateStats("failedPages",1);
+			log.put('Abandoned due to content type rejection'+url,'info');
+		}
+		else if(status === "ContentLangRejected"){
+			//do not retry reject 
+			dict["abandoned"] = true;
+			abandoned = true;
+			delete dict["response_time"];
+			//if so mark abandoned 
+			process.bot.updateStats("failedPages",1);
+			log.put('Abandoned due to content lang rejection'+url,'info');
 		}
 		else{
 			
@@ -526,11 +513,89 @@ var pool={
 			dict["redirect_url"] = redirect_url;
 		}
 		//console.log(dict);
+
+		if(check.assigned(canonical_url)){
+				delete dict["crawled"]; //remove crawled marker
+				//if we are getting canonical_url val this means page was successfull and was parsed
+				var new_dict = JSON.parse(JSON.stringify(dict));
+				new_dict['url'] = canonical_url;
+				new_dict["alternate_urls"] = [url];
+				new_dict["bucket_id"] = link_details.bucket_id;
+				that.mongodb_collection.findOne({"url":canonical_url},function(err,doc){
+					//console.log("Find canonical_url ",err,doc," find canonical_url");
+					if(check.assigned(err) || !check.assigned(doc)){
+						//canonical url not present
+						that.mongodb_collection.insert(new_dict,function(err1,res1){
+							//insert the new canonical url in the same bucket
+							//console.log("Insert canonical_url ",err1,res1," insert canonical_url");
+
+						});
+					}
+					else{
+						//url already present update it
+						var aul = [];
+						if(check.assigned(alternate_urls) && !check.emptyObject(alternate_urls)){
+							aul = alternate_urls;
+						}
+						that.mongodb_collection.updateOne({"_id":doc["_id"]}, {"$push":{"alternate_urls":url}, "$pushAll":{"alternate_urls_lang": alternate_urls}}, function(e,r){
+						//	console.log("update canonical_url ",e,r," update canonical_url");
+
+
+						});
+					}
+				});
+
+
+				//now changes to this page
+				dict["abandoned"] = true;
+				abandoned = true;
+				dict["data"] = "";
+				dict["canonical_url"] = canonical_url;
+	 		}
+
+
+
 		that.mongodb_collection.updateOne({"_id":ObjectId(urlID)},{$set:dict},function(err,results){
-			//console.log(err,results)
 			
 			if(err){
-				log.put("pool.setCrawled","error");
+				if(err.code === 11000){
+					if(err.errmsg.indexOf("$md5_1 dup key")>=0){
+						
+						if(link_details.status_code === 404){
+							log.put("Duplicate page found but 404 thus skipping .",'info');
+							dict["abandoned"] = true;
+							delete dict["crawled"];
+							delete dict["data"];
+							dict["response"] = "404_SAME_MD5_PAGE_EXISTS";
+							dict["md5"] = md5 + "md5#random#"+parseInt(Math.random()*10000)+""+parseInt(new Date().getTime());
+							that.mongodb_collection.updateOne({"_id":ObjectId(urlID)},{$set:dict},function(err,results){
+
+							});
+						}else{
+							log.put("Duplicate page found","info");
+							//a similar page exists
+							//then update this link into it and abondon this by setting a canonial link
+
+							that.mongodb_collection.updateOne({"md5": md5}, {"$push":{"alternate_urls":url}, "$pushAll":{"alternate_urls_lang": alternate_urls}}, function(e,r){
+							//	console.log("update canonical_url ",e,r," update canonical_url");
+
+
+							});
+							dict["abandoned"] = true;
+							delete dict["crawled"];
+							delete dict["data"];
+							dict["response"] = "SAME_MD5_PAGE_EXISTS";
+							dict["md5"] = md5 + "md5#random#"+parseInt(Math.random()*10000)+""+parseInt(new Date().getTime());
+							that.mongodb_collection.updateOne({"_id":ObjectId(urlID)},{$set:dict},function(err,results){
+
+							});
+						}
+						
+					}
+				}else{
+					log.put("pool.setCrawled","error");
+				}
+				
 			}
 			else{
 				if( !abandoned && dict["response"] !=="inTikaQueue"){
@@ -591,6 +656,11 @@ var pool={
 		that.db.close(fn);
 	},
 	"readSeedFile":function(fn){
+		var URL=require(parent_dir+'/lib/url.js');
+		var regex_urlfilter = {};
+		regex_urlfilter["accept"]=config.getConfig("accept_regex");
+		regex_urlfilter["reject"]=config.getConfig("reject_regex");
+		URL.init(config, regex_urlfilter);
 		var that=this;
 		that.seed_collection.find({}).toArray(function(err,results){
 			//console.log(results)
@@ -630,12 +700,12 @@ var pool={
 				k["priority"]=parseInt(dic[key]['priority']);
 				k["fetch_interval"]=dic[key]['fetch_interval'];
 				distinct_fetch_intervals[dic[key]['fetch_interval']] = true; //mark the fetch interval for bucket creation
-				links[URL.normalize(key.replace(/#dot#/gi,"."))]=k;
-				links1.push(URL.normalize(key.replace(/#dot#/gi,".")));
+				links[URL.url(key.replace(/#dot#/gi,".")).details.url]=k;
+				links1.push(URL.url(key.replace(/#dot#/gi,".")).details.url);
 				links2.push(dic[key]['fetch_interval']);
 				var ii=config.getConfig('recrawl_intervals');
 				for(var i in ii){
-					links3.push({url:URL.normalize(key.replace(/#dot#/gi,".")),priority:k["priority"],fetch_interval:i});
+					links3.push({url: URL.url(key.replace(/#dot#/gi,".")).details.url,priority:k["priority"],fetch_interval:i});
 				}
 				
 			}
@@ -831,6 +901,11 @@ var pool={
 		});
 	},
 	"insertSeed":function(url,parseFile,phantomjs,priority,fetch_interval,fn){
+		var URL=require(parent_dir+'/lib/url.js');
+		var regex_urlfilter = {};
+		regex_urlfilter["accept"]=config.getConfig("accept_regex");
+		regex_urlfilter["reject"]=config.getConfig("reject_regex");
+		URL.init(config, regex_urlfilter);
 		if(priority>10){
 			fn(false);
 			return;
@@ -838,7 +913,7 @@ var pool={
 		var that=this;
 		var cluster_name=config.getConfig("cluster_name");
 		var org_url=url;
-		var url=URL.normalize(url).replace(/\./gi,"#dot#");
+		var url=URL.url(url).details.url.replace(/\./gi,"#dot#");
 		if(!check.assigned(fetch_interval)){
 			fetch_interval=config.getConfig("default_recrawl_interval");
 		}
@@ -1138,7 +1213,7 @@ var pool={
 		"getPage":function stats_getPage(url,fn){
 			var that=this.parent;
 			//#debug#console.log(url)
-			that.mongodb_collection.findOne({"url":url},function(err,results){
+			that.mongodb_collection.findOne({"_id":ObjectId(url)},function(err,results){
 				
 				fn(err,results);
 				return;

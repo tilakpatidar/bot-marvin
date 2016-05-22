@@ -25,7 +25,8 @@ var config={
     "accepted_mime_types":["text/html","text/plain","application/xhtml+xml"],
     "headers": {
       "User-Agent": "Mozilla/5.0",
-    }
+    },
+    "html_lang_regex":"^en(-.*|)"
   },
   "log_buffer_lines": 100,
   "recrawl_intervals": {
