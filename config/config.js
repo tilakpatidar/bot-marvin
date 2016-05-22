@@ -25,7 +25,7 @@ var config={
     "accepted_mime_types":["text/html","text/plain","application/xhtml+xml"],
     "headers": {
       "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:45.0) Gecko/20100101 Firefox/45.0",
-      "Accept": "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8",
+      "Accept": "text/html,application/xhtml+xml,text/plain;q=0.9",
       "Accept-Language": "en-US,en;q=0.5",
       "Accept-Encoding": "gzip, deflate",
       "Connection": "keep-alive"
@@ -52,6 +52,13 @@ var config={
   "tika_content_length": 104857600,
   "tika_timeout": 300000,
   "tika_max_sockets_per_host": 10,
+  "tika_headers":{
+      "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:45.0) Gecko/20100101 Firefox/45.0",
+      "Accept": "application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf,application/x-pdf,application/acrobat,applications/vnd.pdf,text/pdf,text/x-pdf;q=0.9",
+      "Accept-Language": "en-US,en;q=0.5",
+      "Accept-Encoding": "gzip, deflate",
+      "Connection": "keep-alive"
+    },
   "phantomjs_port": 9000,
   "allow_robots": true,
   "robots_timeout":10000,

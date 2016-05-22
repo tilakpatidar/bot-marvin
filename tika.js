@@ -172,7 +172,7 @@ var app={
 				log.put(err.stack,color_debug);
 				return callback("TikeFileStreamError");
 		});
-			var req=request({uri: url,pool:separateReqPool,headers:config.getConfig("http","headers")});
+			var req=request({uri: url,pool:separateReqPool,headers:config.getConfig("tika_headers")});
 			var done_len=0;
 			var init_time=new Date().getTime();
 			req.on("response",function(res){
