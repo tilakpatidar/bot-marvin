@@ -1790,7 +1790,7 @@ function speedUpBucketCreation(){
 
 
 process.pool_check_mode=setInterval(function(){
-	if(process.MODE==='exec' && !process.tika_setup && process.begin_intervals){
+	if(!process.tika_setup && process.begin_intervals){
 		var d=setInterval(function(){
 			pool.parserReloader();
 

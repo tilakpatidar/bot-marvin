@@ -11,7 +11,6 @@
 //global requires
 process.setMaxListeners(50);
 process.caught_termination=false;
-var fs=require('fs');
 process.begin_intervals=false;
 process.force_mode=false;//enables or disables the process.force_mode
 process.my_timers=[];//stores all the timers used to remove all timers for graceful exit
@@ -19,21 +18,38 @@ process.reset=false;
 process.seedFile=null;
 process.seedFileData=null;
 process.removeSeed = null;
+
+var fs=require('fs');
 var check = require('check-types');
 var _=require("underscore");
 var cluster,log;
+
+//checks dependencies and exits if not met
+
 var dependency=require(__dirname+"/lib/depcheck.js");
 dependency.check();
+
+
 var proto=require(__dirname+'/lib/proto.js');
 JSONX=proto["JSONX"];//JSON for regex support in .json files
+
 process.getAbsolutePath=proto.getAbsolutePath;
-var config=require(__dirname+"/lib/config-reloader.js");
-var seed=require(__dirname+"/lib/seed-reloader.js");
-process.bot_config=config;
+var parent_dir = process.getAbsolutePath(__dirname);  //parent dir path for importing modules safely
+
+
+
+var config=require( parent_dir + "/lib/config-reloader.js" );
+var seed=require(parent_dir+"/lib/seed-reloader.js");
+
+process.bot_config=config; //globals for sharing config and seed file across various modules
 process.bot_seed=seed;
+
+
+//importing db connector
 var pool=require(__dirname+'/lib/pool');
 var db_type=config.getConfig("db_type");
 pool=pool.getDB(db_type).init();//choosing db type
+
 
 //some args need to be parsed before
 var argv = require('minimist')(process.argv.slice(2));
@@ -42,20 +58,24 @@ if(check.assigned(argv["force"])){
 }
 
 pool.createConnection(function(){
-	process.pool=pool;
+	process.pool=pool; //global db pool
 	startCluster(function(){
 		
 		startBot(function(s){
 			config.setDB(pool,function(){
 				seed.setDB(pool,function(){
 					var argv=require(__dirname+'/lib/argv.js');
-					var new_opts=argv.init();
-					process.overriden_config=new_opts;//parses cmd line argv and perform required operations
+
+					var new_opts=argv.init(); //executes the args passed and returns overriden config
+
+					var overriden_config=new_opts;//parses cmd line argv and perform required operations
+					
+
 					process.config_delay_interval=setInterval(function(){
-						if(!process.modifyConfig){ //if modifying config delay pull config
+						if(!process.modifyConfig){ //set to true by argv if --config is selected stops bot from starting if this option is selected
 							clearInterval(process.config_delay_interval);
 							config.pullConfig(function(){
-								log=require(__dirname+"/lib/logger.js");
+								log=require(parent_dir+"/lib/logger.js");
 								pool.checkIfNewCrawl(function(){
 									if(process.editSeedFile){
 										seed.editSeedFile();
@@ -73,7 +93,7 @@ pool.createConnection(function(){
 									}
 									else{
 										seed.pull(function(){
-											entire_body();
+											entire_body(overriden_config);
 										});
 									}
 									
@@ -90,17 +110,21 @@ pool.createConnection(function(){
 		});
 	});
 });
+
+
 function startCluster(fn){
-	process.MODE='exec';
-		require(__dirname+'/lib/cluster.js').init(pool,function(c){
-			cluster=c;
+		require(parent_dir+'/lib/cluster.js').init(pool,function(c){
+
+			cluster=c; //get cluster objecte
 			//seed.setDB(pool);
-			var bot=require(__dirname+'/lib/bot.js');
+			var bot=require(parent_dir+'/lib/bot.js');
 			process.bot=new bot(cluster,pool);//making global so that bot stats can be updated in any module
 			fn(pool);
 			return;
 		});
 }
+
+
 function startBot(fn){
 	process.bot.startBot(process.force_mode,function(status){
 			//#debug#console.log("THIS ONE")
@@ -121,7 +145,7 @@ function startBotManager(links,botObjs,links_fetch_interval){
 	pool.seed(links,links_fetch_interval,function(completed){
 		if(completed){
 			//create a child manager
-			process.child_manager=new require(__dirname+'/lib/child_manager.js')(pool,botObjs,cluster);		
+			process.child_manager=new require(parent_dir+'/lib/child_manager.js')(pool,botObjs,cluster);		
 			//#debug#console.log(process.child_manager,"child_manager")				
 		}
 
@@ -129,9 +153,9 @@ function startBotManager(links,botObjs,links_fetch_interval){
 	});
 
 }
-function entire_body(){
-	console.log(process.overriden_config)
-	config.setOverridenConfig(process.overriden_config);
+function entire_body(overriden_config){
+	//console.log(overriden_config)
+	config.setOverridenConfig(overriden_config);
 	fs.appendFileSync(__dirname+"/db/sqlite/active_pids.txt",process.pid+"\n");
 	var cluster;//stores the cluster obj to communicate with the other bots
 	
