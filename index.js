@@ -34,7 +34,7 @@ var proto=require(__dirname+'/lib/proto.js');
 JSONX=proto["JSONX"];//JSON for regex support in .json files
 
 process.getAbsolutePath=proto.getAbsolutePath;
-var parent_dir = process.getAbsolutePath(__dirname);  //parent dir path for importing modules safely
+var parent_dir = __dirname;  //parent dir path for importing modules safely
 
 
 

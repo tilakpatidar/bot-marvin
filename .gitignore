@@ -1,5 +1,6 @@
 seed.json
 *.log
 *.jar
+config.json
 TODOS
 !.gitignore
