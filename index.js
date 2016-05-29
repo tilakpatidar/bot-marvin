@@ -76,7 +76,6 @@ pool.createConnection(function(){
 							clearInterval(process.config_delay_interval);
 							config.pullConfig(function(){
 								log=require(parent_dir+"/lib/logger.js");
-								log.setFilename(__filename.split("/").pop());
 								pool.checkIfNewCrawl(function(){
 									if(process.editSeedFile){
 										seed.editSeedFile();
@@ -161,7 +160,7 @@ function entire_body(overriden_config){
 	var cluster;//stores the cluster obj to communicate with the other bots
 	
 		
-			pool.readSeedFile(function(links,links_fetch_interval){
+			pool.readSeedFile(function readSeedFile(links,links_fetch_interval){
 					//reading the seed links from db
 			
 
@@ -174,15 +173,15 @@ function entire_body(overriden_config){
 							we have to download all robots.txt files
 						*/
 
-						log.put("downloading robots.txt this could take a while","info");
+						msg("downloading robots.txt this could take a while","info");
 						var robots=require(__dirname+'/lib/robots.js').app;
-						robots.init(Object.keys(pool.links),function(err,obj){
+						robots.init(Object.keys(pool.links),function robots_init(err,obj){
 							//#debug#console.log(obj);
 							if(obj){
-								log.put("robots.txt parsed","success");
+								msg("robots.txt parsed","success");
 							}
 							else{
-								log.put("robots.txt parsing failed","error");
+								msg("robots.txt parsing failed","error");
 							}
 							botObjs=obj;
 							//#debug#console.log("CUL")
@@ -248,9 +247,9 @@ function isSeedPresent(url,fn){
 
 function reset(fn){
 			//drop the db				
-		pool.drop(function(){
-			log.put("db reset","success");
-			log.put("robots cache reset","success");
+		pool.drop(function reset_pool_drop(){
+			msg("db reset","success");
+			msg("robots cache reset","success");
 
 			//drop temp dbs
 			var files=fs.readdirSync(__dirname+'/db/sqlite');
@@ -261,7 +260,7 @@ function reset(fn){
 				}
 				var data=fs.unlinkSync(__dirname+'/db/sqlite/'+files[i]);
 			};
-			log.put("SQLite db reset","success");
+			msg("SQLite db reset","success");
 
 
 			//drop pdf store
@@ -274,7 +273,7 @@ function reset(fn){
 				var domain=files[i].replace(/##/g,"/");
 				var data=fs.unlinkSync(__dirname+'/pdf-store/'+files[i]);
 			};
-			log.put("pdf-store cache reset","success");
+			msg("pdf-store cache reset","success");
 
 
 			
@@ -282,21 +281,21 @@ function reset(fn){
 				var stream=fs.createWriteStream(__dirname+"/config/db_config.json");
 				stream.write("{}");
 				stream.close();
-				log.put("Db config cleared","success");
+				msg("Db config cleared","success");
 			}catch(ee){
-				log.put("Db config not cleared not cleared","error");
+				msg("Db config not cleared not cleared","error");
 			}
 			
 
-			log.put("crawler reset","success");
-			clearSeed(function(status){
+			msg("crawler reset","success");
+			clearSeed(function clearSeed(status){
 					try{
 							//app.pool.close();
 							return fn();
 					}
 					catch(err){
 						//#debug#console.log(err);
-						log.put("in pool.close","error");
+						msg("in pool.close","error");
 						return;
 					}
 
@@ -330,7 +329,7 @@ function deathCleanUp(){
 	}
 	if(!check.assigned(log)){
 		log={};
-		log.put=function(msg,color){
+		msg=function(msg,color){
 			console.log(msg)
 		};
 		log.flush=function(){
@@ -338,7 +337,7 @@ function deathCleanUp(){
 		};
 	}
 	process.caught_termination=true;
-	log.put('Termination request processing','info');
+	msg('Termination request processing','info');
 	cleanUp(function(done){
 		if(done){
 			//#debug#console.log(done)
@@ -362,7 +361,7 @@ function deathCleanUp(){
 	});
 }
 function cleanUp(fn){
-	log.put("Performing cleanUp ","info");
+	msg("Performing cleanUp ","info");
 	try{
 		process.kill(process.tikaPID,"SIGINT");
 	}catch(err){
@@ -416,10 +415,10 @@ for (var i = 0; i < process.my_timers.length; i++) {
 					
 						//clear all moduele references
 						//#debug#console.log(process.bot);
-						process.bot.stopBot(function (err) {
+						process.bot.stopBot(function cleanUp_stopbot(err) {
 							  //if (err) throw err;
 							
-							log.put("cleanUp done","success");
+							msg("cleanUp done","success");
 
 							//flushing the log
 							log.flush(function(){
@@ -487,3 +486,5 @@ process.on('grace_exit',function(){
 	});
 	
 });
+
+function msg(){log.put(arguments[0],arguments[1],__filename.split('/').pop(), arguments.callee.caller.name.toString());}

@@ -29,8 +29,8 @@ var bot={
 	"links":[],
 	"botObjs":{},
 	"lastAccess":{},
-	"getTask":function(fn){
-		process.on('message',function(data){
+	"getTask":function getTask(fn){
+		process.on('message',function process_on_msg(data){
 			//recieving instructions from parent
 			var k=data["init"];
 			if(k){
@@ -47,14 +47,13 @@ var bot={
 				regex_urlfilter["accept"]=config.getConfig("accept_regex");
 				regex_urlfilter["reject"]=config.getConfig("reject_regex");
 				log=require(__dirname+"/lib/logger.js");
-				log.setFilename(__filename.split("/").pop());
 				//prepare regexes
 				URL.init(config, regex_urlfilter);
 				return fn(bot.batch);
 			}
 		});
 	},
-	"queueLinks":function(pools){
+	"queueLinks":function queueLinks(pools){
 		bot.queued=0;
 		for (var i = 0; i < pools.length; i++) {
 			if(check.assigned(pools)){
@@ -100,7 +99,7 @@ var bot={
 		};
 
 	},
-	"processLink":function(link){
+	"processLink":function processLink(link){
 		var bot=this;//inside setTimeout no global access
 		if(bot.active_sockets>=config.getConfig("http","max_concurrent_sockets")){
 			//pooling to avoid socket hanging
@@ -117,9 +116,9 @@ var bot={
 			var robot=bot.botObjs[link.details.domain];
 			if(check.assigned(robot) && !robot["NO_ROBOTS"]){
 				robot=bot.addProto(robot);
-				 robot.canFetch(config.getConfig("robot_agent"),link.details.url, function (access,crawl_delay) {
+				 robot.canFetch(config.getConfig("robot_agent"),link.details.url, function canFetch1 (access,crawl_delay) {
 				      if (!access) {
-				      	log.put(("Cannot access "+link.details.url),"error");
+				      	msg(("Cannot access "+link.details.url),"error");
 				        // access not given exit 
 							
 							try{
@@ -130,7 +129,7 @@ var bot={
 								process.send({"bot":"spawn","setCrawled":link.details});
 							}
 							catch(err){
-							//log.put("Child killed","error")
+							//msg("Child killed","error")
 							}
 							return bot.isLinksFetched();
 							
@@ -154,9 +153,9 @@ var bot={
 		}
 
 	},
-	"fetch":function(link){
+	"fetch":function fetch(link){
 		if(!config.getConfig("verbose")){
-			log.put(link.details.url, "no_verbose");
+			msg(link.details.url, "no_verbose");
 		}
 		if(link.details.file_type === "file"){
 			bot.fetchFile(link);
@@ -167,20 +166,20 @@ var bot={
 
 		
 	},
-	"grabInlinks":function($,url,domain,linksFromParsers){
+	"grabInlinks":function grabInlinks($,url,domain,linksFromParsers){
 		for (var i = 0; i < linksFromParsers.length; i++) {
 				var q=linksFromParsers[i];
 				try{
 					process.send({"bot":"spawn","addToPool":[q,q,url,config.getConfig("default_recrawl_interval")]});
 				}
 				catch(err){
-						//log.put("Child killed","error")
+						//msg("Child killed","error")
 				}
 		};
 			var a=$("a")
 			var count=a.length;
 			url = URL.url(url, domain);
-			a.each(function(){
+			a.each(function grabInlinks_each(){
 
 				//do not follow links with rel = 'nofollow'
 				var rel = $(this).attr('rel');
@@ -212,30 +211,30 @@ var bot={
 							}
 							
 					}catch(err){
-						log.put("Child killed","error")
+						msg("Child killed","error")
 					}
 											
 				}
 
 			});
-			log.put(("Got "+count+" links from "+url.details.url ),"info");
+			msg(("Got "+count+" links from "+url.details.url ),"info");
 	},
-	"isLinksFetched":function(){
+	"isLinksFetched":function isLinksFetched(){
 				bot.queued+=1;
 				if(bot.queued===bot.batch.length){
 					try{
 								process.send({"bot":"spawn","finishedBatch":[bot.batchId,bot.refresh_label,process.bot_type]});
 								setTimeout(function(){process.exit(0);},2000);
 						}catch(err){
-										//	log.put("Child killed","error")
+										//	msg("Child killed","error")
 						}
 				
 					
 				}
 
 	},
-	"addProto":function(robot){
-		robot.canFetch=function(user_agent,url,allowed){
+	"addProto":function addProto(robot){
+		robot.canFetch=function canFetch(user_agent,url,allowed){
 			var crawl_delay=parseInt(this.defaultEntry["crawl_delay"])*1000;//into milliseconds
 			if(isNaN(crawl_delay) || !check.assigned(crawl_delay)){
 
@@ -271,7 +270,7 @@ var bot={
 		};
 		return robot;
 	},
-	"scheduler":function(link, time){
+	"scheduler":function scheduler(link, time){
 		if(time===0){
 			//queue immediately
 			return bot.fetch(link);
@@ -289,7 +288,7 @@ var bot={
 		}
 
 	},
-	"queueWait":function(link, time){
+	"queueWait":function queueWait(link, time){
 		var lastTime=bot.lastAccess[link.details.domain];
 			var current_time=new Date().getTime();
 				if(current_time<(lastTime+time)){
@@ -302,7 +301,7 @@ var bot={
 					})(link, time);
 				}
 	},
-	"fetchWebPage":function(link){
+	"fetchWebPage":function fetchWebPage(link){
 		var req_url=link.details.url;
 		//console.log(bot.links, link.details.domain);
 		if(bot.links[link.details.domain]["phantomjs"]){
@@ -316,11 +315,11 @@ var bot={
 		var done_len=0;
 		var init_time=new Date().getTime();
 		var sent = false;
-		req.on("response",function(res){
+		req.on("response",function req_on_response(res){
 
 			if(check.assigned(res) && check.assigned(res.headers.location) && res.headers.location !== req_url){
 				//if page is redirect
-				log.put(req_url+" redirected to "+res.headers.location,'info');
+				msg(req_url+" redirected to "+res.headers.location,'info');
 				link.setRedirectedURL(res.headers.location);
 				
 			}
@@ -346,7 +345,7 @@ var bot={
 					req.emit('error',"MimeTypeRejected");
 				}
 				if(tika_match){
-					log.put("Tika mime type found transfer to tika queue "+link.details.url,'info');
+					msg("Tika mime type found transfer to tika queue "+link.details.url,'info');
 					bot.fetchFile(link);
 					req.emit('error','TikaMimeTypeFound');
 				}
@@ -362,7 +361,7 @@ var bot={
 					req.emit('error',"ContentOverflow");
 					
 			}
-			res.on("data",function(chunk){
+			res.on("data",function res_on_data(chunk){
 				done_len+=chunk.length;
 				var c=chunk.toString();
 			 	html.push(c);
@@ -374,20 +373,20 @@ var bot={
 					req.emit('error',"ContentOverflow");
 				}
 			});
-			res.on("error",function(err){
+			res.on("error",function res_on_error(err){
 				//#debug#(err )
 				//console.log(err,err.type)
 				req.emit("error",err);
 				
 			});
-			res.on("end",function(){
+			res.on("end",function res_on_end(){
 				bot.active_sockets-=1;
 				html = html.join("");
 				var t=new Date().getTime();
 				var response_time = t-init_time;
 				if(!check.assigned(html)){
 					//some error with the request return silently
-					log.put("Max sockets reached read docs/maxSockets.txt","error");
+					msg("Max sockets reached read docs/maxSockets.txt","error");
 					try{
 						link.setStatusCode(-1);
 						link.setParsed({});
@@ -398,7 +397,7 @@ var bot={
 							sent = true;
 						}
 					}catch(err){
-					//	log.put("Child killed","error")
+					//	msg("Child killed","error")
 					}
 					
 					return bot.isLinksFetched();
@@ -530,7 +529,7 @@ var bot={
 							sent = true;
 						}
 					}catch(err){
-							//log.put("Child killed","error")
+							//msg("Child killed","error")
 					}
 						bot.isLinksFetched();
 				}else{
@@ -555,7 +554,7 @@ var bot={
 											sent = true;
 									}
 								}catch(err){
-								//log.put("Child killed","error")
+								//msg("Child killed","error")
 								}
 								bot.isLinksFetched();
 						}	
@@ -563,12 +562,12 @@ var bot={
 
 			});
 		});
-		req.on("error",function(err){
+		req.on("error",function req_on_error(err){
 			//#debug#(err)
 			//console.log("req  ",err,err.type)
 			var msg = err;
 			if(msg === "ETIMEDOUT_CALLBACK"){
-					log.put("Connection timedout change http.callback_timeout setting in config","error");
+					msg("Connection timedout change http.callback_timeout setting in config","error");
 					try{
 						link.setStatusCode("ETIMEDOUT_CALLBACK");
 						link.setParsed({});
@@ -579,13 +578,13 @@ var bot={
 							sent = true;
 						}
 					}catch(err){
-						//log.put("Child killed","error")
+						//msg("Child killed","error")
 					}
 					
 					return bot.isLinksFetched();
 			}
 			else if(msg === "ContentOverflow"){
-				log.put("content-length is more than specified","error");
+				msg("content-length is more than specified","error");
 					try{
 						link.setStatusCode("ContentOverflow");
 						link.setParsed({});
@@ -596,13 +595,13 @@ var bot={
 							sent = true;
 						}
 					}catch(err){
-						//log.put("Child killed","error")
+						//msg("Child killed","error")
 					}
 					
 					 return bot.isLinksFetched();
 
 			}else if(msg === "MimeTypeRejected"){
-				log.put("mime type rejected for "+link.details.url,"error");
+				msg("mime type rejected for "+link.details.url,"error");
 					try{
 						link.setStatusCode("MimeTypeRejected");
 						link.setParsed({});
@@ -613,7 +612,7 @@ var bot={
 							sent = true;
 						}
 					}catch(err){
-						//log.put("Child killed","error")
+						//msg("Child killed","error")
 					}
 					
 					 return bot.isLinksFetched();
@@ -653,7 +652,7 @@ var bot={
 
 					
 	},
-	"fetchFile":function(link){
+	"fetchFile":function fetchFile(link){
 		//files will be downloaded by seperate process
 		//console.log("files    "+url)
 		var p=bot.links[link.details.domain]["parseFile"];
@@ -665,9 +664,9 @@ var bot={
 			link.setContent({});
 			process.send({"bot":"spawn","setCrawled":link.details});
 			tika_db.parallelize(function() {
-				tika_db.run("INSERT OR IGNORE INTO q(fileName,parseFile,status,link_details) VALUES(?,?,0,?)",[link.details.url,p,JSON.stringify(link.details)],function(err,row){
+				tika_db.run("INSERT OR IGNORE INTO q(fileName,parseFile,status,link_details) VALUES(?,?,0,?)",[link.details.url,p,JSON.stringify(link.details)],function tika_sqlite_insert(err,row){
 					if(!err){
-						log.put('Tika job info inserted '+link.details.url,'success');
+						msg('Tika job info inserted '+link.details.url,'success');
 					}
 					
 					//console.log(JSON.stringify(row)+"pushQ");
@@ -687,8 +686,9 @@ var bot={
 };
 
 
-bot.getTask(function(links){
+bot.getTask(function getTask(links){
 	bot.queueLinks(links);
 
 });
 
+function msg(){log.put(arguments[0],arguments[1],__filename.split('/').pop(), arguments.callee.caller.name.toString());}

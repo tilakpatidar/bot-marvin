@@ -45,13 +45,13 @@ process.bucket_creater_locked=true;
 
 function lazy_sitemap_updator(index){
 	if(!check.assigned(sitemap_queue[index])){
-		log.put("Lazy loading finished for all domains","success");
+		msg("Lazy loading finished for all domains","success");
 		return;
 	}
 	var abs = sitemap_queue[index][0];
 	var domain = sitemap_queue[index][1];
 	
-	log.put("Lazy loading sitemaps for "+domain, "info");
+	msg("Lazy loading sitemaps for "+domain, "info");
 	var temp=domain.replace(/\./gi,"#dot#");
 	pool.sitemap_collection.findOne({"_id":temp},function(err,docs){
 		if(check.assigned(err) || !check.assigned(docs)){
@@ -72,7 +72,7 @@ function lazy_sitemap_updator(index){
 			        });
 			    }
 			    else {
-			       	log.put("Sitemap could not be downloaded for "+domain,"error");
+			       	msg("Sitemap could not be downloaded for "+domain,"error");
 			        pool.updateSiteMap(domain,[],function(){
 			        	(function(index){
 
@@ -94,7 +94,7 @@ function lazy_sitemap_updator(index){
 }
 
 var pool={
-	"seed":function(links,links_fetch_interval,fn){
+	"seed":function seed(links,links_fetch_interval,fn){
 		//this method runs first when crawler starts
 		
 		var that=this;
@@ -116,14 +116,14 @@ var pool={
 												that.getLinksFromSiteMap(domain,function(){
 													//#debug#console.log(domain)
 													var md5 = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);				
-													that.mongodb_collection.insert({"url":domain,"bucket_id":ObjectId(stamp),"domain":domain,"partitionedBy":config.getConfig("bot_name"),"bucketed":true,"fetch_interval":fetch_interval,"level":1, "md5": md5},function(err,results){
+													that.mongodb_collection.insert({"url":domain,"bucket_id":ObjectId(stamp),"domain":domain,"partitionedBy":config.getConfig("bot_name"),"bucketed":true,"fetch_interval":fetch_interval,"level":1, "md5": md5},function initBySeed(err,results){
 														//#debug#console.log(err)
 														if(err){
-															log.put("pool.init maybe seed is already added","error");
+															msg("pool.init maybe seed is already added","error");
 														}
 														else{
 															success+=1;
-															log.put(("Added  "+domain+" to initialize pool"),"success");
+															msg(("Added  "+domain+" to initialize pool"),"success");
 														}
 
 														
@@ -180,7 +180,7 @@ var pool={
 			});
 
 	},
-	"getLinksFromSiteMap":function(domain,fn){
+	"getLinksFromSiteMap":function getLinksFromSiteMap(domain,fn){
 		if(!config.getConfig('parse_sitemaps') || process.webappOnly){
 			
 			return fn();
@@ -189,11 +189,11 @@ var pool={
 		var that=this;
 		var abs=urllib.resolve(domain,"sitemap.xml");
 		var temp=domain.replace(/\./gi,"#dot#");
-		that.sitemap_collection.findOne({"_id":temp},function(err,docs){
+		that.sitemap_collection.findOne({"_id":temp},function sitemap_findone(err,docs){
 			if(check.assigned(err) || !check.assigned(docs)){
-				log.put("Sitemap not present for "+domain+" in db",'info');
-				log.put("Downloading sitemap index for "+domain,"info");
-				log.put("Seeding from sitemap.xml this could take some minutes ","info");
+				msg("Sitemap not present for "+domain+" in db",'info');
+				msg("Downloading sitemap index for "+domain,"info");
+				msg("Seeding from sitemap.xml this could take some minutes ","info");
 				//insert sitemap urls
 				sitemap_queue.push([abs,domain]);
 				fn(true);
@@ -206,12 +206,12 @@ var pool={
 
 		});
 	},
-	"updateSiteMap":function(domain,sites,fn){
+	"updateSiteMap":function updateSiteMap(domain,sites,fn){
 		var that=this;
 		var temp=domain.replace(/\./gi,"#dot#");
 		var temp1=JSON.parse(JSON.stringify(sites).replace(/\./gi,"#dot#"));
-		that.sitemap_collection.insert({"_id":temp,"sites":temp1},function(err,results){
-			log.put("Updated sitemap file for "+domain+"in db","info");
+		that.sitemap_collection.insert({"_id":temp,"sites":temp1},function updateSiteMapInsert(err,results){
+			msg("Updated sitemap file for "+domain+"in db","info");
 
 			that.addToPool(sites,function(){
 				fn();
@@ -222,7 +222,7 @@ var pool={
 		});
 		
 	},
-	"insertLinksInDB":function(li,fn){
+	"insertLinksInDB":function insertLinksInDB(li,fn){
 			var that=this; 
 			var done=0;
 			for (var i = 0; i < li.length; i++) {
@@ -267,7 +267,7 @@ var pool={
 
 			};
 	},
-	"addToPool":function(li,fn){
+	"addToPool":function addToPool(li,fn){
 		var that=this;
 		//urls we will be getting will be absolute
 		if(li.length===0){
@@ -285,17 +285,17 @@ var pool={
 		
 			
 	},
-	"getNextBatch":function(result,batchSize){
+	"getNextBatch":function getNextBatch(result,batchSize){
 		var that=this;
 			var stamp1=new Date().getTime();
 			
-				that.bucket_collection.findAndModify({"underProcess":false,"recrawlAt":{$lte:stamp1}},[['recrawlAt',1],['score',1]],{"$set":{"underProcess":true,"processingBot":config.getConfig("bot_name")}},{"remove":false},function(err1,object){
+				that.bucket_collection.findAndModify({"underProcess":false,"recrawlAt":{$lte:stamp1}},[['recrawlAt',1],['score',1]],{"$set":{"underProcess":true,"processingBot":config.getConfig("bot_name")}},{"remove":false},function getNextBatchFM(err1,object){
 					//#debug#console.log(object,err1)
 					if( check.assigned(object) && check.assigned(object.value)){
 							var hash=object["value"]["_id"];
 							//#debug#console.log(hash);
 							var refresh_label=object["value"]["recrawlLabel"];
-							that.mongodb_collection.find({"bucket_id":hash,"abandoned":{"$exists":false} },{},{}).toArray(function(err,docs){
+							that.mongodb_collection.find({"bucket_id":hash,"abandoned":{"$exists":false} },{},{}).toArray(function getNextBatchFind(err,docs){
 								//console.log(err,docs);
 								if(!check.assigned(err) && docs.length === 0){
 									//we got empty bucket remove it 
@@ -307,19 +307,19 @@ var pool={
 
 									that.bucket_collection.removeOne({"_id":ObjectId(hash)},function(){
 
-										log.put("empty bucket removed ",'success');
+										msg("empty bucket removed ",'success');
 									});
 								}
 									if(err){
 
-										log.put("pool.getNextBatch","error");
+										msg("pool.getNextBatch","error");
 										result(null,[],null,null);
 										return;
 									}
 									else{
 										process.bot.updateStats("processedBuckets",1);	
 										//#debug#console.log(docs);
-										log.put(("Got "+docs.length+" for next Batch"),"success");
+										msg(("Got "+docs.length+" for next Batch"),"success");
 										result(err,docs,(hash+""),refresh_label);		
 									}
 
@@ -335,14 +335,14 @@ var pool={
 		
 
 	},
-	"checkUnCrawled":function(links,callback){
+	"checkUnCrawled":function checkUnCrawled(links,callback){
 		var that =this;
 		links = _.pluck(links, '_id');
 		that.mongodb_collection.find({"response":{"$exists":false},"_id":{"$in":links}}).toArray(function(err,docs){
 			return callback(err,docs);
 		});
 	},
-	"setCrawled":function(link_details){
+	"setCrawled":function setCrawled(link_details){
 		var that = this;
 		var url = link_details.url;
 		var urlID = link_details.urlID;
@@ -414,11 +414,11 @@ var pool={
 					(function(failed_id, url){
 
 						failed_db.parallelize(function() {
-							failed_db.run("DELETE FROM q WHERE id=?",[failed_id],function(e,r){
+							failed_db.run("DELETE FROM q WHERE id=?",[failed_id],function delete_from_failed_queue(e,r){
 									
 									
 									//console.log(e,failed_id,'marked abandoned');
-									log.put('Deleted from failed queue and abandoned'+url,'info');
+									msg('Deleted from failed queue and abandoned'+url,'info');
 
 							});
 						});
@@ -429,9 +429,9 @@ var pool={
 					//inc by one and status = 0
 					(function(url, failed_id){
 							failed_db.parallelize(function() {
-								failed_db.run("UPDATE q SET count = count+1, status=0 WHERE id=?",[failed_id],function(e,r){
+								failed_db.run("UPDATE q SET count = count+1, status=0 WHERE id=?",[failed_id],function failed_retry_pushed(e,r){
 									//console.log('counter increased ',failed_id);
-									log.put('Pushed again to retry in failed queue '+url,'info');
+									msg('Pushed again to retry in failed queue '+url,'info');
 								});	
 							});
 
@@ -444,9 +444,9 @@ var pool={
 					dict['abandoned'] = false;
 					return (function(link_details){
 						failed_db.parallelize(function() {
-							failed_db.run("INSERT OR IGNORE INTO q(failed_url,failed_info,status,count) VALUES(?,?,0,0)",[link_details.url,JSON.stringify(link_details)],function(err,row){
+							failed_db.run("INSERT OR IGNORE INTO q(failed_url,failed_info,status,count) VALUES(?,?,0,0)",[link_details.url,JSON.stringify(link_details)],function insertFailed(err,row){
 								//console.log(err,row);
-								log.put("Inserted failed url "+link_details.url+" into failed queue", 'success');
+								msg("Inserted failed url "+link_details.url+" into failed queue", 'success');
 							});
 						});
 					})(link_details);
@@ -459,7 +459,7 @@ var pool={
 
 			//if so mark abandoned 
 			process.bot.updateStats("failedPages",1);
-			log.put('Abandoned due to mime type rejection '+url,'info');
+			msg('Abandoned due to mime type rejection '+url,'info');
 		}
 		else if((status+"").indexOf("NOINDEX")>=0){
 			//do not retry reject 
@@ -468,7 +468,7 @@ var pool={
 			delete dict["response_time"];
 			//if so mark abandoned 
 			process.bot.updateStats("failedPages",1);
-			log.put('Abandoned due to no INDEX from meta '+url,'info');
+			msg('Abandoned due to no INDEX from meta '+url,'info');
 		}
 		else if(status === "ContentTypeRejected"){
 			//do not retry reject 
@@ -477,7 +477,7 @@ var pool={
 			delete dict["response_time"];
 			//if so mark abandoned 
 			process.bot.updateStats("failedPages",1);
-			log.put('Abandoned due to content type rejection '+url,'info');
+			msg('Abandoned due to content type rejection '+url,'info');
 		}
 		else if(status === "ContentLangRejected"){
 			//do not retry reject 
@@ -486,7 +486,7 @@ var pool={
 			delete dict["response_time"];
 			//if so mark abandoned 
 			process.bot.updateStats("failedPages",1);
-			log.put('Abandoned due to content lang rejection '+url,'info');
+			msg('Abandoned due to content lang rejection '+url,'info');
 		}
 		else{
 			
@@ -494,9 +494,9 @@ var pool={
 				if(from_failed_queue){
 					(function(url, failed_id){
 							failed_db.parallelize(function() {
-								failed_db.run("DELETE FROM q WHERE id=?",[failed_id],function(err,row){
+								failed_db.run("DELETE FROM q WHERE id=?",[failed_id],function failed_success(err,row){
 									
-									log.put(url+' from failed_queue is successfull now','info');
+									msg(url+' from failed_queue is successfull now','info');
 								});
 
 							});
@@ -561,7 +561,7 @@ var pool={
 
 
 
-		that.mongodb_collection.updateOne({"_id":ObjectId(urlID)},{$set:dict},function(err,results){
+		that.mongodb_collection.updateOne({"_id":ObjectId(urlID)},{$set:dict},function updateDoc(err,results){
 			
 			if(err){
 				if(err.code === 11000){
@@ -569,7 +569,7 @@ var pool={
 						
 						if(link_details.status_code === 404){
 							process.bot.updateStats("failedPages",1);
-							log.put("Duplicate page found but 404 thus skipping .",'info');
+							msg("Duplicate page found but 404 thus skipping .",'info');
 							dict["abandoned"] = true;
 							delete dict["crawled"];
 							delete dict["data"];
@@ -579,7 +579,7 @@ var pool={
 
 							});
 						}else{
-							log.put("Duplicate page found","info");
+							msg("Duplicate page found","info");
 							//a similar page exists
 							//then update this link into it and abondon this by setting a canonial link
 
@@ -601,14 +601,14 @@ var pool={
 						
 					}
 				}else{
-					log.put("pool.setCrawled","error");
+					msg("pool.setCrawled","error");
 				}
 				
 			}
 			else{
 				if( !abandoned && dict["response"] !=="inTikaQueue"){
 					process.bot.updateStats("crawledPages",1);
-					log.put(("Updated "+url),"success");
+					msg(("Updated "+url),"success");
 				}
 				if(abandoned){
 					process.bot.updateStats("failedPages",1);
@@ -619,7 +619,7 @@ var pool={
 			
 		});
 	},
-	"createConnection":function(fn){
+	"createConnection":function createConnection(fn){
 		var that=this;
 		var serverOptions = {
 		  'auto_reconnect': true,
@@ -658,7 +658,7 @@ var pool={
 			
 		});
 	},
-	close:function(fn){
+	close:function close(fn){
 		var that=this;
 		if(!check.assigned(fn)){
 			fn=function (argument) {
@@ -667,19 +667,19 @@ var pool={
 		}
 		that.db.close(fn);
 	},
-	"readSeedFile":function(fn){
+	"readSeedFile":function readSeedFile(fn){
 		var URL=require(parent_dir+'/lib/url.js');
 		var regex_urlfilter = {};
 		regex_urlfilter["accept"]=config.getConfig("accept_regex");
 		regex_urlfilter["reject"]=config.getConfig("reject_regex");
 		URL.init(config, regex_urlfilter);
 		var that=this;
-		that.seed_collection.find({}).toArray(function(err,results){
+		that.seed_collection.find({}).toArray(function readSeedCol(err,results){
 			//console.log(results)
 
 			if(results.length===0){
 				//empty seed file
-				log.put("Empty seed file","error");
+				msg("Empty seed file","error");
 				process.bot.stopBot(function(){
 						process.exit(0);
 				});
@@ -733,15 +733,15 @@ var pool={
 		
 		
 	},
-	"batchFinished":function(hash,refresh_label,fn, updateStats){
+	"batchFinished":function batchFinished(hash,refresh_label,fn, updateStats){
 		var that=this;
 		var stamp1=new Date().getTime()+config.getConfig("recrawl_intervals",refresh_label);
 		var lm=new Date().getTime();
-		that.bucket_collection.findAndModify({"_id":ObjectId(hash)},[],{$set:{"underProcess":false,"recrawlAt":stamp1,"lastModified":lm}},{"remove":false},function(err,object){
+		that.bucket_collection.findAndModify({"_id":ObjectId(hash)},[],{$set:{"underProcess":false,"recrawlAt":stamp1,"lastModified":lm}},{"remove":false},function markFinished(err,object){
 			if(check.assigned(object)){
 				if(object.value!==null){
 						var hash=object["value"]["_id"];
-						log.put(("Bucket "+hash+" completed !"),"success");
+						msg(("Bucket "+hash+" completed !"),"success");
 						
 
 				}
@@ -753,17 +753,17 @@ var pool={
 
 		});
 	},
-	"resetBuckets":function(fn){
+	"resetBuckets":function resetBuckets(fn){
 		var that=this;
 		var stamp1=new Date().getTime()-2000;//giving less time
 		that.bucket_collection.update({"underProcess":true,"processingBot":config.getConfig("bot_name")},{$set:{"underProcess":false,"recrawlAt":stamp1}},{multi:true},function(err,results){
 		//resetting just buckets processed by this bot
-			that.semaphore_collection.remove({"bot_name":config.getConfig("bot_name")},function(err,results){
+			that.semaphore_collection.remove({"bot_name":config.getConfig("bot_name")},function resetBuckets1(err,results){
 				if(err){
-				log.put("pool.resetBuckets","error");
+				msg("pool.resetBuckets","error");
 				}
 				else{
-					log.put("pool.resetBuckets","success");
+					msg("pool.resetBuckets","success");
 					fn();
 					return;
 				}
@@ -775,7 +775,7 @@ var pool={
 		});
 
 	},
-	"addLinksToDB":function(hashes_obj,freqType,fn){
+	"addLinksToDB":function addLinksToDB(hashes_obj,freqType,fn){
 		var that=this;
 		var done=0;
 		var li=hashes_obj["links"];
@@ -812,7 +812,7 @@ var pool={
 		};
 		
 	},
-	"drop":function(fn){
+	"drop":function drop(fn){
 		var that=this;
 		that.db.dropDatabase();
 		try{
@@ -826,7 +826,7 @@ var pool={
 		
 		
 	},
-	"insertParseFile":function(filename,fn){
+	"insertParseFile":function insertParseFile(filename,fn){
 		var that=this;
 	var data=fs.readFileSync(parent_dir+'/parsers/'+filename+".js");
 	var crypto = require('crypto');
@@ -844,7 +844,7 @@ var pool={
 		}
 	});
 	},
-	"removeSeed":function(url,fn){
+	"removeSeed":function removeSeed(url,fn){
 		var that=this;
 		var cluster_name=config.getConfig("cluster_name");
 		var org_url=url;
@@ -861,7 +861,7 @@ var pool={
 			}
 		});
 	},
-	"clearSeed":function(fn){
+	"clearSeed":function clearSeed(fn){
 		var that=this;
 		that.seed_collection.remove({},function(err,result){
 			if(err){
@@ -875,7 +875,7 @@ var pool={
 			}
 		});
 	},
-	"isSeedPresent":function(url,fn){
+	"isSeedPresent":function isSeedPresent(url,fn){
 		var that=this;
 		that.seed_collection.findOne({"_id":url},function(err,doc){
 			if(check.assigned(doc)){
@@ -886,14 +886,14 @@ var pool={
 
 		});
 	},
-	"moveSeedCollection":function(fn){
+	"moveSeedCollection":function moveSeedCollection(fn){
 		var that = this;
 		that.seed_collection.rename("seed_tmp",function(){
 			that.seed_collection=that.db.collection(config.getConfig("mongodb","seed_collection"));
 			fn();
 		})
 	},
-	"restoreSeedCollection":function(fn){
+	"restoreSeedCollection":function restoreSeedCollection(fn){
 		var that = this;
 		that.db.collection(config.getConfig("mongodb","seed_collection")).remove(function(){
 			that.db.collection("seed_tmp").rename(config.getConfig("mongodb","seed_collection"),function(){
@@ -906,13 +906,13 @@ var pool={
 
 		});
 	},
-	"successSeedCollection":function(fn){
+	"successSeedCollection":function successSeedCollection(fn){
 		var that = this;
 		that.db.collection("seed_tmp").drop(function(){
 			fn();
 		});
 	},
-	"insertSeed":function(url,parseFile,phantomjs,priority,fetch_interval,fn){
+	"insertSeed":function insertSeed(url,parseFile,phantomjs,priority,fetch_interval,fn){
 		var URL=require(parent_dir+'/lib/url.js');
 		var regex_urlfilter = {};
 		regex_urlfilter["accept"]=config.getConfig("accept_regex");
@@ -949,7 +949,7 @@ var pool={
 		
 		
 	},
-	"checkIfBotActive":function(fn){
+	"checkIfBotActive":function checkIfBotActive(fn){
 		var that=this;
 		that.bot_collection.findOne({"_id":config.getConfig("bot_name"),"active":true},function(err,result){
 			if(err){
@@ -968,24 +968,24 @@ var pool={
 
 		});
 	},
-	"checkIfNewCrawl":function(fn){
+	"checkIfNewCrawl":function checkIfNewCrawl(fn){
 		var id_name=config.getConfig("cluster_name");
 		var that=this;
-		that.cluster_info_collection.findOne({"_id":id_name},function(err,results){
+		that.cluster_info_collection.findOne({"_id":id_name},function findInCluster(err,results){
 			//console.log(err,results)
 			if(!results){
 				//first time crawl therfore update the cluster info
-				that.cluster_info_collection.insert({"_id":id_name,'createdAt':new Date(),'webapp_host':config.getConfig("network_host"),'webapp_port':config.getConfig('network_port'),'initiatedBy':config.getConfig('bot_name')},function(err1,results1){
+				that.cluster_info_collection.insert({"_id":id_name,'createdAt':new Date(),'webapp_host':config.getConfig("network_host"),'webapp_port':config.getConfig('network_port'),'initiatedBy':config.getConfig('bot_name')},function insertIntoCluster(err1,results1){
 
 					if(!err){
-						log.put("Inserted cluster info for fresh crawl ","success");
+						msg("Inserted cluster info for fresh crawl ","success");
 						fn(true);
 						return;
 					}
 				});
 			}
 			else{
-				log.put("An old crawl is already present ","info");
+				msg("An old crawl is already present ","info");
 				fn(false,results);
 				return;
 			}
@@ -993,7 +993,7 @@ var pool={
 		});
 	},
 	
-	"getParsers":function(fn){
+	"getParsers":function getParsers(fn){
 		var that=this;
 		that.parsers_collection.find({},{}).toArray(function(err,docs){
 			for (var i = 0; i < docs.length; i++) {
@@ -1019,7 +1019,7 @@ var pool={
 				
 		});
 	},
-	"pullSeedLinks":function(fn){
+	"pullSeedLinks":function pullSeedLinks(fn){
 		var that=this;
 		that.seed_collection.find({}).toArray(function(err,results){
 			if(check.emptyArray(results)){
@@ -1042,29 +1042,29 @@ var pool={
 
 		});
 	},
-	"seedReloader":function(){
+	"seedReloader":function seedReloader(){
 		var that=this;
 		that.pullSeedLinks(function(new_config){
 			if(check.assigned(new_config)){
-				fs.writeFile(parent_dir+"/config/seed.json",JSON.stringify(new_config,null,2).replace(/#dot#/gi,"."),function(){
+				fs.writeFile(parent_dir+"/config/seed.json",JSON.stringify(new_config,null,2).replace(/#dot#/gi,"."),function writeSeedFile(){
 					if(!ObjectX.isEquivalent(new_config,that.seed_db_copy)){
 						
-							log.put("Seed Links changed from db ","info");
+							msg("Seed Links changed from db ","info");
 							process.emit("restart");//will be caught by death and it will cause to restart
 
 						
 
 					}
 					else{
-						log.put("No change in seed links","info");
+						msg("No change in seed links","info");
 					}
 				});
 			}
 		});
 	},
-	"parserReloader":function(){
+	"parserReloader":function parserReloader(){
 		var that=this;
-		that.parsers_collection.find({}).toArray(function(err,results){
+		that.parsers_collection.find({}).toArray(function getNewParsers(err,results){
 			for (var i = 0; i < results.length; i++) {
 				var doc=results[i];
 				var data=fs.readFileSync(parent_dir+'/parsers/'+doc["_id"]+".js");
@@ -1073,13 +1073,13 @@ var pool={
 				md5sum.update(data.toString());
 				var hash=md5sum.digest('hex');
 				if(hash!==doc["hash"]){
-					log.put("Parsers changed from server restarting . . .","info");
+					msg("Parsers changed from server restarting . . .","info");
 					process.emit("restart");
 				}
 			};
 		});
 	},
-	'setParent':function(){
+	'setParent':function setParent(){
 			this.bot.parent=this;
 			this.cluster.parent=this;
 			this.stats.parent=this;
@@ -1087,7 +1087,7 @@ var pool={
 			this.bucketOperation.parent=this;
 	},
 	"bot":{
-		"requestToBecomeMaster":function(bot_name,fn){
+		"requestToBecomeMaster":function bot_requestToBecomeMaster(bot_name,fn){
 			var that=this.parent;
 			that.semaphore_collection.findOne({"_id":"master"},function(err,doc){
 				if(check.assigned(doc)){
@@ -1095,11 +1095,11 @@ var pool={
 					return;
 				}else{
 					that.semaphore_collection.insert({"bot_name":config.getConfig("bot_name"),"requestTime":parseInt(new Date().toString())},function(e,d){
-						that.semaphore_collection.find({}).sort({"requestTime":1}).toArray(function(ee,docs){
+						that.semaphore_collection.find({}).sort({"requestTime":1}).toArray(function electMaster(ee,docs){
 							if(check.assigned(docs)){
 								if(check.assigned(docs[0])){
 									if(docs[0]["bot_name"]===config.getConfig("bot_name")){
-										log.put("Became master","success");
+										msg("Became master","success");
 										that.semaphore_collection.insert({"_id":"master","bot_name":config.getConfig("bot_name")},function(eee,ddd){
 												that.semaphore_collection.remove({"requestTime":{"$exists":true}},function(){
 
@@ -1136,7 +1136,7 @@ var pool={
 				}
 			});
 		},
-		"checkIfStillMaster":function(fn){
+		"checkIfStillMaster":function bot_checkIfStillMaster(fn){
 			var that=this.parent;
 			that.semaphore_collection.findOne({"_id":"master"},function(err,doc){
 				if(check.assigned(doc)){
@@ -1160,21 +1160,21 @@ var pool={
 				}
 			});
 		},
-		"startBotGetBotActiveStatus":function(fn){
+		"startBotGetBotActiveStatus":function bot_startBotGetBotActiveStatus(fn){
 			var that=this.parent;
 			that.bot_collection.findOne({"_id":config.getConfig("bot_name"),"active":true},function(err,results){
 				fn(err,results);
 				return;
 			});
 		},
-		startBotAddNewBot:function(t,fn){
+		"startBotAddNewBot":function bot_startBotAddNewBot(t,fn){
 			var that=this.parent;
 			that.bot_collection.findAndModify({"_id":config.getConfig("bot_name")},[],{"$set":{"registerTime":t,"active":true}},{remove:false,upsert:true},function(err,result){
 				fn(err,result);
 				return;
 			});
 		},
-		updateBotInfo:function(n_dic,fn){
+		"updateBotInfo":function bot_updateBotInfo(n_dic,fn){
 			var that=this.parent;
 			that.bot_collection.update({"_id":config.getConfig('bot_name')},n_dic,function(err,results){
 				fn(err,results);
@@ -1182,7 +1182,7 @@ var pool={
 
 			});
 		},
-		BotMarkInactive:function(fn){
+		"BotMarkInactive":function bot_BotMarkInactive(fn){
 			var that=this.parent;
 			that.bot_collection.findAndModify({"_id":config.getConfig("bot_name")},[],{"$set":{"active":false}},{remove:false},function(err,result){
 				fn(err,result);
@@ -1191,7 +1191,7 @@ var pool={
 		}
 	},
 	"cluster":{
-		"getMaster":function(fn){
+		"getMaster":function cluster_getMaster(fn){
 			var that=this.parent;
 			that.cluster_info_collection.findOne({"_id":config.getConfig("cluster_name")},function(e,d){
 				if(check.assigned(d)){
@@ -1203,7 +1203,7 @@ var pool={
 				}
 			});
 		},
-		"getBotConfig":function getBotConfig(bot_name,fn){
+		"getBotConfig":function cluster_getBotConfig(bot_name,fn){
 			var that=this.parent;
 			that.bot_collection.findOne({"_id":bot_name},function(err,results){
 				fn(err,results);
@@ -1211,7 +1211,7 @@ var pool={
 
 			});
 		},
-		"getSeed":function getSeed(fn){
+		"getSeed":function cluster_getSeed(fn){
 			var that=this.parent;
 			that.seed_collection.find({}).toArray(function(err,results){
 					var seeds=results;
@@ -1300,7 +1300,7 @@ var pool={
 
 			});
 		},
-		"getCrawledPages":function(d,len,i,sor,fn){
+		"getCrawledPages":function stats_getCrawledPages(d,len,i,sor,fn){
 			var that=this.parent;
 			var cursor=that.mongodb_collection.find(d,{},{});
 			cursor.count(function(err,c){
@@ -1311,7 +1311,7 @@ var pool={
 				});
 			})
 		},
-		"getFailedPages":function(d,len,i,sor,fn){
+		"getFailedPages":function stats_getFailedPages(d,len,i,sor,fn){
 			var that=this.parent;
 			var cursor=that.mongodb_collection.find(d,{},{});
 			cursor.count(function(err,c){
@@ -1323,7 +1323,7 @@ var pool={
 			})
 			
 		},
-		"getTotalPages":function(d,len,i,sor,fn){
+		"getTotalPages":function stats_getTotalPages(d,len,i,sor,fn){
 			var that=this.parent;
 			var cursor=that.bucket_collection.find(d,{},{});
 			cursor.count(function(err,c){
@@ -1334,7 +1334,7 @@ var pool={
 				});
 			})
 		},
-		"getTotalBuckets":function(d,len,i,sor,fn){
+		"getTotalBuckets":function stats_getTotalBuckets(d,len,i,sor,fn){
 			var that=this.parent;
 			var cursor=that.bucket_collection.find(d,{},{});
 			cursor.count(function(err,c){
@@ -1345,7 +1345,7 @@ var pool={
 				});
 			})
 		},
-		"getProcessedBuckets":function(d,len,i,sor,fn){
+		"getProcessedBuckets":function stats_getProcessedBuckets(d,len,i,sor,fn){
 			var that=this.parent;
 			var cursor=that.bucket_collection.find(d,{},{});
 			cursor.count(function(err,c){
@@ -1356,7 +1356,7 @@ var pool={
 				});
 			})
 		},
-		"updateConfig":function(bot_name,js,fn){
+		"updateConfig":function stats_updateConfig(bot_name,js,fn){
 			var that=this.parent;
 			that.bot_collection.update({"_id":bot_name},{"$set":{"config":js}},function(err,results){
 				//console.log(err)
@@ -1364,7 +1364,7 @@ var pool={
 				return;
 			});
 		},
-		"search":function(query,i,fn){
+		"search":function stats_search(query,i,fn){
 			i-=1;
 			if(!check.assigned(i)|| i===0 || !check.number(i)){
 				i=0;
@@ -1378,9 +1378,9 @@ var pool={
 		}
 	},
 	"config_reloader":{
-		"pullDbConfig":function(idd,fn){
+		"pullDbConfig":function stats_pullDbConfig(idd,fn){
 			var that=this.parent;
-					that.bot_collection.findOne({"_id":idd},function(err,results){
+					that.bot_collection.findOne({"_id":idd},function pullDbConfig1(err,results){
 						//console.log(results)
 						if(!check.assigned(results)){
 							fn(err,null);
@@ -1388,12 +1388,12 @@ var pool={
 						}
 						var c=results.config;
 						if(err){
-							log.put("Error ocurred while pulling bot config from db ","error");
+							msg("Error ocurred while pulling bot config from db ","error");
 							fn(err,null);
 							return;
 						}
 						else{
-							log.put("Bot config pulled from db","success");
+							msg("Bot config pulled from db","success");
 							fn(err,c);
 							return;
 						}
@@ -1407,7 +1407,7 @@ var pool={
 		
 
 		*/
-		"getCurrentDomain":function(){
+		"getCurrentDomain":function bucketoperation_getCurrentDomain(){
 
 			var that=this.parent;
 			//console.log(that.bucket_priority)
@@ -1423,7 +1423,7 @@ var pool={
 			}
 			return domain;
 		},
-		'new_creator':function(is_first, fetch_interval){
+		'new_creator':function bucketoperation_new_creator(is_first, fetch_interval){
 			/*
 			var that = this.parent;
 			process.bucket_creater_locked=true;
@@ -1479,7 +1479,7 @@ var pool={
 			});
 			*/
 		},
-		"creator":function(){
+		"creator":function bucketoperation_creator(){
 			var that=this.parent;
 			//#debug#console.log("pinging")
 			//#debug#console.log(li);
@@ -1508,8 +1508,8 @@ var pool={
 					var interval_size=_.size(distinct_fetch_intervals);
 					var completed=0;
 					for(var k in distinct_fetch_intervals){
-						(function(k){
-								log.put('Generating bucket for '+k+' interval','info');
+						(function creator(k){
+								msg('Generating bucket for '+k+' interval','info');
 								var done=0;
 								var domains=[];
 								var summer=0;
@@ -1556,7 +1556,7 @@ var pool={
 									//#debug#console.log("skip");
 									return;
 								}
-								log.put('Got domains '+JSON.stringify(domains)+' for fetch_interval '+k+' for bucket creator','info');
+								msg('Got domains '+JSON.stringify(domains)+' for fetch_interval '+k+' for bucket creator','info');
 								//#debug#console.log("heree")
 								for (var i = 0; i < domains.length; i++) {
 									//#debug#console.log(i)
@@ -1604,7 +1604,7 @@ var pool={
 		
 				return;
 		},
-		"pusher":function(hashes,fn){
+		"pusher":function bucketoperation_pusher(hashes,fn){
 			//console.log(JSON.stringify(hashes,null,2));
 			var that=pool;
 			//#debug#console.log(that)
@@ -1643,15 +1643,15 @@ var pool={
 						}
 							var stamp1=new Date().getTime();
 							var links_to_be_inserted=_.pluck(hashes[key]["links"],'url');
-							that.bucket_collection.insert({"_id":hashes[key]["_id"],"links":links_to_be_inserted,"score":hashes[key]["score"],"recrawlLabel":key,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":numOfLinks},function(err,results){
+							that.bucket_collection.insert({"_id":hashes[key]["_id"],"links":links_to_be_inserted,"score":hashes[key]["score"],"recrawlLabel":key,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":numOfLinks},function bucketInsert(err,results){
 								//console.log(arguments);
 								if(err){
-									log.put(("pool.addToPool"+err),"error");
+									msg(("pool.addToPool"+err),"error");
 									//fn(false);
 									//return;
 								}
 								else{
-									log.put(("Updated bucket "+results["ops"][0]["_id"]),"success");
+									msg(("Updated bucket "+results["ops"][0]["_id"]),"success");
 									process.bot.updateStats("createdBuckets",1);
 									//fn(true);
 									//return;
@@ -1672,19 +1672,19 @@ var pool={
 			
 
 		},
-		"enqueue":function(){
+		"enqueue":function bucketoperation_enqueue(){
 			var that=this.parent;
 		},
-		"dequeue":function(domain,count,interval,fn){
+		"dequeue":function bucketoperation_dequeue(domain,count,interval,fn){
 			var that=this.parent;
 			var li=[];
 			var rem=[];
-				//log.put('Fetch '+count+' urls from '+domain+' for bucket creation','info');
-				that.mongodb_collection.find({"domain":domain,"bucket_id":null,"bucketed":false,"fetch_interval":interval,"partitionedBy":config.getConfig("bot_name")},{limit:count,sort:{level:1}}).toArray(function(err,object){
+				//msg('Fetch '+count+' urls from '+domain+' for bucket creation','info');
+				that.mongodb_collection.find({"domain":domain,"bucket_id":null,"bucketed":false,"fetch_interval":interval,"partitionedBy":config.getConfig("bot_name")},{limit:count,sort:{level:1}}).toArray(function findPagesForBucket(err,object){
 					
 					//#debug#console.log(object)
 					if(check.assigned(object) && object.length!==0){
-						log.put('Fetched '+object.length+' urls from '+domain+' for bucket creation','info');
+						msg('Fetched '+object.length+' urls from '+domain+' for bucket creation','info');
 						//console.log(object,domain,interval)
 						fn(object)
 						return;
@@ -1723,8 +1723,8 @@ function indexTikaDocs(){
 			var link_details = JSON.parse(row.content);
 			pool.setCrawled(link_details);
 			tika_f_db.parallelize(function(){
-				tika_f_db.run("DELETE FROM q WHERE id=?",[row.id],function(){
-						log.put('Tika doc indexed','success');
+				tika_f_db.run("DELETE FROM q WHERE id=?",[row.id],function remove_from_sqlite(){
+						msg('Tika doc indexed','success');
 				});
 			});
 
@@ -1745,7 +1745,7 @@ function speedUpBucketCreation(){
 	}
 	process.lock_speed_bucket = true;
 	try{
-		pool.stats.crawlStats(function(dic){
+		pool.stats.crawlStats(function bucket_speed(dic){
 
 			var processed_buckets = dic["processed_buckets"];
 			var created_buckets = dic["bucket_count"];
@@ -1753,16 +1753,16 @@ function speedUpBucketCreation(){
 				var ratio = processed_buckets/created_buckets;
 				if(ratio > 0.4){
 					process.bucket_time_interval = 2000;
-					log.put("Speed up the process of bucket creation","info");
+					msg("Speed up the process of bucket creation","info");
 					//speed up bucket creation
 				}else{
 					process.bucket_time_interval = 10000;
-					log.put("Slow up the process of bucket creation","info");
+					msg("Slow up the process of bucket creation","info");
 					//slow up bucket creation
 				}
 			}else{
 					process.bucket_time_interval = 2000;
-					log.put("Speed up the process of bucket creation","info");	
+					msg("Speed up the process of bucket creation","info");	
 					//speed up bucket creation		
 			}
 			process.lock_speed_bucket = false;
@@ -1836,4 +1836,5 @@ exports.init=init;
 
 exports.getDic=function(){
 	return pool;
-}
+};
+function msg(){log.put(arguments[0],arguments[1],__filename.split('/').pop(), arguments.callee.caller.name.toString());}
