@@ -76,6 +76,7 @@ pool.createConnection(function(){
 							clearInterval(process.config_delay_interval);
 							config.pullConfig(function(){
 								log=require(parent_dir+"/lib/logger.js");
+								log.setFilename(__filename.split("/").pop());
 								pool.checkIfNewCrawl(function(){
 									if(process.editSeedFile){
 										seed.editSeedFile();

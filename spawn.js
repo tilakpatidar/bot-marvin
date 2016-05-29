@@ -17,7 +17,7 @@ var regex_urlfilter={};
 var sqlite3 = require('sqlite3').verbose();
 var tika_db = new sqlite3.Database(__dirname+'/db/sqlite/tika_queue');
 tika_db.serialize(function() {
-	tika_db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,fileName TEXT UNIQUE,parseFile TEXT,status INTEGER)");
+	tika_db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,fileName TEXT UNIQUE,parseFile TEXT,status INTEGER,link_details TEXT)");
 });
 var bot={
 	"queued":0,
@@ -41,11 +41,13 @@ var bot={
 				bot.batchId=k[4];
 				bot.refresh_label=k[5];
 				config=config.init(k[6],k[7],k[8]);
+				process.bot_type = k[9];
 				process.bot_config=config;
 				separateReqPool = {maxSockets: config.getConfig("http","max_sockets_per_host")};
 				regex_urlfilter["accept"]=config.getConfig("accept_regex");
 				regex_urlfilter["reject"]=config.getConfig("reject_regex");
 				log=require(__dirname+"/lib/logger.js");
+				log.setFilename(__filename.split("/").pop());
 				//prepare regexes
 				URL.init(config, regex_urlfilter);
 				return fn(bot.batch);
@@ -56,20 +58,39 @@ var bot={
 		bot.queued=0;
 		for (var i = 0; i < pools.length; i++) {
 			if(check.assigned(pools)){
-				var url=pools[i]['url'];
-				var domain=pools[i]['domain'];
-				try{
-					var link = URL.url(url, domain);
-
-				
-					link.setBucketId(pools[i]['bucket_id']);
-					link.setUrlId(pools[i]['_id']);
-					(function(link){
-						setTimeout(function(){ bot.processLink(link); }, 100); //to avoid recursion
-					})(link);
-				}catch(err){
+				if(process.bot_type === "normal"){
+					var url=pools[i]['url'];
+					var domain=pools[i]['domain'];
+					try{
+						var link = URL.url(url, domain);
+						link.setNormalQueue();
 					
+						link.setBucketId(pools[i]['bucket_id']);
+						link.setUrlId(pools[i]['_id']);
+						(function(link){
+							setTimeout(function(){ bot.processLink(link); }, 100); //to avoid recursion
+						})(link);
+					}catch(err){
+						
+					}
+				}else if(process.bot_type === "failed_queue"){
+					var url=pools[i]['url'];
+					var domain=pools[i]['domain'];
+					var parent = pools[i]['parent'];
+					try{
+						var link = URL.url(url, domain, parent);
+						link.setFailedQueue();
+					
+						link.setBucketId(pools[i]['bucket_id']);
+						link.setUrlId(pools[i]['_id']);
+						(function(link){
+							setTimeout(function(){ bot.processLink(link); }, 100); //to avoid recursion
+						})(link);
+					}catch(err){
+						
+					}
 				}
+
 				
 			}
 			else{
@@ -203,7 +224,7 @@ var bot={
 				bot.queued+=1;
 				if(bot.queued===bot.batch.length){
 					try{
-								process.send({"bot":"spawn","finishedBatch":[bot.batchId,bot.refresh_label]});
+								process.send({"bot":"spawn","finishedBatch":[bot.batchId,bot.refresh_label,process.bot_type]});
 								setTimeout(function(){process.exit(0);},2000);
 						}catch(err){
 										//	log.put("Child killed","error")
@@ -644,12 +665,11 @@ var bot={
 			link.setContent({});
 			process.send({"bot":"spawn","setCrawled":link.details});
 			tika_db.parallelize(function() {
-				tika_db.run("INSERT OR IGNORE INTO q(fileName,parseFile,status) VALUES(?,?,0)",[link.details.url,p],function(err,row){
+				tika_db.run("INSERT OR IGNORE INTO q(fileName,parseFile,status,link_details) VALUES(?,?,0,?)",[link.details.url,p,JSON.stringify(link.details)],function(err,row){
 					if(!err){
 						log.put('Tika job info inserted '+link.details.url,'success');
 					}
 					
-					//console.log(err+"pushQ");
 					//console.log(JSON.stringify(row)+"pushQ");
 					
 				});

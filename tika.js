@@ -7,6 +7,7 @@ var fs = require('fs');
 var request = require('request');
 var check=require("check-types");
 var log;
+var crypto = require('crypto');
 var config=require(__dirname+"/lib/spawn_config.js");
 var color_debug;
 var sqlite3 = require('sqlite3').verbose();
@@ -14,7 +15,7 @@ var db = new sqlite3.Database(__dirname+'/db/sqlite/tika_queue');
 var tika_f_db = new sqlite3.Database(__dirname+'/db/sqlite/tika_f_queue');
 var separateReqPool;
 db.serialize(function() {
-	db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,fileName TEXT UNIQUE,parseFile TEXT,status INTEGER)");
+	db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,fileName TEXT UNIQUE,parseFile TEXT,status INTEGER,link_details TEXT)");
 });
 tika_f_db.serialize(function() {
 	tika_f_db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,content TEXT)");
@@ -42,7 +43,7 @@ var queue={
 					//console.log(row);
 					db.run("UPDATE q SET status=1 WHERE id=?",[row.id],function(e,r){
 
-						li.push({fileName:row.fileName,parseFile:row.parseFile,uid:row.id});
+						li.push({fileName:row.fileName,parseFile:row.parseFile,uid:row.id,link_details:JSON.parse(row.link_details)});
 						++done;
 						if(done===num){
 							fn(li);
@@ -67,10 +68,16 @@ var queue={
 	},
 	length:function (fn){
 		db.serialize(function() {
-			db.each("SELECT COUNT(*) AS `c` FROM q WHERE status=0",function(err,row){
+			db.run("SELECT COUNT(*) AS `c` FROM q WHERE status=0",function(err,row){
 				//console.log(err+"QLength");
 				//console.log(JSON.stringify(row)+"QLength");
-				fn(row.c);
+				if(check.assigned(row) && check.assigned(row.c)){
+					fn(row.c);	
+				}
+				else{
+					fn();
+				}
+				
 			});
 		});
 	}
@@ -315,7 +322,7 @@ var app={
 								var done = 0;
 								for (var i = li.length - 1; i >= 0; i--) {
 									var obj=li[i];
-										(function(fileName,parseFile,uniqueId){
+										(function(fileName,parseFile,uniqueId,link_details){
 											try{
 													tika.submitFile(fileName,function(err,body){
 														//console.log(err);
@@ -324,6 +331,7 @@ var app={
 															log.put("error from fetchFile for "+fileName,"error");
 															try{
 																var link = URL.url(fileName);
+																link.setUrlId(link_details.urlID);
 																link.setStatusCode(err);
 																link.setParsed({});
 																link.setResponseTime(0);
@@ -349,10 +357,18 @@ var app={
 															log.put("fetchFile for "+fileName,"success");
 															try{
 																var link = URL.url(fileName);
+																link.setUrlId(link_details.urlID);
 																link.setStatusCode(200);
 																link.setParsed(dic[1]);
 																link.setResponseTime(0);
 																link.setContent(dic[3]);
+																if(check.assigned(body) && check.assigned(body["text"])){
+																	var md5sum = crypto.createHash('md5');
+																	md5sum.update(body["text"]);
+																	var hash=md5sum.digest('hex');
+																	link.setContentMd5(hash);
+																}
+																
 																(function(link){
 																	tika_f_db.parallelize(function() {
 																		tika_f_db.run("INSERT OR IGNORE INTO q(content) VALUES (?)",[JSON.stringify(link.details)],function(err,row){
@@ -378,6 +394,7 @@ var app={
 												try{
 													var link = URL.url(fileName);
 													link.setStatusCode("tikaUnknownError");
+													link.setUrlId(link_details.urlID);
 													link.setParsed({});
 													link.setResponseTime(0);
 													link.setContent({});
@@ -413,7 +430,7 @@ var app={
 											}
 
 
-										})(obj.fileName,obj.parseFile,obj.uid);
+										})(obj.fileName,obj.parseFile,obj.uid,obj.link_details);
 								};
 
 							},config.getConfig("tika_batch_size"));//[[],[]]
@@ -481,7 +498,7 @@ if(require.main === module){
 				color_debug="no_verbose";
 			}
 			log=require(__dirname+"/lib/logger.js");
-
+			log.setFilename(__filename.split("/").pop());
 
 			var files=fs.readdirSync(__dirname+'/pdf-store/');
 			for (var i = 0; i < files.length; i++) {

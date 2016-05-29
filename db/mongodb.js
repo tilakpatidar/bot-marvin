@@ -295,7 +295,7 @@ var pool={
 							var hash=object["value"]["_id"];
 							//#debug#console.log(hash);
 							var refresh_label=object["value"]["recrawlLabel"];
-							that.mongodb_collection.find({"bucket_id":hash},{},{}).toArray(function(err,docs){
+							that.mongodb_collection.find({"bucket_id":hash,"abandoned":{"$exists":false} },{},{}).toArray(function(err,docs){
 								//console.log(err,docs);
 								if(!check.assigned(err) && docs.length === 0){
 									//we got empty bucket remove it 
@@ -320,7 +320,7 @@ var pool={
 										process.bot.updateStats("processedBuckets",1);	
 										//#debug#console.log(docs);
 										log.put(("Got "+docs.length+" for next Batch"),"success");
-										result(err,docs,hash,refresh_label);		
+										result(err,docs,(hash+""),refresh_label);		
 									}
 
 
@@ -394,7 +394,7 @@ var pool={
 		}
 
 		
-		if(check.assigned(link_details.bucket_id) && link_details.bucket_id.indexOf('failed_queue')>=0){
+		if(check.assigned(link_details.bucket_id) && !link_details['normal_queue']){
 			
 			from_failed_queue = true;
 			failed_count = parseInt(link_details.bucket_id.replace('failed_queue_','').split('_').pop()) + 1;
@@ -416,7 +416,7 @@ var pool={
 						failed_db.parallelize(function() {
 							failed_db.run("DELETE FROM q WHERE id=?",[failed_id],function(e,r){
 									
-									process.bot.updateStats("failedPages",1);
+									
 									//console.log(e,failed_id,'marked abandoned');
 									log.put('Deleted from failed queue and abandoned'+url,'info');
 
@@ -431,7 +431,7 @@ var pool={
 							failed_db.parallelize(function() {
 								failed_db.run("UPDATE q SET count = count+1, status=0 WHERE id=?",[failed_id],function(e,r){
 									//console.log('counter increased ',failed_id);
-									log.put('Retry in failed queue '+url,'info');
+									log.put('Pushed again to retry in failed queue '+url,'info');
 								});	
 							});
 
@@ -442,10 +442,11 @@ var pool={
 			}else{
 
 					dict['abandoned'] = false;
-					(function(link_details){
+					return (function(link_details){
 						failed_db.parallelize(function() {
 							failed_db.run("INSERT OR IGNORE INTO q(failed_url,failed_info,status,count) VALUES(?,?,0,0)",[link_details.url,JSON.stringify(link_details)],function(err,row){
-								
+								//console.log(err,row);
+								log.put("Inserted failed url "+link_details.url+" into failed queue", 'success');
 							});
 						});
 					})(link_details);
@@ -458,7 +459,7 @@ var pool={
 
 			//if so mark abandoned 
 			process.bot.updateStats("failedPages",1);
-			log.put('Abandoned due to mime type rejection'+url,'info');
+			log.put('Abandoned due to mime type rejection '+url,'info');
 		}
 		else if((status+"").indexOf("NOINDEX")>=0){
 			//do not retry reject 
@@ -467,7 +468,7 @@ var pool={
 			delete dict["response_time"];
 			//if so mark abandoned 
 			process.bot.updateStats("failedPages",1);
-			log.put('Abandoned due to no INDEX from meta'+url,'info');
+			log.put('Abandoned due to no INDEX from meta '+url,'info');
 		}
 		else if(status === "ContentTypeRejected"){
 			//do not retry reject 
@@ -476,7 +477,7 @@ var pool={
 			delete dict["response_time"];
 			//if so mark abandoned 
 			process.bot.updateStats("failedPages",1);
-			log.put('Abandoned due to content type rejection'+url,'info');
+			log.put('Abandoned due to content type rejection '+url,'info');
 		}
 		else if(status === "ContentLangRejected"){
 			//do not retry reject 
@@ -485,7 +486,7 @@ var pool={
 			delete dict["response_time"];
 			//if so mark abandoned 
 			process.bot.updateStats("failedPages",1);
-			log.put('Abandoned due to content lang rejection'+url,'info');
+			log.put('Abandoned due to content lang rejection '+url,'info');
 		}
 		else{
 			
@@ -494,16 +495,14 @@ var pool={
 					(function(url, failed_id){
 							failed_db.parallelize(function() {
 								failed_db.run("DELETE FROM q WHERE id=?",[failed_id],function(err,row){
-									process.bot.updateStats("crawledPages",1);
-									log.put(url+' from failed_queue is sucessfull now','info');
+									
+									log.put(url+' from failed_queue is successfull now','info');
 								});
 
 							});
 
 
 					})(link_details.url,failed_id);
-				}else{
-					process.bot.updateStats("crawledPages",1);
 				}
 
 
@@ -553,9 +552,10 @@ var pool={
 
 
 				//now changes to this page
+				dict["data"] = "";
 				dict["abandoned"] = true;
 				abandoned = true;
-				dict["data"] = "";
+				dict["response"] = dict["response"] + "_CANONICAL_PAGE_EXISTS";
 				dict["canonical_url"] = canonical_url;
 	 		}
 
@@ -568,6 +568,7 @@ var pool={
 					if(err.errmsg.indexOf("$md5_1 dup key")>=0){
 						
 						if(link_details.status_code === 404){
+							process.bot.updateStats("failedPages",1);
 							log.put("Duplicate page found but 404 thus skipping .",'info');
 							dict["abandoned"] = true;
 							delete dict["crawled"];
@@ -587,6 +588,7 @@ var pool={
 
 
 							});
+							process.bot.updateStats("failedPages",1);
 							dict["abandoned"] = true;
 							delete dict["crawled"];
 							delete dict["data"];
@@ -605,7 +607,11 @@ var pool={
 			}
 			else{
 				if( !abandoned && dict["response"] !=="inTikaQueue"){
+					process.bot.updateStats("crawledPages",1);
 					log.put(("Updated "+url),"success");
+				}
+				if(abandoned){
+					process.bot.updateStats("failedPages",1);
 				}
 				
 				
