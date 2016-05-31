@@ -7,6 +7,12 @@ var log=require(parent_dir+"/lib/logger.js");
 var config=process.bot_config;
 var mongodb=config.getConfig("mongodb","mongodb_uri");
 var sqlite3 = require('sqlite3').verbose();
+var failed_db = new sqlite3.Database(__dirname+'/sqlite/failed_queue');
+failed_db.serialize(function() {
+	failed_db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,failed_url TEXT UNIQUE,failed_info TEXT,status INTEGER, count INTEGER)");
+});
+var tika_f_queue;
+var tika_queue;
 var child=require('child_process');
 var score=require(parent_dir+'/lib/score.js').init;
 var proto=require(parent_dir+'/lib/proto.js');
@@ -30,14 +36,6 @@ var urllib=require('url');
 var sitemap_queue = [];
 var cluster;
 var distinct_fetch_intervals = {}; //keeps track of distinct fetch intervals
-var failed_db = new sqlite3.Database(__dirname+'/sqlite/failed_queue');
-failed_db.serialize(function() {
-	failed_db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,failed_url TEXT UNIQUE,failed_info TEXT,status INTEGER, count INTEGER)");
-});
-var tika_f_db = new sqlite3.Database(__dirname+'/sqlite/tika_f_queue');
-tika_f_db.serialize(function() {
-	tika_f_db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,content TEXT)");
-});
 //read seed file
 process.bucket_time_interval = 10000;
 process.bucket_creater_locked=true;
@@ -342,7 +340,10 @@ var pool={
 			return callback(err,docs);
 		});
 	},
-	"setCrawled":function setCrawled(link_details){
+	"setCrawled":function setCrawled(link_details,fn){
+		if(!check.assigned(fn)){
+			fn = function(){};
+		}
 		var that = this;
 		var url = link_details.url;
 		var urlID = link_details.urlID;
@@ -442,7 +443,7 @@ var pool={
 			}else{
 
 					dict['abandoned'] = false;
-					return (function(link_details){
+					(function(link_details){
 						failed_db.parallelize(function() {
 							failed_db.run("INSERT OR IGNORE INTO q(failed_url,failed_info,status,count) VALUES(?,?,0,0)",[link_details.url,JSON.stringify(link_details)],function insertFailed(err,row){
 								//console.log(err,row);
@@ -450,6 +451,7 @@ var pool={
 							});
 						});
 					})(link_details);
+					return fn();
 			}
 		}else if(status === "MimeTypeRejected"){
 			//do not retry reject 
@@ -618,6 +620,7 @@ var pool={
 			}
 			
 		});
+	return fn();
 	},
 	"createConnection":function createConnection(fn){
 		var that=this;
@@ -644,6 +647,8 @@ var pool={
 			that.mongodb_collection.createIndex({md5 :1},{unique: true});
 			that.bucket_collection.createIndex({level:1},function(err){});//asc order sort for score
 			that.bots_partitions=[];
+			tika_f_queue = db.collection(config.getConfig("bot_name")+"_tika_f_queue");
+			tika_queue = db.collection(config.getConfig("bot_name")+"_tika_queue");
 			that.stats.activeBots(function(errr,docs){
 				//#debug#console.log(docs)
 				for (var i = 0; i < docs.length; i++) {
@@ -666,6 +671,15 @@ var pool={
 			}
 		}
 		that.db.close(fn);
+	},
+	"insertTikaQueue":function(d,fn){
+		if(!check.assigned(fn)){
+			fn = function(){};
+		}
+		tika_queue.insert(d,function(e,dd){
+
+			fn(e,dd);
+		});
 	},
 	"readSeedFile":function readSeedFile(fn){
 		var URL=require(parent_dir+'/lib/url.js');
@@ -1240,7 +1254,7 @@ var pool={
 				return;
 			});
 		},
-		cluster_info:function stats_cluster_info(id_name,fn){
+		"cluster_info":function stats_cluster_info(id_name,fn){
 			var that=this.parent;
 			that.cluster_info_collection.findOne({"_id":id_name},function(err,results){
 				fn(err,results);
@@ -1711,28 +1725,85 @@ pool.setParent();//setting the parent reference
 
 var tika_indexer_busy = false;
 function indexTikaDocs(){
-	if(tika_indexer_busy){
-		return;
-	}
-	tika_indexer_busy = true;
-	tika_f_db.parallelize(function(){
-		tika_f_db.each("SELECT * FROM q LIMIT 0,100",function(e,row){
-			if(!check.assigned(row) || check.assigned(e)){
-				return;
-			}
-			var link_details = JSON.parse(row.content);
-			pool.setCrawled(link_details);
-			tika_f_db.parallelize(function(){
-				tika_f_db.run("DELETE FROM q WHERE id=?",[row.id],function remove_from_sqlite(){
-						msg('Tika doc indexed','success');
-				});
-			});
+	try{
+		if(tika_indexer_busy){
+			return;
+		}
+		tika_indexer_busy = true;
+		tika_f_queue.find({},{limit: 100}).toArray(function(err,docs){
+			//console.log(err,docs);
+			if(!check.assigned(err) && check.assigned(docs) && docs.length !==0){
+				var done = 0;
+				for(var index in docs){
+					try{
+						var doc = docs[index];
+						(function(doc){
+							fs.readFile(doc["content"],function(err,data){
+								//if file is not written yet to the cache race condition
+								if(!check.assigned(data) || check.assigned(err)){
+									++done;
+									if(done === docs.length){
+										tika_indexer_busy = false;
+									}
+									return;
+								}
+								try{
+									var link_details = JSON.parse(data.toString());
+								}catch(ee){
+									
+									return pool.mongodb_collection.updateOne({"_id":ObjectId(doc["urlID"])},{$set:{"response":"JSON_PARSE_ERROR","abandoned":true, "crawled":false}},function FailedTikaUpdateDoc(err,results){
+										tika_f_queue.remove({_id: doc["_id"]},function(e,d){
+										//console.log(e,d,2);
+											fs.unlink(doc["content"],function tika_doc_indexer(){
 
-		},function(){
-			tika_indexer_busy = false;
+												msg("Tika doc parse error "+doc["urlID"], "error");
+												process.bot.updateStats("failedPages",1);
+												++done;
+												if(done === docs.length){
+													tika_indexer_busy = false;
+												}
+
+											});
+										
+
+										});
+
+									});
+								}
+								
+								pool.setCrawled(link_details,function(){
+									tika_f_queue.remove({_id: doc["_id"]},function(e,d){
+										//console.log(e,d,2);
+										fs.unlink(doc["content"],function tika_doc_indexer(){
+
+											msg('Tika doc indexed','success');
+											++done;
+											if(done === docs.length){
+												tika_indexer_busy = false;
+											}
+										});
+										
+
+									});
+
+								});
+							});
+						})(doc);
+					}catch(ee){
+						++done;
+						if(done === docs.length){
+							tika_indexer_busy = false;
+						}	
+					}
+
+				}
+			}
+			
 
 		});
-	});
+	}catch(errr){
+		tika_indexer_busy = false;
+	}
 }
 
 
@@ -1817,8 +1888,10 @@ process.pool_check_mode=setInterval(function(){
 		},10000);
 
 		process.my_timers.push(sb);
-		var tika_indexer = setInterval(indexTikaDocs,1000);
-		process.my_timers.push(tika_indexer);
+		if(!process.webappOnly){
+			var tika_indexer = setInterval(indexTikaDocs,1000);
+			process.my_timers.push(tika_indexer);
+		}	
 	}
 },5000);
 

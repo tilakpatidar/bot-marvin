@@ -1,6 +1,8 @@
 //https://wiki.apache.org/tika/TikaJAXRS
 var proto=require(__dirname+'/lib/proto.js');
 process.getAbsolutePath=proto.getAbsolutePath;
+process.http_proxy = "";
+process.https_proxy = "";
 var exec = require('child_process').exec;
 var URL=require(__dirname+"/lib/url.js");
 var fs = require('fs');
@@ -10,35 +12,42 @@ var log;
 var crypto = require('crypto');
 var config=require(__dirname+"/lib/spawn_config.js");
 var color_debug;
-var sqlite3 = require('sqlite3').verbose();
-var db = new sqlite3.Database(__dirname+'/db/sqlite/tika_queue');
-var tika_f_db = new sqlite3.Database(__dirname+'/db/sqlite/tika_f_queue');
+var MongoClient = require('mongodb').MongoClient;
+var db;
+var tika_queue;
+var tika_f_queue;
 var separateReqPool;
-db.serialize(function() {
-	db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,fileName TEXT UNIQUE,parseFile TEXT,status INTEGER,link_details TEXT)");
-});
-tika_f_db.serialize(function() {
-	tika_f_db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,content TEXT)");
-});
 var queue={
-	enqueue:function (fileName,parseFile,fn){
-		db.serialize(function() {
-			db.run("INSERT OR IGNORE INTO q(fileName,parseFile,status) VALUES(?,?,0)",[fileName,parseFile],function(err,row){
-				//console.log(err+"pushQ");
-				//console.log(JSON.stringify(row)+"pushQ");
-				fn(row);
-			});
-		});
-
-	},
 	dequeue:function (fn,num){
-
+		var done = 0;
+		var li=[];
+		tika_queue.find({"status":0}, {limit: num}).toArray(function(err,docs){
+			if(check.assigned(err) || !check.assigned(docs)){
+				return fn([]);
+			}
+			for(var index in docs){
+				var doc = docs[index];
+				(function(doc){
+					tika_queue.update({"_id":doc["_id"]},{"$set":{status :1}},function(e){
+						//console.log(e);
+						if(check.assigned(doc) && check.assigned(doc.fileName) && check.assigned(doc.parseFile) && check.assigned(doc.status) && check.assigned(doc.link_details)){
+							li.push(doc);
+						}
+						++done;
+						if(done === docs.length){
+							return fn(li);
+						}
+					});
+				})(doc);
+			}
+		});
+/*
 		if(!check.assigned(num)){
 			num=1;
 		}
 		var li=[];
 		var done=0;
-			db.serialize(function() {
+			db.parallelize(function() {
 				db.each("SELECT * FROM q WHERE status=0 LIMIT 0,"+num,function(err,row){
 					//console.log(row);
 					db.run("UPDATE q SET status=1 WHERE id=?",[row.id],function(e,r){
@@ -56,29 +65,14 @@ var queue={
 			});
 		
 		
-
+		tika_queue.findAndModify({status: 0},{status :1},{multi: true},function(err,docs){
+			fn(docs);
+		});
+		*/
 	},
 	remove:function (idd){
-		db.parallelize(function() {
-			db.run("DELETE FROM q WHERE id=?",[idd],function(err,row){
-					//console.log(err+"QLength");
-					//console.log(JSON.stringify(row)+"QLength");
-			});
-		});
-	},
-	length:function (fn){
-		db.serialize(function() {
-			db.run("SELECT COUNT(*) AS `c` FROM q WHERE status=0",function(err,row){
-				//console.log(err+"QLength");
-				//console.log(JSON.stringify(row)+"QLength");
-				if(check.assigned(row) && check.assigned(row.c)){
-					fn(row.c);	
-				}
-				else{
-					fn();
-				}
-				
-			});
+		tika_queue.removeOne({_id: idd},function(){
+
 		});
 	}
 
@@ -179,6 +173,7 @@ var app={
 				msg(err.stack,color_debug);
 				return callback("TikeFileStreamError");
 		});
+		//console.log(url,"tika");
 			var req=request({uri: url,pool:separateReqPool,headers:config.getConfig("tika_headers")});
 			var done_len=0;
 			var init_time=new Date().getTime();
@@ -260,7 +255,9 @@ var app={
 			var dic={};
 			source.pipe(request.put({url:'http://'+config.getConfig("tika_host")+':'+config.getConfig('tika_port')+'/tika',headers: {'Accept': 'text/plain'}},function(err, httpResponse, body){
 				//console.log(body)
-				dic["text"]=body;
+				//for testing 
+				dic["text"]=body+""+parseInt(Math.random()*1000000)+""+new Date().getTime();
+				//dic["text"] = body;
 				source = fs.createReadStream(app.getFileName(url)).on('error',function source_create(err){
 						msg(err.stack,color_debug);
 						callback("TikaFileStoreReadError",{});
@@ -293,161 +290,141 @@ var app={
 		
 
 	},
+	"indexTikaDoc":function(link){
+		var filename = app.getParsedFileName(link.details.urlID);
+		tika_f_queue.insert({"content": filename, "urlID":link.details.urlID},function(){
+				var stream=fs.createWriteStream(filename);
+				stream.write(JSON.stringify(link.details));
+				stream.on("end",function tika_doc_index(){
+					msg('Tika doc dumped for indexing','info');
+				});
+		});
+	},
 	"processNext":function processNext(){
+		console.log("here");
 		if(process.busy){
 			return;
 		}
+		console.log("there")
 		process.busy = true;
 		process.last_lock_time = new Date().getTime();
+		
+		
 		try{
-				queue.length(function tika_length(count){
-					if(!check.assigned(count)){
-						process.busy =false;
-						return;
-					}
-					if(check.assigned(count) && count!==0){
-						process.busy=true;
-						process.last_lock_time = new Date().getTime();
-						try{
-							queue.dequeue(function tika_dequeu(li){
-								//console.log(li);
-								if(!check.assigned(li)){
-									process.busy =false;
-									return;
-								}
-								if(check.assigned(li) && li.length===0){
-									process.busy=false;
-									return;
-								}
-								var done = 0;
-								for (var i = li.length - 1; i >= 0; i--) {
-									var obj=li[i];
-										(function(fileName,parseFile,uniqueId,link_details){
-											try{
-													tika.submitFile(fileName,function tika_submit_file(err,body){
-														//console.log(err);
-														//console.log(body);
-														if(err){
-															msg("error from fetchFile for "+fileName,"error");
-															try{
-																var link = URL.url(fileName);
-																link.setUrlId(link_details.urlID);
-																link.setStatusCode(err);
-																link.setParsed({});
-																link.setResponseTime(0);
-																link.setContent({});
-																(function(link){
-																	tika_f_db.parallelize(function() {
-																		tika_f_db.run("INSERT OR IGNORE INTO q(content) VALUES (?)",[JSON.stringify(link.details)],function indexing2(err,row){
-																			//console.log(err+"QLength");
-																			//console.log(JSON.stringify(row)+"QLength");
-																			msg('Tika doc dumped for indexing','info');
-																		});
-																	});
-
-																})(link);
-															}catch(errr){
-																msg(errr.stack,color_debug);
-															}
-															
-														}else{
-															//console.log(body);
-															var parser=require(__dirname+"/parsers/"+parseFile);
-															var dic=parser.init.parse(body,fileName);//pluggable parser
-															msg("fetchFile for "+fileName,"success");
-															try{
-																var link = URL.url(fileName);
-																link.setUrlId(link_details.urlID);
-																link.setStatusCode(200);
-																link.setParsed(dic[1]);
-																link.setResponseTime(0);
-																link.setContent(dic[3]);
-																if(check.assigned(body) && check.assigned(body["text"])){
-																	var md5sum = crypto.createHash('md5');
-																	md5sum.update(body["text"]);
-																	var hash=md5sum.digest('hex');
-																	link.setContentMd5(hash);
-																}
-																
-																(function(link){
-																	tika_f_db.parallelize(function() {
-																		tika_f_db.run("INSERT OR IGNORE INTO q(content) VALUES (?)",[JSON.stringify(link.details)],function indexing1(err,row){
-																			//console.log(err+"QLength");
-																			//console.log(JSON.stringify(row)+"QLength");
-																			msg('Tika doc dumped for indexing','info');
-																		});
-																	});
-
-																})(link);
-															}catch(e){
-																msg(e.stack,color_debug);
-															}
-															
-
-														}
-														
-														
-													});
-											}
-											catch(err){
-												msg("error from fetchFile for "+fileName,"error");
-												try{
-													var link = URL.url(fileName);
-													link.setStatusCode("tikaUnknownError");
-													link.setUrlId(link_details.urlID);
-													link.setParsed({});
-													link.setResponseTime(0);
-													link.setContent({});
-													(function(link){
-															tika_f_db.parallelize(function() {
-																tika_f_db.run("INSERT OR IGNORE INTO q(content) VALUES (?)",[JSON.stringify(link.details)],function indexing(err,row){
-																		//console.log(err+"QLength");
-																		//console.log(JSON.stringify(row)+"QLength");
-																		msg('Tika doc dumped for indexing','info');
-																	});
-															});
-
-													})(link);
-
-
-												}catch(e){
-													msg(e.stack,color_debug);
-												}
-												
-												
-											}
-											finally{
-												++done;
-												if(done === li.length){
-													msg("Tika batch completed",'success');
-													process.busy=false;
-												}
-												
-												queue.remove(uniqueId);
-												
-													
-											
-											}
-
-
-										})(obj.fileName,obj.parseFile,obj.uid,obj.link_details);
-								};
-
-							},config.getConfig("tika_batch_size"));//[[],[]]
-						}catch(e){
-							process.busy = false;
-						}
-
-
-						
-						
-					}
+			queue.dequeue(function tika_dequeue(li){
+				//console.log(li);
+				if(!check.assigned(li)){
+					process.busy =false;
 					return;
+				}
+				else if(check.assigned(li) && li.length===0){
+					process.busy=false;
+					return;
+				}
+				else if(check.assigned(li) && li.length !==0){
+					process.busy=true;
+					process.last_lock_time = new Date().getTime();
+				}
+				var done = 0;
+				for (var i in li) {
+					var obj=li[i];
+						(function(fileName,parseFile,uniqueId,link_details){
+							
+							try{
+									tika.submitFile(fileName,function tika_submit_file(err,body){
+										//console.log(err);
+										//console.log(body);
+										if(err){
+											msg("error from fetchFile for "+fileName,"error");
+											try{
+												var link = URL.url(fileName);
+												link.setUrlId(link_details.urlID);
+												link.setStatusCode(err);
+												link.setParsed({});
+												link.setResponseTime(0);
+												link.setContent({});
+												app.indexTikaDoc(link);
+											}catch(errr){
+												msg(errr.stack,color_debug);
+											}
+											
+										}else{
+											//console.log(body);
+											var parser=require(__dirname+"/parsers/"+parseFile);
+											var dic=parser.init.parse(body,fileName);//pluggable parser
+											msg("fetchFile for "+fileName,"success");
+											try{
+												var link = URL.url(fileName);
+												link.setUrlId(link_details.urlID);
+												link.setStatusCode(200);
+												link.setParsed(dic[1]);
+												link.setResponseTime(0);
+												link.setContent(dic[3]);
+												if(check.assigned(body) && check.assigned(body["text"])){
+													var md5sum = crypto.createHash('md5');
+													md5sum.update(body["text"]);
+													var hash=md5sum.digest('hex');
+													link.setContentMd5(hash);
+												}
+												
+												app.indexTikaDoc(link);
+											}catch(e){
+												msg(e.stack,color_debug);
+											}
+											
 
-				});
+										}
+										++done;
+										if(done === li.length){
+											msg("Tika batch completed",'success');
+											process.busy=false;
+										}
+										
+										queue.remove(uniqueId);
+										
+										
+									});
+							}
+							catch(err){
+								msg("error from fetchFile for "+fileName,"error");
+								try{
+									var link = URL.url(fileName);
+									link.setStatusCode("tikaUnknownError");
+									link.setUrlId(link_details.urlID);
+									link.setParsed({});
+									link.setResponseTime(0);
+									link.setContent({});
+									app.indexTikaDoc(link);
+
+
+								}catch(e){
+									msg(e.stack,color_debug);
+								}finally{
+									++done;
+									if(done === li.length){
+										msg("Tika batch completed",'success');
+										process.busy=false;
+									}
+									
+									queue.remove(uniqueId);
+								}
+								
+								
+							}
+
+
+						})(obj.fileName,obj.parseFile, obj.link_details.urlID, obj.link_details);
+				};
+
+			},config.getConfig("tika_batch_size"));//[[],[]]
 		}catch(e){
 			process.busy = false;
 		}
+
+
+						
+						
+		
 
 		
 				
@@ -460,6 +437,9 @@ var app={
 	},
 	"getFileName":function getFileName(url){
 		return __dirname+"/pdf-store/"+url.replace(/\//gi,"##");
+	},
+	"getParsedFileName":function getParsedFileName(url){
+		return __dirname+"/pdf-store-parsed/"+url.replace(/\//gi,"##")+".json";
 	}
 
 };
@@ -485,6 +465,7 @@ if(require.main === module){
 		if(key==="init"){
 			//making init ready
 			var o=data[key];
+			//console.log(o);
 			config=config.init(o[0],o[1],o[2]);
 			regex_urlfilter = {};
 			regex_urlfilter["accept"]=config.getConfig("accept_regex");
@@ -507,22 +488,34 @@ if(require.main === module){
 				}
 				var data=fs.unlinkSync(__dirname+'/pdf-store/'+files[i]);
 			};
-			db.serialize(function revert_sqlite(){
-				db.run("UPDATE q SET status=0 WHERE status=?",[1],function(e,r){
-					msg("pdf-store queue sqlite reverted","success");
-				});	
-		
-			});
 			msg("pdf-store cache reset","success");
-			separateReqPool = {maxSockets: config.getConfig("tika_max_sockets_per_host")};
 			tika.startServer();
+			var serverOptions = {
+			  'auto_reconnect': true,
+			  'poolSize': config.getConfig("pool-size")
+			};
+			var mongodb=config.getConfig("mongodb","mongodb_uri");
+			process.mongo=MongoClient.connect(mongodb,serverOptions, function(err, db1) {
+				db=db1;
+				//#debug#console.log(err,db)
+				tika_queue = db.collection(config.getConfig("bot_name")+"_tika_queue");
+				tika_queue.update({"status":1},{"status":0},function revert_queue(){
+					msg("pdf-store queue reverted","success");
+					tika_f_queue=db.collection(config.getConfig("bot_name")+"_tika_f_queue");
+					setInterval(tika.processNext,1000);
+					setInterval(failSafe,1000);
+				});
+
+			});
+			
+			separateReqPool = {maxSockets: config.getConfig("tika_max_sockets_per_host")};
+			
 		}
 	        
 
 	});
 
- setInterval(tika.processNext,1000);
- setInterval(failSafe,1000);
+
 
 }
 function msg(){log.put(arguments[0],arguments[1],__filename.split('/').pop(), arguments.callee.caller.name.toString());}

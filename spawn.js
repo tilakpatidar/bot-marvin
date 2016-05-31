@@ -221,10 +221,10 @@ var bot={
 	},
 	"isLinksFetched":function isLinksFetched(){
 				bot.queued+=1;
-				if(bot.queued===bot.batch.length){
+				if(bot.queued >= bot.batch.length){
 					try{
 								process.send({"bot":"spawn","finishedBatch":[bot.batchId,bot.refresh_label,process.bot_type]});
-								setTimeout(function(){process.exit(0);},2000);
+								setTimeout(function(){process.exit(0);},5000);
 						}catch(err){
 										//	msg("Child killed","error")
 						}
@@ -465,7 +465,6 @@ var bot={
 									
 									//do not grab links from this page
 								}catch(error){
-									console.log(error);
 								}
 							break;
 							case "alternate":
@@ -531,11 +530,11 @@ var bot={
 					}catch(err){
 							//msg("Child killed","error")
 					}
-						bot.isLinksFetched();
+						return bot.isLinksFetched();
 				}else{
 					//no msg recieved or no cases matched
 					//go for default send
-					if((!check.assigned(parser_msgs) || check.emptyObject(parser_msgs)) || default_opt){	
+					//if((!check.assigned(parser_msgs) || check.emptyObject(parser_msgs)) || default_opt){	
 								//dic[0] is cheerio object
 								//dic[1] is dic to be inserted
 								//dic[2] inlinks suggested by custom parser
@@ -556,8 +555,8 @@ var bot={
 								}catch(err){
 								//msg("Child killed","error")
 								}
-								bot.isLinksFetched();
-						}	
+								return bot.isLinksFetched();
+						//}	
 				}
 
 			});
@@ -565,8 +564,8 @@ var bot={
 		req.on("error",function req_on_error(err){
 			//#debug#(err)
 			//console.log("req  ",err,err.type)
-			var msg = err;
-			if(msg === "ETIMEDOUT_CALLBACK"){
+			var message = err;
+			if(message === "ETIMEDOUT_CALLBACK"){
 					msg("Connection timedout change http.callback_timeout setting in config","error");
 					try{
 						link.setStatusCode("ETIMEDOUT_CALLBACK");
@@ -583,7 +582,7 @@ var bot={
 					
 					return bot.isLinksFetched();
 			}
-			else if(msg === "ContentOverflow"){
+			else if(message === "ContentOverflow"){
 				msg("content-length is more than specified","error");
 					try{
 						link.setStatusCode("ContentOverflow");
@@ -600,7 +599,7 @@ var bot={
 					
 					 return bot.isLinksFetched();
 
-			}else if(msg === "MimeTypeRejected"){
+			}else if(message === "MimeTypeRejected"){
 				msg("mime type rejected for "+link.details.url,"error");
 					try{
 						link.setStatusCode("MimeTypeRejected");
@@ -617,14 +616,14 @@ var bot={
 					
 					 return bot.isLinksFetched();
 
-			}else if(msg === "'TikaMimeTypeFound'"){
+			}else if(message === "'TikaMimeTypeFound'"){
 				//we already called fetch file just pass 
 			}
 			else{
 					try{
 						var code;
 						if(err.code === 'ETIMEDOUT'){
-							console.log(err);
+							msg(err,"error");
 							if(err.connect === true){
 								code = 'ETIMEDOUT_CONNECTION'
 							}else{
@@ -654,7 +653,7 @@ var bot={
 	},
 	"fetchFile":function fetchFile(link){
 		//files will be downloaded by seperate process
-		//console.log("files    "+url)
+		//console.log("files    "+link.details.url)
 		var p=bot.links[link.details.domain]["parseFile"];
 		code="inTikaQueue";
 		try{
@@ -663,18 +662,10 @@ var bot={
 			link.setResponseTime(0);
 			link.setContent({});
 			process.send({"bot":"spawn","setCrawled":link.details});
-			tika_db.parallelize(function() {
-				tika_db.run("INSERT OR IGNORE INTO q(fileName,parseFile,status,link_details) VALUES(?,?,0,?)",[link.details.url,p,JSON.stringify(link.details)],function tika_sqlite_insert(err,row){
-					if(!err){
-						msg('Tika job info inserted '+link.details.url,'success');
-					}
-					
-					//console.log(JSON.stringify(row)+"pushQ");
-					
-				});
-			});
+			var dict = {fileName: link.details.url, parseFile: p, status:0, link_details: link.details};
+			process.send({"bot":"spawn","insertTikaQueue":dict});
 		}catch(err){
-			//console.log(err);
+			console.log(err);
 		}
 		
 		bot.isLinksFetched();

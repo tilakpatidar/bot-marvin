@@ -275,7 +275,17 @@ function reset(fn){
 			};
 			msg("pdf-store cache reset","success");
 
-
+			//drop pdf store-parsed
+			var files=fs.readdirSync(__dirname+'/pdf-store-parsed/');
+			for (var i = 0; i < files.length; i++) {
+				if(files[i].indexOf(".")===0){
+					//do not take hidden files
+					continue;
+				}
+				var domain=files[i].replace(/##/g,"/");
+				var data=fs.unlinkSync(__dirname+'/pdf-store-parsed/'+files[i]);
+			};
+			msg("pdf-store-parsed cache reset","success");
 			
 			try{
 				var stream=fs.createWriteStream(__dirname+"/config/db_config.json");
