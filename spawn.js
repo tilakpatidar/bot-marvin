@@ -188,6 +188,7 @@ var bot={
 			//console.log(a);
 			var count=a.length;
 			url = URL.url(url, domain);
+
 			a.each(function grabInlinks_each(){
 
 				//do not follow links with rel = 'nofollow'
@@ -204,6 +205,18 @@ var bot={
 					
 					//console.log(abs);
 					var link = URL.url(href, domain);
+
+					if(config.getConfig("web_graph")){
+						try{
+							if(url.details.nutch_key.split(":")[0] !== link.details.nutch_key.split(":")[0]){
+								//storing just outlink relations
+								process.send({"bot":"spawn","graph":[link.details.url, url.details.url]});
+							}
+							
+						}catch(errr){
+
+						}
+					}
 					if(!link.details.accepted){
 						--count;
 						return;
@@ -212,13 +225,6 @@ var bot={
 					
 					try{
 							process.send({"bot":"spawn","addToPool":[link.details.url, link.details.domain, url.details.url, config.getConfig("default_recrawl_interval")]});
-							if(config.getConfig("web_graph")){
-								try{
-									process.send({"bot":"spawn","graph":[link.details.url, url.details.url]});
-								}catch(errr){
-
-								}
-							}
 							
 					}catch(err){
 						msg("Child killed","error")
