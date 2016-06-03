@@ -127,6 +127,7 @@ var app={
 	},
 	"parseWebPage":function(data,url,fn){
 		//data is text
+		    data = data.replace(/(<.*?>)/gi,"$1 "); //replace html elemets with html element and space to avoid joined words on .text()
 			data=data.replace(/(\n+)|(\t+)|(\s+)|(\r+)/g,' ');
 			data=data.replace(/\s+/g," ");
 		 $ = cheerio.load(data, {lowerCaseTags: true, lowerCaseAttributeNames : true });
