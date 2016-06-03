@@ -470,7 +470,8 @@ var bot={
 				if(check.assigned(dic[1]._source["author"])){
 					try{
 						var d = {};
-						d[dic[1]._source["author"]] = link.details.url;
+						var author_link = URL.url(dic[1]._source["author"], link.details.domain);
+						d[author_link.details.url] = link.details.url;
 						process.send({"bot":"spawn","insertAuthor":d });
 					}finally{
 
