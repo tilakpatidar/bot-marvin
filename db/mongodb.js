@@ -24,6 +24,7 @@ var sitemap_collection=config.getConfig("mongodb","sitemap_collection");
 var robots_collection=config.getConfig("mongodb","robots_collection");
 var graph_collection=config.getConfig("mongodb","graph_collection");
 var seed_collection=config.getConfig("mongodb","seed_collection");
+var author_collection=config.getConfig("mongodb","author_collection");
 var fs=require('fs');
 var urllib=require('url');
 var sitemap_queue = [];
@@ -257,6 +258,14 @@ var pool={
 				
 
 			};
+	},
+	"insertAuthor": function insertAuthor(data){
+		var that = this;
+		var author_url = Object.keys(data)[0];
+		var page_url = data[author_url];
+		that.author_collection.updateOne({"_id": author_url}, {"$push":{"pages": page_url}}, {upsert: true},function(){
+
+		});
 	},
 	"addToPool":function addToPool(li,fn){
 		var that=this;
@@ -676,6 +685,7 @@ var pool={
 			that.robots_collection=db.collection(robots_collection);
 			that.graph_collection=db.collection(graph_collection);
 			that.seed_collection=db.collection(seed_collection);
+			that.author_collection = db.collection(author_collection);
 			that.mongodb_collection.createIndex( { bucketed: 1, fetch_interval: 1, partitionedBy: 1,domain: 1,bucket_id: 1 } );
 			//create partitions for all the cluster bots
 			that.mongodb_collection.createIndex({url :1},{unique: true});

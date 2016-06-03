@@ -16,11 +16,6 @@ var log;
 var GLOBAL_QUEUE = [];
 var separateReqPool;
 var regex_urlfilter={};
-var sqlite3 = require('sqlite3').verbose();
-var tika_db = new sqlite3.Database(__dirname+'/db/sqlite/tika_queue');
-tika_db.serialize(function() {
-	tika_db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,fileName TEXT UNIQUE,parseFile TEXT,status INTEGER,link_details TEXT)");
-});
 var bot={
 	"queued":0,
 	"active_sockets":0,
@@ -463,6 +458,18 @@ var bot={
 				var parser_msgs = dic[4];
 				var default_opt = false;
 				var special_opt = false;
+
+				//check for author tag
+				if(check.assigned(dic[1]._source["author"])){
+					try{
+						var d = {};
+						d[dic[1]._source["author"]] = link.details.url;
+						process.send({"bot":"spawn","insertAuthor":d });
+					}finally{
+
+					}
+				}
+
 				//DEFAULTS
 				link.setStatusCode(res.statusCode);
 				link.setParsed(dic[1]);
