@@ -335,6 +335,16 @@ var pool={
 		
 
 	},
+	"insertRssFeed":function insertRssFeed(d){
+		var that = this;
+		var url = d[0];
+		var rss_links = d[1];
+		for(var index in rss_links){
+			var rss_link = rss_links[index];
+			that.rss_feeds.insert({"_id": rss_link, page: url});
+		}
+		
+	},
 	"checkUnCrawled":function checkUnCrawled(links,callback){
 		var that =this;
 		links = _.pluck(links, '_id');
@@ -690,6 +700,7 @@ var pool={
 			//create partitions for all the cluster bots
 			that.mongodb_collection.createIndex({url :1},{unique: true});
 			that.mongodb_collection.createIndex({md5 :1},{unique: true});
+			that.rss_feeds = db.collection("rss_feeds"); 
 			that.bucket_collection.createIndex({level:1},function(err){});//asc order sort for score
 			that.bots_partitions=[];
 			that.tika_f_queue = db.collection(config.getConfig("bot_name")+"_tika_f_queue");

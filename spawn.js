@@ -465,7 +465,15 @@ var bot={
 				var parser_msgs = dic[4];
 				var default_opt = false;
 				var special_opt = false;
+				//check rss feeds
+				var feeds = dic[1]._source["rss_feeds"];
+				if(check.assigned(feeds) && feeds.length!==0){
+					try{
+						process.send({"bot":"spawn","insertRssFeed": [link.details.url, feeds]});
+					}finally{
 
+					}
+				}
 				//check for author tag
 				if(check.assigned(dic[1]._source["author"])){
 					try{
