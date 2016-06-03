@@ -2,7 +2,8 @@ var cheerio = require('cheerio');
 var parent_dir=process.getAbsolutePath(__dirname);
 var config=process.bot_config;
 var check = require('check-types');
-
+var _ = require("underscore");
+var URL =require("url");
 //removed NLP parser should be kept separate from crawler
 var NLP = {
 	"normalizeImport":function(q,fn){
@@ -17,7 +18,7 @@ function fetchMultipleAttr(selector, attribute){
 	  list.push($(element).attr(attribute));
 	});
 
-	return list;
+	return _.flatten(list);
 
 }
 
@@ -126,6 +127,7 @@ var app={
 		 });
 	},
 	"parseWebPage":function(data,url,fn){
+		var domain = url.split("/").slice(0,3).join("/");
 		//data is text
 		    data = data.replace(/(<.*?>)/gi,"$1 "); //replace html elemets with html element and space to avoid joined words on .text()
 			data=data.replace(/(\n+)|(\t+)|(\s+)|(\r+)/g,' ');
@@ -228,12 +230,21 @@ var app={
 			 		delete ret['twitter'][key];
 			 	}
 			 }
-
+			 var feeds = [];
 			 for(var index in ret['rss_feeds']){
 			 	if(!check.assigned(ret['rss_feeds'][index])){
 			 		delete ret['rss_feeds'][index];
+			 	}else{
+			 		//now make relative feed urls absolute
+			 		if(ret['rss_feeds'][index].indexOf("http://") === 0 || ret['rss_feeds'][index].indexOf("https://") === 0){
+			 			feeds.push(ret['rss_feeds'][index]);
+			 		}else{
+
+			 			feeds.push(URL.resolve(domain, ret['rss_feeds'][index]));
+			 		}
 			 	}
 			 }
+			 ret["rss_feeds"] = feeds;
 
 			 ret['msg'] = {};
 			 //meta bot msg
