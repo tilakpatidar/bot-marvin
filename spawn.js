@@ -458,8 +458,9 @@ var bot={
 				}
 				
 				var parser=require(__dirname+"/parsers/"+bot.links[link.details.domain]["parseFile"]);
-				var dic=parser.init.parse(html,link.details.url);//pluggable parser
-				//console.log(dic);
+				parser.init.parse(html,link.details.url,function(dic){
+
+				//pluggable parser
 				var inlinksGrabbed = 1;
 				var parser_msgs = dic[4];
 				var default_opt = false;
@@ -527,7 +528,6 @@ var bot={
 							break;
 							case "alternate":
 								special_opt = true;
-									//console.log(parser_msg);
 									for(var ind in parser_msg){
 										link.addAlternateUrl(parser_msg[ind]);
 									}
@@ -632,6 +632,7 @@ var bot={
 						//}	
 				}
 
+				});
 			});
 		});
 		req.on("error",function req_on_error(err){
