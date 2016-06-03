@@ -61,7 +61,6 @@ var app={
          dic._source["tstamp"]=date_rep;
          dic._source["date"]=date_rep;
          dic._source["html"]=indexed["html"];
-         dic._source["mime"]=indexed["mime"];
          dic._source["title"]=indexed["title"];
          dic._source["file_info"]=indexed["file_info"];
 
@@ -94,8 +93,7 @@ var app={
 		 }
 		 ret["dom"]=null;
 		 ret["file_info"]=data["meta"];
-		 ret["mime"]=data["meta"]["Content-Type"];
-		 ret["html"]=data["text"];
+		 ret["html"]=null;
 		 return ret;
 	},
 	"parseWebPage":function(data,url){
@@ -260,7 +258,6 @@ var app={
 		 	ret["description"]="";
 		 }
 		 ret["dom"]=$;
-		 ret["mime"]="text/html";
 		 ret["html"]=data;
 		 return ret;
 	},

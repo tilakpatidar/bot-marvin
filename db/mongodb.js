@@ -6,13 +6,6 @@ var parent_dir=process.getAbsolutePath(__dirname);
 var log=require(parent_dir+"/lib/logger.js");
 var config=process.bot_config;
 var mongodb=config.getConfig("mongodb","mongodb_uri");
-var sqlite3 = require('sqlite3').verbose();
-var failed_db = new sqlite3.Database(__dirname+'/sqlite/failed_queue');
-failed_db.serialize(function() {
-	failed_db.run("CREATE TABLE IF NOT EXISTS q (id INTEGER PRIMARY KEY AUTOINCREMENT,failed_url TEXT UNIQUE,failed_info TEXT,status INTEGER, count INTEGER)");
-});
-var tika_f_queue;
-var tika_queue;
 var child=require('child_process');
 var score=require(parent_dir+'/lib/score.js').init;
 var proto=require(parent_dir+'/lib/proto.js');
@@ -404,7 +397,7 @@ var pool={
 		}
 
 
-		if((status+"").charAt(0) === '4' || (status+"").charAt(0) === '5'  || data === "" || status ==='ETIMEDOUT_CALLBACK' || status ==='ETIMEDOUT_CONNECTION' || status ==='ETIMEDOUT_READ' || status === -1){
+		if(data === "" || status ==='ETIMEDOUT_CALLBACK' || status ==='ETIMEDOUT_CONNECTION' || status ==='ETIMEDOUT_READ' || status === -1){
 			//if 4xx or 5XX series status code then add to failed queue
 			if(from_failed_queue){
 				//then check the count
@@ -413,7 +406,7 @@ var pool={
 					abandoned = true;
 					//if so mark abandoned and delete from queue
 					(function(failed_id, url){
-
+						/*
 						failed_db.parallelize(function() {
 							failed_db.run("DELETE FROM q WHERE id=?",[failed_id],function delete_from_failed_queue(e,r){
 									
@@ -423,19 +416,31 @@ var pool={
 
 							});
 						});
+						*/
+						that.failed_db.removeOne({"_id":failed_id},function delete_from_failed_queue(e,r){
+									//console.log(e,failed_id,'marked abandoned');
+									msg('Deleted from failed queue and abandoned'+url,'info');
+
+						})
 					})(failed_id, link_details.url);
 
 				}
 				else{
 					//inc by one and status = 0
 					(function(url, failed_id){
+
+						/*
 							failed_db.parallelize(function() {
 								failed_db.run("UPDATE q SET count = count+1, status=0 WHERE id=?",[failed_id],function failed_retry_pushed(e,r){
 									//console.log('counter increased ',failed_id);
 									msg('Pushed again to retry in failed queue '+url,'info');
 								});	
 							});
-
+						*/
+						that.failed_db.updateOne({"_id":failed_id},{"$set":{"status":0}, "$inc":{"count":1}},function failed_retry_pushed(e,r){
+							//console.log('counter increased ',failed_id);
+							msg('Pushed again to retry in failed queue '+url,'info');
+						});
 
 					})(link_details.url,failed_id);					
 
@@ -444,19 +449,37 @@ var pool={
 
 					dict['abandoned'] = false;
 					(function(link_details){
+						/*
 						failed_db.parallelize(function() {
 							failed_db.run("INSERT OR IGNORE INTO q(failed_url,failed_info,status,count) VALUES(?,?,0,0)",[link_details.url,JSON.stringify(link_details)],function insertFailed(err,row){
 								//console.log(err,row);
 								msg("Inserted failed url "+link_details.url+" into failed queue", 'success');
 							});
 						});
+						*/
+						that.failed_db.insert({"failed_url":link_details.url, "failed_info": link_details, "status":0, "count":0},function insertFailed(err,row){
+								//console.log(err,row);
+								msg("Inserted failed url "+link_details.url+" into failed queue", 'success');
+						});
 					})(link_details);
 					return fn();
 			}
-		}else if(status === "MimeTypeRejected"){
+		}else if((status+"").indexOf("EMPTY_RESPONSE")>=0){
+			//do not retry reject 
+			dict["abandoned"] = true;
+			dict["md5"] = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);
+			abandoned = true;
+			delete dict["response_time"];
+
+			//if so mark abandoned 
+			process.bot.updateStats("failedPages",1);
+			msg('Abandoned due to empty response '+url,'info');
+		}
+		else if(status === "MimeTypeRejected"){
 			//do not retry reject 
 			dict["abandoned"] = true;
 			abandoned = true;
+			dict["md5"] = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);
 			delete dict["response_time"];
 
 			//if so mark abandoned 
@@ -468,6 +491,7 @@ var pool={
 			dict["abandoned"] = true;
 			abandoned = true;
 			delete dict["response_time"];
+			dict["md5"] = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);
 			//if so mark abandoned 
 			process.bot.updateStats("failedPages",1);
 			msg('Abandoned due to no INDEX from meta '+url,'info');
@@ -476,6 +500,7 @@ var pool={
 			//do not retry reject 
 			dict["abandoned"] = true;
 			abandoned = true;
+			dict["md5"] = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);
 			delete dict["response_time"];
 			//if so mark abandoned 
 			process.bot.updateStats("failedPages",1);
@@ -485,6 +510,7 @@ var pool={
 			//do not retry reject 
 			dict["abandoned"] = true;
 			abandoned = true;
+			dict["md5"] = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);
 			delete dict["response_time"];
 			//if so mark abandoned 
 			process.bot.updateStats("failedPages",1);
@@ -495,6 +521,7 @@ var pool={
 				//link is from failed_queue and is successfull now
 				if(from_failed_queue){
 					(function(url, failed_id){
+						/*
 							failed_db.parallelize(function() {
 								failed_db.run("DELETE FROM q WHERE id=?",[failed_id],function failed_success(err,row){
 									
@@ -502,7 +529,11 @@ var pool={
 								});
 
 							});
-
+						*/
+						that.failed_db.removeOne({"_id":failed_id},function failed_success(err,row){
+									
+									msg(url+' from failed_queue is successfull now','info');
+						});
 
 					})(link_details.url,failed_id);
 				}
@@ -522,9 +553,11 @@ var pool={
 
 		if(check.assigned(canonical_url) && canonical_url !== url){
 			    	//if both urls are same then no need to mark abandoned
-				delete dict["crawled"]; //remove crawled marker
+				
 				//if we are getting canonical_url val this means page was successfull and was parsed
 				var new_dict = JSON.parse(JSON.stringify(dict));
+				delete dict["crawled"]; //remove crawled marker
+				dict["md5"] = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);
 				new_dict['url'] = canonical_url;
 				new_dict["alternate_urls"] = [url];
 				new_dict["bucket_id"] = link_details.bucket_id;
@@ -532,7 +565,9 @@ var pool={
 					//console.log("Find canonical_url ",err,doc," find canonical_url");
 					if(check.assigned(err) || !check.assigned(doc)){
 						//canonical url not present
+					//	console.log("canonical not present");
 						that.mongodb_collection.insert(new_dict,function(err1,res1){
+						//	console.log(arguments);
 							//insert the new canonical url in the same bucket
 							//console.log("Insert canonical_url ",err1,res1," insert canonical_url");
 
@@ -647,8 +682,11 @@ var pool={
 			that.mongodb_collection.createIndex({md5 :1},{unique: true});
 			that.bucket_collection.createIndex({level:1},function(err){});//asc order sort for score
 			that.bots_partitions=[];
-			tika_f_queue = db.collection(config.getConfig("bot_name")+"_tika_f_queue");
-			tika_queue = db.collection(config.getConfig("bot_name")+"_tika_queue");
+			that.tika_f_queue = db.collection(config.getConfig("bot_name")+"_tika_f_queue");
+			that.tika_queue = db.collection(config.getConfig("bot_name")+"_tika_queue");
+			that.failed_db = db.collection(config.getConfig("bot_name")+"_failed_db");
+			that.failed_db.createIndex({count:1,status:1});
+			that.tika_queue.createIndex({status: 1});
 			that.stats.activeBots(function(errr,docs){
 				//#debug#console.log(docs)
 				for (var i = 0; i < docs.length; i++) {
@@ -673,10 +711,11 @@ var pool={
 		that.db.close(fn);
 	},
 	"insertTikaQueue":function(d,fn){
+		var that = this;
 		if(!check.assigned(fn)){
 			fn = function(){};
 		}
-		tika_queue.insert(d,function(e,dd){
+		that.tika_queue.insert(d,function(e,dd){
 
 			fn(e,dd);
 		});
@@ -1730,7 +1769,7 @@ function indexTikaDocs(){
 			return;
 		}
 		tika_indexer_busy = true;
-		tika_f_queue.find({},{limit: 100}).toArray(function(err,docs){
+		pool.tika_f_queue.find({},{limit: 100}).toArray(function(err,docs){
 			//console.log(err,docs);
 			if(!check.assigned(err) && check.assigned(docs) && docs.length !==0){
 				var done = 0;
@@ -1752,7 +1791,7 @@ function indexTikaDocs(){
 								}catch(ee){
 									
 									return pool.mongodb_collection.updateOne({"_id":ObjectId(doc["urlID"])},{$set:{"response":"JSON_PARSE_ERROR","abandoned":true, "crawled":false}},function FailedTikaUpdateDoc(err,results){
-										tika_f_queue.remove({_id: doc["_id"]},function(e,d){
+										pool.tika_f_queue.remove({_id: doc["_id"]},function(e,d){
 										//console.log(e,d,2);
 											fs.unlink(doc["content"],function tika_doc_indexer(){
 
@@ -1772,7 +1811,7 @@ function indexTikaDocs(){
 								}
 								
 								pool.setCrawled(link_details,function(){
-									tika_f_queue.remove({_id: doc["_id"]},function(e,d){
+									pool.tika_f_queue.remove({_id: doc["_id"]},function(e,d){
 										//console.log(e,d,2);
 										fs.unlink(doc["content"],function tika_doc_indexer(){
 

@@ -411,7 +411,10 @@ function cleanUp(fn){
 	//#debug#console.log(cluster.cluster_server,cluster.file_server)
 	process.child_manager.flushAllInlinks(function(status){
 //flush all the inlinks into db before exit
-process.child_manager.killWorkers();//kill all the workers before quiting
+process.child_manager.killWorkers(function(){
+
+
+
 //clear timers
 for (var i = 0; i < process.my_timers.length; i++) {
 	clearInterval(process.my_timers[i]);
@@ -451,7 +454,8 @@ for (var i = 0; i < process.my_timers.length; i++) {
 							
 							});				
 					});
-				
+					
+});//kill all the workers before quiting
 				
 
 }

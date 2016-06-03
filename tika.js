@@ -1,8 +1,6 @@
 //https://wiki.apache.org/tika/TikaJAXRS
 var proto=require(__dirname+'/lib/proto.js');
 process.getAbsolutePath=proto.getAbsolutePath;
-process.http_proxy = "";
-process.https_proxy = "";
 var exec = require('child_process').exec;
 var URL=require(__dirname+"/lib/url.js");
 var fs = require('fs');
@@ -301,11 +299,11 @@ var app={
 		});
 	},
 	"processNext":function processNext(){
-		console.log("here");
+	//	console.log("here");
 		if(process.busy){
 			return;
 		}
-		console.log("there")
+	//	console.log("there")
 		process.busy = true;
 		process.last_lock_time = new Date().getTime();
 		
@@ -507,7 +505,8 @@ if(require.main === module){
 				});
 
 			});
-			
+			process.http_proxy = config.getConfig("http", "http_proxy");
+			process.https_proxy = config.getConfig("http", "https_proxy");
 			separateReqPool = {maxSockets: config.getConfig("tika_max_sockets_per_host")};
 			
 		}

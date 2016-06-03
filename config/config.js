@@ -15,6 +15,8 @@ var config={
   "retry_times_failed_pages":3,
   "failed_queue_size":100,
   "http": {
+    "http_proxy":"",
+    "https_proxy":"",
     "callback_timeout": 20000,
     "timeout": 10000,
     "max_content_length": 10485760,

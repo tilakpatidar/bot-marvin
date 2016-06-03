@@ -1,5 +1,6 @@
 var proto=require(__dirname+"/lib/proto.js");
 var URL=require(__dirname+"/lib/url.js");
+var child=require('child_process');
 process.on("exit",function(){
 	//#debug#("KILLED")
 })
@@ -12,6 +13,7 @@ var urllib = require('url');
 var crypto = require('crypto');
 var config=require(__dirname+"/lib/spawn_config.js");
 var log;
+var GLOBAL_QUEUE = [];
 var separateReqPool;
 var regex_urlfilter={};
 var sqlite3 = require('sqlite3').verbose();
@@ -49,6 +51,8 @@ var bot={
 				log=require(__dirname+"/lib/logger.js");
 				//prepare regexes
 				URL.init(config, regex_urlfilter);
+				process.http_proxy = config.getConfig("http", "http_proxy");
+				process.https_proxy = config.getConfig("http", "https_proxy");
 				return fn(bot.batch);
 			}
 		});
@@ -101,13 +105,18 @@ var bot={
 	},
 	"processLink":function processLink(link){
 		var bot=this;//inside setTimeout no global access
+		//console.log(bot.batchId,"   ",link.details.url , 'ask access');
+		//console.log(bot.batchId,"   ",bot.active_sockets, "    ",config.getConfig("http","max_concurrent_sockets"));
+		if(!check.assigned(link)){
+			return;
+		}
 		if(bot.active_sockets>=config.getConfig("http","max_concurrent_sockets")){
 			//pooling to avoid socket hanging
-			 return (function(link){
-					setTimeout(function(){ bot.processLink(link); }, 1000); //to avoid recursion
-			})(link);
+			GLOBAL_QUEUE.push(link);
+			return;
 			
 		}
+		bot.active_sockets+=1;
 
 		
 		if(check.assigned(bot.botObjs)){
@@ -127,9 +136,13 @@ var bot={
 								link.setParsed({});
 								link.setContent({});
 								process.send({"bot":"spawn","setCrawled":link.details});
+								
 							}
 							catch(err){
 							//msg("Child killed","error")
+							}
+							finally{
+								bot.active_sockets-=1;
 							}
 							return bot.isLinksFetched();
 							
@@ -177,6 +190,7 @@ var bot={
 				}
 		};
 			var a=$("a")
+			//console.log(a);
 			var count=a.length;
 			url = URL.url(url, domain);
 			a.each(function grabInlinks_each(){
@@ -189,6 +203,7 @@ var bot={
 				}
 
 				var href = $(this).attr("href");
+				//console.log(href);
 				if(check.assigned(href)){
 					//#debug#("url "+href);
 					
@@ -308,15 +323,15 @@ var bot={
 			//new url if phantomjs is being used
 			req_url="http://127.0.0.1:"+config.getConfig("phantomjs_port")+"/?q="+req_url;
 		}
-		bot.active_sockets+=1;
 		
-		var req=request({uri:req_url,followRedirect:true,pool:separateReqPool,timeout:config.getConfig("http", "timeout"),headers:config.getConfig("http","headers")});
+		//console.log(req_url);
+		var req=request({uri:req_url,followRedirect:true,pool:separateReqPool,timeout:config.getConfig("http", "timeout")});
 		var html=[];
 		var done_len=0;
 		var init_time=new Date().getTime();
 		var sent = false;
 		req.on("response",function req_on_response(res){
-
+		
 			if(check.assigned(res) && check.assigned(res.headers.location) && res.headers.location !== req_url){
 				//if page is redirect
 				msg(req_url+" redirected to "+res.headers.location,'info');
@@ -352,7 +367,7 @@ var bot={
 
 			}
 			
-//#debug#(arguments)
+
 			var len = parseInt(res.headers['content-length'], 10);
 			if(!check.assigned(len) || !check.number(len)){
 				len=0;
@@ -364,6 +379,7 @@ var bot={
 			res.on("data",function res_on_data(chunk){
 				done_len+=chunk.length;
 				var c=chunk.toString();
+				//console.log(c,"c");
 			 	html.push(c);
 			 	var t=new Date().getTime();
 			 	if((t-init_time)>config.getConfig("http","callback_timeout")){
@@ -380,8 +396,32 @@ var bot={
 				
 			});
 			res.on("end",function res_on_end(){
-				bot.active_sockets-=1;
+				
 				html = html.join("");
+				//console.log(html);
+				if(html.length === 0 ){
+					//zero content recieved
+					//raise error bec otherwise it will create a md5 to which all the other empty urls will become canonical to
+					try{
+						link.setStatusCode(res.statusCode+"_EMPTY_RESPONSE");
+						link.setParsed({});
+						link.setResponseTime(0);
+						link.setContent({});
+						if(!sent){
+							process.send({"bot":"spawn","setCrawled":link.details});
+							
+						}
+					}catch(err){
+					//	msg("Child killed","error")
+					}finally{
+						if(!sent){
+							sent = true;
+							bot.active_sockets-=1;
+						}
+					}
+					
+					return bot.isLinksFetched();
+				}
 				var t=new Date().getTime();
 				var response_time = t-init_time;
 				if(!check.assigned(html)){
@@ -394,10 +434,15 @@ var bot={
 						link.setContent({});
 						if(!sent){
 							process.send({"bot":"spawn","setCrawled":link.details});
-							sent = true;
+							
 						}
 					}catch(err){
 					//	msg("Child killed","error")
+					}finally{
+						if(!sent){
+							sent = true;
+							bot.active_sockets-=1;
+						}
 					}
 					
 					return bot.isLinksFetched();
@@ -525,12 +570,18 @@ var bot={
 					try{
 						if(!sent){
 							process.send({"bot":"spawn","setCrawled":link.details});
-							sent = true;
+							
+							
 						}
 					}catch(err){
 							//msg("Child killed","error")
+					}finally{
+						if(!sent){
+							sent = true;
+							bot.active_sockets-=1;
+						}	
 					}
-						return bot.isLinksFetched();
+					return bot.isLinksFetched();
 				}else{
 					//no msg recieved or no cases matched
 					//go for default send
@@ -550,11 +601,20 @@ var bot={
 									link.setContent(dic[3]);
 									if(!sent){
 											process.send({"bot":"spawn","setCrawled":link.details});
-											sent = true;
+											
+											
 									}
 								}catch(err){
 								//msg("Child killed","error")
+								}finally{
+									if(!sent){
+										sent = true;
+										bot.active_sockets-=1;
+									}
+									
 								}
+
+
 								return bot.isLinksFetched();
 						//}	
 				}
@@ -574,10 +634,16 @@ var bot={
 						link.setContent({});
 						if(!sent){
 							process.send({"bot":"spawn","setCrawled":link.details});
-							sent = true;
 						}
 					}catch(err){
 						//msg("Child killed","error")
+					}finally{
+						if(!sent){
+							sent = true;
+							console.log(bot.active_sockets,"before");
+							bot.active_sockets-=1;
+							console.log(bot.active_sockets,"after");
+						}
 					}
 					
 					return bot.isLinksFetched();
@@ -591,10 +657,15 @@ var bot={
 						link.setContent({});
 						if(!sent){
 							process.send({"bot":"spawn","setCrawled":link.details});
-							sent = true;
+							
 						}
 					}catch(err){
 						//msg("Child killed","error")
+					}finally{
+						if(!sent){
+							sent = true;
+							bot.active_sockets-=1;
+						}
 					}
 					
 					 return bot.isLinksFetched();
@@ -608,10 +679,15 @@ var bot={
 						link.setContent({});
 						if(!sent){
 							process.send({"bot":"spawn","setCrawled":link.details});
-							sent = true;
+							
 						}
 					}catch(err){
 						//msg("Child killed","error")
+					}finally{
+						if(!sent){
+							sent = true;
+							bot.active_sockets-=1;
+						}
 					}
 					
 					 return bot.isLinksFetched();
@@ -638,10 +714,17 @@ var bot={
 						link.setContent({});
 						if(!sent){
 							process.send({"bot":"spawn","setCrawled":link.details});
-							sent = true;
+						
 						}
 					}catch(errr){
 
+					}finally{
+						if(!sent){
+							sent = true;
+							console.log(bot.active_sockets,"before");
+							bot.active_sockets-=1;
+							console.log(bot.active_sockets,"after");
+						}
 					}
 					return bot.isLinksFetched();
 			}
@@ -666,9 +749,11 @@ var bot={
 			process.send({"bot":"spawn","insertTikaQueue":dict});
 		}catch(err){
 			console.log(err);
+		}finally{
+			bot.active_sockets-=1;
 		}
 		
-		bot.isLinksFetched();
+		return bot.isLinksFetched();
 					
 
 	}
@@ -679,7 +764,17 @@ var bot={
 
 bot.getTask(function getTask(links){
 	bot.queueLinks(links);
+	setInterval(function(){
+		console.log(GLOBAL_QUEUE.length, "in the queue");
+		var len = GLOBAL_QUEUE.length;
+		for(var i = 0; i<len; i++){
+			bot.processLink(GLOBAL_QUEUE.pop());
+		};
+		
+		console.log(bot.batchId," bot id     ",bot.queued,"   bot   ",bot.batch.length,"  active_sockets ",bot.active_sockets);
+	},5000);
 
 });
+
 
 function msg(){log.put(arguments[0],arguments[1],__filename.split('/').pop(), arguments.callee.caller.name.toString());}
