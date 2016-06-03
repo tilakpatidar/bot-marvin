@@ -7,7 +7,7 @@ var check = require('check-types');
 var NLP = {
 	"normalizeImport":function(q,fn){
 		fn(null);
-};
+}
 };
 
 function fetchMultipleAttr(selector, attribute){
