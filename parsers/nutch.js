@@ -2,7 +2,13 @@ var cheerio = require('cheerio');
 var parent_dir=process.getAbsolutePath(__dirname);
 var config=process.bot_config;
 var check = require('check-types');
-var NLP = require('/home/tilak/nlp-srmse/routes/query');
+
+//removed NLP parser should be kept separate from crawler
+var NLP = {
+	"normalizeImport":function(q,fn){
+		fn(null);
+};
+};
 
 function fetchMultipleAttr(selector, attribute){
 
