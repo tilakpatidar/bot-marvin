@@ -10,6 +10,8 @@ var child=require('child_process');
 var score=require(parent_dir+'/lib/score.js').init;
 var proto=require(parent_dir+'/lib/proto.js');
 var JSONX=proto.JSONX;
+var old_bot_count = 0;
+var first_bot_count = true;
 var ObjectX=proto.ObjectX;
 var _ = require("underscore");
 var check = require('check-types');
@@ -1326,15 +1328,40 @@ var pool={
 			
 			that.bot_collection.find({},{}).toArray(function(err,docs){
 				//this method is called by cluster in some interval which will also update the new added bots for partioning
+				console.log(err,docs);
 				if(check.assigned(err)){
 					fn(err,[]);
 					return;
 				}
 				that.bots_partitions=[];
+				var active_bots = [];
 				for (var i = 0; i < docs.length; i++) {
 						var obj=docs[i]["_id"];
+						if(docs[i]["active"]){
+							active_bots.push(obj);
+						}
 						that.bots_partitions.push(obj);
 				};
+				//console.log(active_bots,"hereeee");
+				//for starting load balancing
+				if(check.assigned(active_bots)){
+					if(first_bot_count){
+						old_bot_count = active_bots.length;
+						//console.log(old_bot_count ,"OLD COUNT");
+						first_bot_count = false;
+					}else{
+						//console.log(active_bots ,"\t", old_bot_count,"CALC");
+						if(Math.abs(active_bots.length - old_bot_count)>0 && process.cluster_master){
+							
+
+							msg("new bots added, start load balancing" ,"info");
+						}
+					}					
+				}
+
+				
+
+
 				fn(err,docs);
 				return;
 			});

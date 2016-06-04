@@ -90,7 +90,7 @@ var app={
 	"parseDocument":function(data,url,fn){
 		//data is a {} with keys text,meta
 		data["text"]=data["text"].replace(/(\n+)|(\t+)|(\s+)|(\r+)/g,' ');
-		var tmp = data["text"].replace(/\s+/g," ");
+		var tmp = data["text"];
 		NLP.normalizeImport(tmp,function(normalize_data){
 
 			
@@ -131,7 +131,6 @@ var app={
 		//data is text
 		    data = data.replace(/(<.*?>)/gi,"$1 "); //replace html elemets with html element and space to avoid joined words on .text()
 			data=data.replace(/(\n+)|(\t+)|(\s+)|(\r+)/g,' ');
-			data=data.replace(/\s+/g," ");
 		 $ = cheerio.load(data, {lowerCaseTags: true, lowerCaseAttributeNames : true });
 		 //clear dom
 		 for (var i = 0; i < config.getConfig("remove_tags").length; i++) {
