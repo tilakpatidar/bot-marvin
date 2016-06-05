@@ -14,6 +14,10 @@ var config={
   "web_graph":true,
   "retry_times_failed_pages":3,
   "failed_queue_size":100,
+  "network_interface": "eth0",
+  "network_host": "127.0.0.1",
+  "network_port": "2020",
+  "cluster_port": 5555,
   "http": {
     "http_proxy":"",
     "https_proxy":"",
