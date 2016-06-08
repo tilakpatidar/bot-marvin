@@ -10,7 +10,7 @@ var child=require('child_process');
 var score=require(parent_dir+'/lib/score.js').init;
 var proto=require(parent_dir+'/lib/proto.js');
 var proxy_cache_class = require(parent_dir + "/lib/bucket_proxy.js");
-var proxy_cache = new proxy_cache_class(config.getConfig('inlinks_cache_size'));
+var proxy_cache;
 var JSONX=proto.JSONX;
 var old_bot_count = 0;
 var first_bot_count = true;
@@ -105,65 +105,63 @@ var pool={
 								var stamp1=new Date().getTime()-2000;//giving less time
 								that.bucket_collection.insert({"links":links,"score":1,"recrawlLabel":config.getConfig("default_recrawl_interval"),"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":success},function(err,results){
 										var stamp = results["ops"][0]["_id"];			
-											
+										var inserted_docs = [];
 										for (var i = 0; i < links.length; i++) {
+											
 											var anon=(function(domain,stamp,fetch_interval){
 												that.cache[domain]=true;
+												var md5 = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);
+												inserted_docs.push({"url":domain,"bucket_id":ObjectId(stamp),"domain":domain,"partitionedBy":config.getConfig("bot_name"),"bucketed":true,"fetch_interval":fetch_interval,"level":1, "md5": md5});				
 												that.getLinksFromSiteMap(domain,function(){
 													//#debug#console.log(domain)
-													var md5 = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);				
-													that.mongodb_collection.insert({"url":domain,"bucket_id":ObjectId(stamp),"domain":domain,"partitionedBy":config.getConfig("bot_name"),"bucketed":true,"fetch_interval":fetch_interval,"level":1, "md5": md5},function initBySeed(err,results){
-														//#debug#console.log(err)
-														if(err){
-															msg("pool.init maybe seed is already added","error");
-														}
-														else{
-															success+=1;
-															msg(("Added  "+domain+" to initialize pool"),"success");
-														}
 
-														
-														done+=1;
-														if(done===links.length){
-															setTimeout(function(){lazy_sitemap_updator(0);},1000);
-															if(success === 0){
-																//if links were already present then remove the bucket
-																that.bucket_collection.removeOne({"_id":ObjectId(stamp)},function(){
-
-																		fn(true);
-																		return;	
-
-																});
-															
-															}else{
-																fn(true);
-																return;	
-															}
-															
-																
-														
-																
-																
-														}
-
-																		
-																		
-														});
 														
 											
 													
 												});
-												
-												
-												
-												
 
 											});
-											
+
 											anon(links[i],stamp,links_fetch_interval[i]);
-											
-											
+	
 										};
+										if(inserted_docs.length === 0){
+											setTimeout(function(){lazy_sitemap_updator(0);},1000);
+											return fn(false);
+										}
+										that.mongodb_collection.insertMany(inserted_docs,function initBySeed(err,doc){
+											
+										
+											setTimeout(function(){lazy_sitemap_updator(0);},1000);
+											if(err){
+												msg("pool.init maybe seed is already added","error");
+											}
+											
+											var successfull = doc['insertedIds'];
+											if(!check.assigned(successfull)){
+												var successfull = _.pluck(doc.getInsertedIds(), '_id');
+											}
+											
+											msg(("Added seeds to initialize pool"),"success");
+											if(successfull.length === 0){
+												that.bucket_collection.removeOne({"_id":ObjectId(stamp)},function(){
+
+														fn(true);
+														return;	
+
+												});
+											}else{
+												fn(true);
+												return;
+											}
+											
+											fn(false);
+											return;
+
+
+											
+	
+											});
 					
 								});
 							
@@ -267,9 +265,15 @@ var pool={
 								msg("Inlinks flushed in db","success");
 							}
 							var successfull = doc['insertedIds'];
+							if(!check.assigned(successfull)){
+								var successfull = _.pluck(doc.getInsertedIds(), '_id');
+							}
 							for(var index in successfull){
 								var success = successfull[index];
 								var url_obj = urlMap[success];
+								if(!check.assigned(proxy_cache)){
+									proxy_cache = new proxy_cache_class(config.getConfig('inlink_cache_size'));
+								}
 								proxy_cache.pushURL(url_obj);
 								fn();
 							}
@@ -726,7 +730,6 @@ var pool={
 			that.mongodb_collection.createIndex({md5 :1},{unique: true});
 			that.rss_feeds = db.collection("rss_feeds"); 
 			that.bucket_collection.createIndex({level:1},function(err){});//asc order sort for score
-			that.bots_partitions=[];
 			that.tika_f_queue = db.collection(config.getConfig("bot_name")+"_tika_f_queue");
 			that.tika_queue = db.collection(config.getConfig("bot_name")+"_tika_queue");
 			that.failed_db = db.collection(config.getConfig("bot_name")+"_failed_db");
@@ -736,7 +739,6 @@ var pool={
 				//#debug#console.log(docs)
 				for (var i = 0; i < docs.length; i++) {
 					var obj=docs[i]["_id"];
-					that.bots_partitions.push(obj);
 				};
 				
 			})
@@ -1350,19 +1352,17 @@ var pool={
 			
 			that.bot_collection.find({},{}).toArray(function(err,docs){
 				//this method is called by cluster in some interval which will also update the new added bots for partioning
-				console.log(err,docs);
+				//console.log(err,docs);
 				if(check.assigned(err)){
 					fn(err,[]);
 					return;
 				}
-				that.bots_partitions=[];
 				var active_bots = [];
 				for (var i = 0; i < docs.length; i++) {
 						var obj=docs[i]["_id"];
 						if(docs[i]["active"]){
 							active_bots.push(obj);
 						}
-						that.bots_partitions.push(obj);
 				};
 				//console.log(active_bots,"hereeee");
 				//for starting load balancing
@@ -1802,12 +1802,15 @@ var pool={
 			var that=this.parent;
 			var li=[];
 			var rem=[];
+			if(!check.assigned(proxy_cache)){
+				proxy_cache = new proxy_cache_class(config.getConfig('inlink_cache_size'));
+			}
 			var cache_urls = proxy_cache.fetchURLs(domain, count);
 			if(cache_urls.length < ((50/100)*count)){
 				//load some urls from the db
 				that.mongodb_collection.find({"domain":domain,"bucket_id":null,"bucketed":false,"fetch_interval":interval,"partitionedBy":config.getConfig("bot_name")},{limit:count*5,sort:{level:1}}).toArray(function loadFromCache(err,object){
 					if(!check.assigned(err)){
-						msg("Loaded "+object.length+' items from the cache for '+domain, 'success');
+						msg("Loaded "+object.length+' items for the cache of '+domain, 'success');
 					}
 
 					for(var index in object){
@@ -1820,7 +1823,6 @@ var pool={
 					
 				});
 			}else{
-				console.log(cache_urls, "FROM THE CACHE");
 				fn(cache_urls);
 			}
 			
