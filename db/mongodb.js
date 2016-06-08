@@ -9,6 +9,8 @@ var mongodb=config.getConfig("mongodb","mongodb_uri");
 var child=require('child_process');
 var score=require(parent_dir+'/lib/score.js').init;
 var proto=require(parent_dir+'/lib/proto.js');
+var proxy_cache_class = require(parent_dir + "/lib/bucket_proxy.js");
+var proxy_cache = new proxy_cache_class(config.getConfig('inlinks_cache_size'));
 var JSONX=proto.JSONX;
 var old_bot_count = 0;
 var first_bot_count = true;
@@ -219,6 +221,8 @@ var pool={
 	"insertLinksInDB":function insertLinksInDB(li,fn){
 			var that=this; 
 			var done=0;
+			var inserted_docs = [];
+			var urlMap = {};
 			for (var i = 0; i < li.length; i++) {
 				//inserting new links in cache
 				var domain=li[i][1];
@@ -239,27 +243,42 @@ var pool={
 				that.cache[domain]=true;
 				
 				
-				(function(url,domain,parent,hash,i,refresh_time){
-					var bot_partition=that.bots_partitions[that.bot_pointer];
-						that.bot_pointer+=1;
-						if(that.bot_pointer>=that.bots_partitions.length){
-							that.bot_pointer=0;
-						}
-						var level = url.replace('http://','').split('/').length;
-						var md5 = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);
-						that.mongodb_collection.insert({"url":url,"bucketed":false,"partitionedBy":bot_partition,"domain":domain,"parent":parent,"data":"","bucket_id":null,"fetch_interval":refresh_time, "level":level, "md5": md5},function(err,results){
+				
+				var unique_id = ObjectId();
+				var level = url.replace('http://','').split('/').length;
+				var md5 = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);
+				var doc = {'_id':unique_id ,"url":url,"bucketed":false,"partitionedBy": config.getConfig('bot_name'),"domain":domain,"parent":parent,"data":"","bucket_id":null,"fetch_interval":refresh_time, "level":level, "md5": md5};
+				urlMap[unique_id] = doc; 
+				inserted_docs.push(doc);
+				
+			
+				
+				
+			};
+
+			that.mongodb_collection.insertMany(inserted_docs,function insertLinksMany(err, doc){
 							//console.log(arguments);
-							done+=1;
-							if(done===li.length){
+
+							if(check.assigned(err)){
+								msg("error in insertMany","error");
 								fn();
 							}
+							else{
+								msg("Inlinks flushed in db","success");
+							}
+							var successfull = doc['insertedIds'];
+							for(var index in successfull){
+								var success = successfull[index];
+								var url_obj = urlMap[success];
+								proxy_cache.pushURL(url_obj);
+								fn();
+							}
+							
+							
+							
 					
 											
-					});
-				})(url,domain,parent,null,i,refresh_time);
-				
-
-			};
+			});
 	},
 	"insertAuthor": function insertAuthor(data){
 		var that = this;
@@ -341,10 +360,13 @@ var pool={
 		var that = this;
 		var url = d[0];
 		var rss_links = d[1];
+		var docs = [];
 		for(var index in rss_links){
 			var rss_link = rss_links[index];
-			that.rss_feeds.insert({"_id": rss_link, page: url});
+			docs.push({"_id": rss_link, page: url});
+			
 		}
+		that.rss_feeds.insertMany(docs);
 		
 	},
 	"checkUnCrawled":function checkUnCrawled(links,callback){
@@ -1780,25 +1802,29 @@ var pool={
 			var that=this.parent;
 			var li=[];
 			var rem=[];
-				//msg('Fetch '+count+' urls from '+domain+' for bucket creation','info');
-				that.mongodb_collection.find({"domain":domain,"bucket_id":null,"bucketed":false,"fetch_interval":interval,"partitionedBy":config.getConfig("bot_name")},{limit:count,sort:{level:1}}).toArray(function findPagesForBucket(err,object){
-					
-					//#debug#console.log(object)
-					if(check.assigned(object) && object.length!==0){
-						msg('Fetched '+object.length+' urls from '+domain+' for bucket creation','info');
-						//console.log(object,domain,interval)
-						fn(object)
-						return;
-						
-						
+			var cache_urls = proxy_cache.fetchURLs(domain, count);
+			if(cache_urls.length < ((50/100)*count)){
+				//load some urls from the db
+				that.mongodb_collection.find({"domain":domain,"bucket_id":null,"bucketed":false,"fetch_interval":interval,"partitionedBy":config.getConfig("bot_name")},{limit:count*5,sort:{level:1}}).toArray(function loadFromCache(err,object){
+					if(!check.assigned(err)){
+						msg("Loaded "+object.length+' items from the cache for '+domain, 'success');
 					}
-					else{
-						fn([]);
-						return;
 
+					for(var index in object){
+						var doc = object[index];
+						proxy_cache.pushURL(doc);
 					}
-						
+
+					fn(cache_urls);
+
+					
 				});
+			}else{
+				console.log(cache_urls, "FROM THE CACHE");
+				fn(cache_urls);
+			}
+			
+				
 					
 			
 		}

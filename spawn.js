@@ -496,9 +496,13 @@ var bot = {
                                 "bot": "spawn",
                                 "insertRssFeed": [link.details.url, feeds]
                             });
-                        } finally {
-
+                        }catch(err){
+                            console.log(err);
                         }
+                         finally {
+                        }
+
+                        
                     }
                     //check for author tag
                     if (check.assigned(dic[1]._source["author"])) {
