@@ -136,11 +136,11 @@ function startBot(fn) {
     });
 }
 
-function startBotManager(links, botObjs, links_fetch_interval) {
+function startBotManager(botObjs) {
 
 
     //function to start the child_manager
-    pool.seed(links, links_fetch_interval, function(completed) {
+    pool.seed(function(completed) {
         if (completed) {
             //create a child manager
             process.child_manager = new require(parent_dir + '/lib/child_manager.js')(pool, botObjs, cluster);
@@ -159,7 +159,7 @@ function entire_body(overriden_config) {
     var cluster; //stores the cluster obj to communicate with the other bots
 
 
-    pool.readSeedFile(function readSeedFile(links, links_fetch_interval) {
+    pool.readSeedFile(function readSeedFile() {
         //reading the seed links from db
 
 
@@ -183,12 +183,12 @@ function entire_body(overriden_config) {
                 }
                 botObjs = obj;
                 //#debug#console.log("CUL")
-                startBotManager(links, botObjs, links_fetch_interval);
+                startBotManager(botObjs);
                 return;
 
             });
         } else {
-            startBotManager(links, null, links_fetch_interval);
+            startBotManager(null);
             return;
         }
 
