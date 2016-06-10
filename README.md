@@ -5,19 +5,20 @@ Highly scalable crawler with best features.
 Basic useful feature list:
 
  * Asynchronus crawling
+ * Distributed Breadth first crawls
+ * Scalable horizontally as well vertically
  * Url partitioning for better scheduling
  * Scheduling using fetch interval and priority
- * Cluster model with no master
- * Web app for viewing crawled data and analytics
+ * Supports robots.txt and sitemap.xml parsing
  * Uses Apache Tika for file parsing
- * Supports robots.txt rules
- * Supports seeding using sitemap.xml files
- * Auto cluster restart on config changes
+ * Web app for viewing crawled data and analytics
  * Faul Tolerant and Auto Recovery on failures
+ * Wide range support of all meta tags and http codes.
+ * Support for all the tags advised by google crawl guide.
+ * Creates web graph
+ * Collects rss feeds and author info
  * Pluggable parsers
  * Pluggable indexers (currently MongoDB supported)
- * Can also write your own parsers for different domains
- * Uses phantomjs for dynamic pages
 
 ### install
 
@@ -25,126 +26,55 @@ Basic useful feature list:
 sudo npm install bot-marvin
 ```
 
-### API
-
-Setting up bot object
+### Starting your first crawl
 ```javascript
-var bot;
-require('bot-marvin').init(function(b){
-	bot=b;	//global bot object
+	//You need to create a seed.json file first
+    //it looks like this
+    [
+         {
+            "_id": "http://www.imdb.com",
+            "parseFile": "nutch",
+            "priority": 1,
+            "fetch_interval": "monthly" 
+         },
+         {
+            "_id": "http://www.elastic.co",
+            "parseFile": "nutch",
+            "priority": 1,
+            "fetch_interval": "monthly"
+         },
+         {
+            "_id": "http://www.rottentomatoes.com",
+            "parseFile": "nutch",
+            "priority": 1,
+            "fetch_interval": "monthly"
+         }
+    ]
     
-});
-```
-
-Making configuration changes
-```javascript
-bot.getConfig(); //shows complete configuration json file
-
-
-bot.get("db_type");  //show config value for certain property
-
-bot.set("db_type","mongodb");	//sets value for a certain property
-bot.set("logging",true);
-bot.set("verbose",true);
-
-bot.isProperty("bot_name"); //shows if property exists
-
-```
-
-Making nested configuration changes
-```javascript
-
-bot.get("mongodb","mongodb_uri");  //accepts var args to traverse json
-
-bot.set"mongodb","mongodb_uri","mongodb://127.0.0.1:27017/crawl");	//accepts var args for traversing last parameter is value
-
-```
-
-
-Seeding the bot
-```javascript
-bot.isSeedPresent("http://www.stackoverflow.com",function(status){
-	console.log(status); //checks if seed present
-});
-bot.loadSeedFile("/home/tilak/Desktop/seed",function(status){
-	//loading seeds from file
-    //format of csv file
-    //<url>\t<parseFileName>\t<phantomjs_rendering(true/false)>\t<priority>\t<fetch_interval(daily/weekly/monthly/yearly)>
-    
-    
-    //example
     /*
-      http://www.google.com	nutch	false	5	monthly
-      http://www.dmoz.org	nutch	false	5	monthly
-      http://9gag.com	nutch	false	5	monthly
-    */
-
-});
-
-
-//insert seed 	url,parse_file,priority,fetch_interval,callback
-bot.insertSeed("http://www.geeksforgeeks.org/","nutch",false,5,"monthly",function(status){
-		console.log(status);
-
-});
-
-//update seed 	url,parse_file,priority,fetch_interval,callback
-bot.updateSeed("http://www.geeksforgeeks.org/","nutch",false,5,"monthly",function(status){
-		console.log(status);
-
-});
-
-//remove url
-bot.removeSeed("http://www.geeksforgeeks.org/",function(status){
-	console.log(status);
-});
-
-//clear seed for bot
-bot.clearSeed(function(status){
-	console.log(status);
-});
-
-```
-
-Crawler operations
-```javascript
-// start crawling  
-//args:force_mode(true/default=false) (Usage :if same bot exists in cluster it will kill it)
-bot.crawl(true);
-
-//reset crawler
-//This will drop all crawled pages and revert all configurations
-
-bot.reset(function(status){
-
-}:
-
-```
-
-
-Working with parsers
-
-There are two functions for writing your own parser for particular domain.
-* WebPage function functon(dictionary_for_db,html_data,cheerio_obj)
-* File function	functon(dictionary_for_db,file_data)
-
-Below is the example
-```javascript
-// args:parser_label,WebPage_function,File_function,callback
-bot.setParser("custom_parser",function(dic.html,$){
-	dic["my_new_title"]=$("title").text();
     
-    //in db you will see my_new_title with title text
-
-
-},function(d,f){},function(status){
-
-	//callback
-
-});
-
+    _id : is the url
+    parseFile : is the file name present in parsers dir (default: 'nutch')
+    priority : is from 1-10 indicates the number of urls of domain in a bucket of 10 urls.
+    Number of urls of a domain in batch = (priority/10) * batch_size
+    Fetch interval is recrawl interval supported values (always|weekly|monthly|yearly) you can add custom time intervals in the config
+    
+    */
+    
 ```
-API is underconstruction.
+
+
+
+```bash
+# Step 1 Set your db configuration
+sudo bot-marvin-db
+# Step 2 Set your bot config
+sudo bot-marvin --config 
+# Step 3 Load your seed file
+sudo bot-marvin --loadSeedFile <path_to_your_seed_file> 
+# Step 4 Run your crawler
+sudo bot-marvin
+```
 
 
 ## Contributing
@@ -158,15 +88,15 @@ API is underconstruction.
 
  * [request](https://www.npmjs.com/package/request) for making http requests
  * [mongodb](https://www.npmjs.com/package/mongodb) for mongodb connectivity
- * [sqlite3](https://www.npmjs.com/package/sqlite3) for local caching
- * [underscore](https://www.npmjs.com/package/underscore) JS utility functions library
+ * [underscore](https://www.npmjs.com/package/underscore) Js utility functions library
+ * [immutable](https://www.npmjs.com/package/immutable) Js lib for advanced data structures
  * [check-types](https://www.npmjs.com/package/check-types) for Strict type checking
  * [cheerio](https://www.npmjs.com/package/cheerio) for parsing html pages
+ * [robots](https://www.npmjs.com/package/robots) for parsing robots.txt files
  * [colors](https://www.npmjs.com/package/colors) for beautiful consoling
  * [crypto](https://www.npmjs.com/package/crypto) for encryption
  * [death](https://www.npmjs.com/package/death) for handling gracefull exit
  * [minimist](https://www.npmjs.com/package/minimist) for cmd line features
- * [phantomjs](https://www.npmjs.com/package/phantomjs) for dynamic rendering
- * [phantom](https://www.npmjs.com/package/phantom) interface for phantomjs
  * [progress](https://www.npmjs.com/package/progress) for download progress bars
+ * [string-editor](https://www.npmjs.com/package/string-editor) for providing nano like editor for editing config from terminal 
  * [node-static](https://www.npmjs.com/package/node-static) server for web app
