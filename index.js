@@ -57,6 +57,7 @@ if (check.assigned(argv["force"])) {
     process.force_mode = true;
 }
 
+
 pool.createConnection(function() {
     process.pool = pool; //global db pool
     startCluster(function() {
@@ -65,24 +66,26 @@ pool.createConnection(function() {
             config.setDB(pool, function() {
                 seed.setDB(pool, function() {
                     var argv = require(__dirname + '/lib/argv.js');
-
                     var new_opts = argv.parse(); //executes the args passed and returns overriden config
-
+     
                     var overriden_config = new_opts; //parses cmd line argv and perform required operations
 
-
+                    
                     process.config_delay_interval = setInterval(function() {
                         if (!process.modifyConfig) { //set to true by argv if --config is selected stops bot from starting if this option is selected
                             clearInterval(process.config_delay_interval);
                             config.pullConfig(function() {
                                 log = require(parent_dir + "/lib/logger.js");
                                 pool.checkIfNewCrawl(function() {
+
                                     if (process.editSeedFile) {
                                         seed.editSeedFile();
                                     } else if (process.removeSeed) {
                                         seed.removeSeed(Object.keys(process.removeSeed)[0]);
                                     } else if (process.seedFile) {
-                                        seed.seedFile(process.seedFile, null);
+                                        seed.seedFile(process.seedFile,null , function(){
+                                        	process.emit("stop_bot_and_exit");
+                                        });
                                     } else if (process.reset) {
                                         reset(function() {
                                             process.bot.stopBot(function() {
@@ -505,3 +508,4 @@ process.on('grace_exit', function() {
 function msg() {
     log.put(arguments[0], arguments[1], __filename.split('/').pop(), arguments.callee.caller.name.toString());
 }
+

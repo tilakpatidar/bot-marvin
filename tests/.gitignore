@@ -1,3 +1,5 @@
-*
-
+*.pdf
+*.docx
+webpages
+*.sh
 !.gitignore

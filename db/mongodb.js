@@ -2,6 +2,7 @@
 //mongodb connection file
 var ObjectId = require('mongodb').ObjectId;
 var Immutable = require('immutable');
+var crypto = require('crypto');
 var MongoClient = require('mongodb').MongoClient;
 var parent_dir=process.getAbsolutePath(__dirname);
 var log=require(parent_dir+"/lib/logger.js");
@@ -30,22 +31,32 @@ var robots_collection=config.getConfig("mongodb","robots_collection");
 var graph_collection=config.getConfig("mongodb","graph_collection");
 var seed_collection=config.getConfig("mongodb","seed_collection");
 var author_collection=config.getConfig("mongodb","author_collection");
+var sub_list_collection = config.getConfig("mongodb","sub_list_collection");
 var fs=require('fs');
 var urllib=require('url');
 var sitemap_queue = [];
 var cluster;
-var distinct_fetch_intervals = {}; //keeps track of distinct fetch intervals
+
 //read seed file
 process.bucket_time_interval = 10000;
 process.bucket_creater_locked=true;
 
+function generateMD5(str){
 
-function lazy_sitemap_updator(index){
-	if(!check.assigned(sitemap_queue[index])){
+	var md5sum = crypto.createHash('md5');
+	md5sum.update(str);
+	var hash=md5sum.digest('hex');
+	return hash;
+}
+
+function lazy_sitemap_updator(){
+	var domain = sitemap_queue.splice(0,1)[0];
+
+	if(!check.assigned(domain)){
 		msg("Lazy loading finished for all domains","success");
 		return;
 	}
-	var domain = sitemap_queue[index];
+	
 
 
 
@@ -63,37 +74,26 @@ function lazy_sitemap_updator(index){
 			    if(!err) {
 			    	
 			        pool.updateSiteMap(domain,sites,function(){
-			        	(function(index){
-
-			        		setTimeout(function(){lazy_sitemap_updator(index+1);},1000);
-
-			        	})(index);
+			        	setTimeout(function(){lazy_sitemap_updator();},1000);
 			        	
 			        });
 			    }
 			    else {
 			       	msg("Sitemap could not be downloaded for "+domain,"error");
 			        pool.updateSiteMap(domain,[],function(){
-			        	(function(index){
-
-			        		setTimeout(function(){lazy_sitemap_updator(index+1);},1000);
-
-			        	})(index);
+			        	setTimeout(function(){lazy_sitemap_updator();},1000);
 			        });
 			    }
 			});
 		}
 		else{
-			(function(index){
-
-			        		setTimeout(function(){lazy_sitemap_updator(index+1);},1000);
-
-			})(index);
+			setTimeout(function(){lazy_sitemap_updator();},1000);
 		}
 	});
 }
 
 var pool={
+	"distinct_fetch_intervals" : {}, //keeps track of distinct fetch intervals
 	"seed":function seed(fn){
 		//this method runs first when crawler starts
 		
@@ -107,37 +107,65 @@ var pool={
 								var done=0;
 								var success=0;
 								var stamp1=new Date().getTime()-2000;//giving less time
-								var links = _.pluck(that.bucket_priority, '_id');
-								var fetch_intervals = _.pluck(that.bucket_priority, 'fetch_interval');
-								that.bucket_collection.insert({"links":links,"score":1,"recrawlLabel":config.getConfig("default_recrawl_interval"),"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":success},function(err,results){
-										var stamp = results["ops"][0]["_id"];			
+								
+								//generate seed buckets from sub_lists
+
+								var mul_buckets = [];
+								for(var ind in that.sub_list){
+									var sub_group = that.sub_list[ind];
+									var domains = sub_group["_id"];
+									var links = _.pluck(sub_group["domains"],"_id");
+									var fetch_interval = sub_group["fetch_interval"];
+									mul_buckets.push({"_id": ObjectId(), "domains":domains,"links":links,"score":1,"recrawlLabel": fetch_interval,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":links.length});
+								}
+
+
+ 								that.bucket_collection.insertMany(mul_buckets ,function(err,doc){
+										var successfull = doc['insertedIds'];
+										if(!check.assigned(successfull)){
+											var successfull = _.pluck(doc.getInsertedIds(), '_id');
+										}			
 										var inserted_docs = [];
 										var sitemap_urls = [];
+										mul_buckets = _.indexBy( mul_buckets, "_id");
+
+										//now check how many sub groups buckets were successfully inserted
+										//and the insert urls from those buckets
+										for(var ind in successfull){
+											var sub_list_id = successfull[ind];
+											var sub_group = mul_buckets[sub_list_id];
+											console.log(sub_group);
+											if(check.assigned(sub_group)){
+												var links = sub_group["links"];
+												console.log(links);
+												var fetch_interval = sub_group["recrawlLabel"];
+
+												for (var i = 0; i < links.length; i++) {
+											
+													var anon=(function(domain, fetch_interval, stamp){
+														
+														var md5 = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);
+														inserted_docs.push({"url":domain,"bucket_id":ObjectId(stamp),"domain":domain,"partitionedBy":config.getConfig("bot_name"),"bucketed":true,"fetch_interval":fetch_interval,"level":1, "md5": md5});				
+														
+														//for $in in sitemap collection
+														
+
+													});
+
+													anon(links[i], fetch_interval, sub_list_id);
+			
+												};
+											}
+										}
+
 										
 
-
-										for (var i = 0; i < links.length; i++) {
-											
-											var anon=(function(domain, fetch_interval, stamp){
-												
-												var md5 = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);
-												inserted_docs.push({"url":domain,"bucket_id":ObjectId(stamp),"domain":domain,"partitionedBy":config.getConfig("bot_name"),"bucketed":true,"fetch_interval":fetch_interval,"level":1, "md5": md5});				
-												
-												//for $in in sitemap collection
-												
-
-											});
-
-											anon(links[i], fetch_intervals[i], stamp);
-	
-										};
-
 										that.getLinksFromSiteMap(links);
-
 										if(inserted_docs.length === 0){
 											
 											return fn(false);
 										}
+
 										that.mongodb_collection.insertMany(inserted_docs,function initBySeed(err,doc){
 											
 										
@@ -152,9 +180,10 @@ var pool={
 											}
 											
 											msg(("Added seeds to initialize pool"),"success");
-											if(successfull.length === 0){
-												that.bucket_collection.removeOne({"_id":ObjectId(stamp)},function(){
 
+											if(successfull.length === 0){
+												that.bucket_collection.remove({"_id":{"$in":ObjectId(Object.keys(mul_buckets))}},function(){
+														//if urls are not inserted due to duplicate reason then remove all buckets
 														fn(true);
 														return;	
 
@@ -215,7 +244,7 @@ var pool={
 				msg('Sitemap domains pushed into queue' , 'success');
 				
 
-				setTimeout(function(){lazy_sitemap_updator(0);},1000);
+				setTimeout(function(){lazy_sitemap_updator();},1000);
 				//insert sitemap urls
 				
 				if(check.assigned(fn)){
@@ -244,7 +273,6 @@ var pool={
 	},
 	"insertLinksInDB":function insertLinksInDB(li,fn){
 			var that=this; 
-			var done=0;
 			var inserted_docs = [];
 			var urlMap = {};
 			for (var i = 0; i < li.length; i++) {
@@ -340,7 +368,7 @@ var pool={
 		var that=this;
 			var stamp1=new Date().getTime();
 			
-				that.bucket_collection.findAndModify({"underProcess":false,"recrawlAt":{$lte:stamp1}},[['recrawlAt',1],['score',1]],{"$set":{"underProcess":true,"processingBot":config.getConfig("bot_name")}},{"remove":false},function getNextBatchFM(err1,object){
+				that.bucket_collection.findAndModify({"domains":{"$in":that.alloted_domain_groups},"underProcess":false,"recrawlAt":{$lte:stamp1}},[['recrawlAt',1],['score',1]],{"$set":{"underProcess":true,"processingBot":config.getConfig("bot_name")}},{"remove":false},function getNextBatchFM(err1,object){
 					//#debug#console.log(object,err1)
 					if( check.assigned(object) && check.assigned(object.value)){
 							var hash=object["value"]["_id"];
@@ -734,7 +762,7 @@ var pool={
 		var that=this;
 		var serverOptions = {
 		  'auto_reconnect': true,
-		  'poolSize': config.getConfig("pool-size")
+		  'poolSize': config.getConfig("mongodb","pool_size")
 		};
 		process.mongo=MongoClient.connect(mongodb,serverOptions, function(err, db) {
 			that.db=db;
@@ -750,6 +778,7 @@ var pool={
 			that.graph_collection=db.collection(graph_collection);
 			that.seed_collection=db.collection(seed_collection);
 			that.author_collection = db.collection(author_collection);
+			that.sub_list_collection = db.collection(sub_list_collection);
 			that.mongodb_collection.createIndex( { bucketed: 1, fetch_interval: 1, partitionedBy: 1,domain: 1,bucket_id: 1 } );
 			//create partitions for all the cluster bots
 			that.mongodb_collection.createIndex({url :1},{unique: true});
@@ -800,9 +829,9 @@ var pool={
 		regex_urlfilter["reject"]=config.getConfig("reject_regex");
 		URL.init(config, regex_urlfilter);
 		var that=this;
-		that.seed_collection.find({}).toArray(function readSeedCol(err,results){
-			//console.log(results)
-
+		that.sub_list_collection.find({"bot_name": config.getConfig("bot_name")}).toArray(function readSeedCol(err,results){
+			
+			that.sub_list = _.clone(results);
 			if(results.length===0){
 				//empty seed file
 				msg("Empty seed file","error");
@@ -812,34 +841,34 @@ var pool={
 				fn([],[]);
 				return;
 			}
-			var temp = _.indexBy(results, '_id');
+			that.alloted_domain_groups = _.flatten(_.pluck(results, '_id'));
+			console.log(that.alloted_domain_groups);
+			results = _.flatten(_.pluck(results, "domains"));
+			var intervals = _.pluck(results, 'fetch_interval');
+			intervals = _.uniq(intervals);
+			results = _.indexBy(results, '_id');
 			
 
-			var crypto = require('crypto');
-			var md5sum = crypto.createHash('md5');
-			md5sum.update(JSON.stringify(temp));
-			var hash=md5sum.digest('hex');
+			
+			var hash= generateMD5(JSON.stringify(results));
 
 			that.seed_db_copy = hash;//stored for future comparision now hash comparision
 
-			
-			
-			var intervals = _.pluck(results, 'fetch_interval');
 
-			intervals = _.uniq(intervals);
+			var dict = {};
 
 			for (var i = 0; i < intervals.length; i++) {
 				
-				distinct_fetch_intervals[intervals[i]] = true; //mark the fetch interval for bucket creation
+				that.distinct_fetch_intervals[intervals[i]] = true; //mark the fetch interval for bucket creation
+				dict[intervals[i]] = [];
+
 			};
 
 			
 			
-			_.sortBy(results, "priority", this).reverse();//descending order
-
-			that["bucket_pointer"]=0;
-			that["bucket_priority"] = results;
-			that["links"] = temp;
+			
+			
+			that["links"] = results;
 			that["seedCount"] = results.length;
 
 
@@ -897,17 +926,17 @@ var pool={
 	},
 	"addLinksToDB":function addLinksToDB(hashes_obj,freqType,fn){
 		var that=this;
-		var done=0;
 		var li=hashes_obj["links"];
 		if(li.length===0){
 			fn(null);
 			return;
 		}
 		var success=0;
+		var done = 0;
+		var limit = li.length;
 		for (var i = 0; i < li.length; i++) {
 			(function(url, hash){
 				//url has to be updated to urlID
-
 				that.mongodb_collection.updateOne({"_id":ObjectId(url["_id"])},{"$set":{"bucketed":true,"domain":url.domain,"parent":url.parent,"data":"","bucket_id":ObjectId(hash)}},function(err,results){
 						//console.log(arguments);
 						if(err){
@@ -920,7 +949,7 @@ var pool={
 
 						}
 						done+=1;
-						if(done===li.length){
+						if(limit === done){
 							fn(success);
 							return;
 						}				
@@ -949,10 +978,7 @@ var pool={
 	"insertParseFile":function insertParseFile(filename,fn){
 		var that=this;
 	var data=fs.readFileSync(parent_dir+'/parsers/'+filename+".js");
-	var crypto = require('crypto');
-	var md5sum = crypto.createHash('md5');
-	md5sum.update(data.toString());
-	var hash=md5sum.digest('hex');
+	var hash= generateMD5(data.toString());
 	that.parsers_collection.update({"_id":filename},{"$set":{"data":data,"hash":hash}},{upsert:true},function(err,results){
 		if(err){
 			fn(false);
@@ -1008,30 +1034,43 @@ var pool={
 	"moveSeedCollection":function moveSeedCollection(fn){
 		var that = this;
 		that.seed_collection.rename("seed_tmp",function(){
-			that.seed_collection=that.db.collection(config.getConfig("mongodb","seed_collection"));
-			fn();
+			that.sub_list_collection.rename("sub_lists_tmp",function(){
+				that.seed_collection=that.db.collection(config.getConfig("mongodb","seed_collection"));
+				that.sub_list_collection = that.db.collection(sub_list_collection);
+				fn();
+			});
 		})
 	},
 	"restoreSeedCollection":function restoreSeedCollection(fn){
 		var that = this;
-		that.db.collection(config.getConfig("mongodb","seed_collection")).remove(function(){
+		that.db.collection(config.getConfig("mongodb","seed_collection")).drop(function(){
 			that.db.collection("seed_tmp").rename(config.getConfig("mongodb","seed_collection"),function(){
 				that.seed_collection=that.db.collection(config.getConfig("mongodb","seed_collection"));
 					that.db.collection("seed_tmp").drop(function(){
-						fn();
+						that.db.collection(sub_list_collection).drop(function(){
+							that.db.collection("sub_lists_tmp").rename(sub_list_collection,function(){
+								that.sub_list_collection = db.collection(sub_list_collection);
+									that.db.collection("sub_lists_tmp").drop(function(){
+										fn();
+									});
+								});
+							});
+						});
 					});
+				});
 				
-			});
-
-		});
+			
 	},
 	"successSeedCollection":function successSeedCollection(fn){
 		var that = this;
 		that.db.collection("seed_tmp").drop(function(){
-			fn();
+			that.db.collection("sub_lists_tmp").drop(function(){
+				fn();
+			});
 		});
 	},
-	"insertSeed":function insertSeed(url,parseFile,phantomjs,priority,fetch_interval,fn){
+	"insertSeed":function insertSeed(url,parseFile,priority,fetch_interval,fn){
+
 		var URL=require(parent_dir+'/lib/url.js');
 		var regex_urlfilter = {};
 		regex_urlfilter["accept"]=config.getConfig("accept_regex");
@@ -1045,15 +1084,16 @@ var pool={
 			return;
 		}
 		var that=this;
+		//console.log(url);
 		var url=URL.url(url).details.url;
 		if(!check.assigned(fetch_interval)){
 			fetch_interval=config.getConfig("default_recrawl_interval");
 		}
-		if(!check.assigned(priority) || !check.assigned(parseFile) || !check.assigned(phantomjs)){
+		if(!check.assigned(priority) || !check.assigned(parseFile)){
 			fn([false,{}]);
 			return;
 		}
-		var d={"_id":url,"phantomjs":phantomjs,"parseFile":parseFile,"priority": priority,"fetch_interval": fetch_interval};
+		var d={"_id":url,"parseFile":parseFile,"priority": priority,"fetch_interval": fetch_interval};
 		//console.log(d);
 		return fn([true, d]);
 
@@ -1113,10 +1153,7 @@ var pool={
 				if(fs.existsSync(parent_dir+"/parsers/"+d["_id"]+".js")){
 					//exists now chech the hash
 					var data=d["data"].value();
-					var crypto = require('crypto');
-					var md5sum = crypto.createHash('md5');
-					md5sum.update(data);
-					var hash=md5sum.digest('hex');
+					var hash=generateMD5(data);
 					if(hash!==d["hash"]){
 						//#debug#console.log("thre");
 						fs.writeFileSync(parent_dir+"/parsers/"+d["_id"]+".js",d["data"].value());
@@ -1133,7 +1170,7 @@ var pool={
 	},
 	"pullSeedLinks":function pullSeedLinks(fn){
 		var that=this;
-		that.seed_collection.find({}).toArray(function(err,results){
+		that.sub_list_collection.find({"bot_name":config.getConfig("bot_name")}).toArray(function(err,results){
 			if(check.emptyArray(results)){
 				fn(err,null);
 				return;
@@ -1144,7 +1181,8 @@ var pool={
 				return;
 			}
 			if(!err){
-				fn(err,seeds);
+				process.domain_range = _.pluck(seeds, '_id');
+				fn(err,_.flatten(_.pluck(seeds, "domains")));
 				return;
 			}
 			else{
@@ -1180,10 +1218,7 @@ var pool={
 			for (var i = 0; i < results.length; i++) {
 				var doc=results[i];
 				var data=fs.readFileSync(parent_dir+'/parsers/'+doc["_id"]+".js");
-				var crypto = require('crypto');
-				var md5sum = crypto.createHash('md5');
-				md5sum.update(data.toString());
-				var hash=md5sum.digest('hex');
+				var hash =  generateMD5(data.toString());
 				if(hash!==doc["hash"]){
 					msg("Parsers changed from server restarting . . .","info");
 					process.emit("restart");
@@ -1542,20 +1577,167 @@ var pool={
 		
 
 		*/
-		"getCurrentDomain":function bucketoperation_getCurrentDomain(){
+		"generateSubLists":function generateSubLists(results, fn){
+			var that =this.parent;
+			//create bot_priority array from results
+			_.sortBy(results, "priority", this).reverse();//descending order
+
+
+			var intervals = _.pluck(results, 'fetch_interval');
+
+			intervals = _.uniq(intervals);
+
+			var dict = {};
+
+			for (var i = 0; i < intervals.length; i++) {
+				
+				dict[intervals[i]] = [];
+
+			};
+
+			for(var index in results){
+				var res = results[index];
+
+				dict[res['fetch_interval']].push(res);
+
+			}
+
+			delete results;
+
+			that.bucket_priority = dict;
+			//console.log("RES START",that.bucket_priority,"RES");
+			
+
+
+			var sub_list = [];
+			//list is nested list with each list having domains and last element having md5 hash of domains concataneated
+			//each sublist priority sums to 10 and all of them having same fetch_interval
+			
+
+			var n_domains=_.size(that.links);
+					
+			var interval_size=_.size(intervals);
+			//console.log(intervals,n_domains, interval_size);
+			var completed=0;
+			that.bot_collection.find({}).toArray(function(err,docs){
+				var bots;
+				if(check.assigned(docs)){
+					bots = _.pluck(docs, '_id');
+				}
+				
+
+				
+
+				var bot_count = bots.length;
+				//console.log("INTERVALS START",intervals,"INTERVALS");
+				for(var ind in intervals){
+					var k = intervals[ind];
+					
+					msg('Generating sublist for '+k+' interval','info');
+					while(true){
+						var domains=[];
+						var summer=0;
+						var continue_flag=false;
+						var iterations = 0;
+						while(summer<10){
+							that.bucket_priority[k].push("begin"); //marker element
+							var d=that.bucketOperation.getCurrentDomain(k);
+							iterations +=1;
+							//console.log(d)
+							if(d === "begin"){
+								//when round is complete
+								if(domains.length===0){
+									//entire round is complete and still we got zero domains
+									continue_flag=true; //got nothing skip this fetch_interval
+								}
+								else{
+									continue_flag=false; //was not able to add up to 10 
+								}
+								that.bucket_priority[k].splice(0,1)[0];
+								that.bucket_priority[k].push("begin"); //marker element
+								break;
+							}
+							
+							if(d["fetch_interval"]!==k){
+									//if fetched domain does not have the fetch interval we are looking for
+									that.bucket_priority[k].push(d); //not req thus push in queue again
+									continue;
+							}
+
+
+							summer+=d["priority"];
+							domains.push(d);
+
+
+							if(summer===10){
+								//when ratio is complete break
+								break;
+							}
+							else if(summer>10){
+								//retrace if sum > 10
+								summer-=d["priority"];
+								
+								
+								that.bucket_priority[k] = [d].concat(that.bucket_priority[k]);
+
+								domains.pop();
+								break;
+							}
+						}
+						//console.log(domains,k)
+						if(continue_flag || domains.length===0){
+							interval_size-=1;
+							//#debug#console.log("skip");
+							break;
+						}
+
+						
+						
+						var domains_str = _.pluck(domains, '_id');
+						domains_str = domains_str.join();
+						//console.log(domains_str,"domains_str");
+						var hash= generateMD5(domains_str);
+
+						msg('Got domains '+hash+' for fetch_interval '+k+' for bucket creator','info');
+						//#debug#console.log("heree")
+						
+						sub_list.push({"_id": hash, "domains": domains, "fetch_interval": k});
+
+					}
+					
+				}
+				//delete that.bucket_priority;
+				//console.log(that.sub_list.length, "SUBLIST LEN");
+				var docs_temp = [];
+				var n = sub_list.length / bots.length;
+				_.range(bots.length).map(function(i){
+					var arr = sub_list.slice(i*n,(i+1)*n);
+					// console.log(arr);
+					for(var index in arr){
+						arr[index]["bot_name"] = bots[i];
+					}					
+					docs_temp = docs_temp.concat(arr);
+					
+
+				});
+				
+
+
+				//console.log(docs_temp ,"docs_temp");
+				//return fn();
+				that.sub_list_collection.insertMany(docs_temp,function bulkInsertSublist(){
+					msg("Sub list dumped in db", 'success');
+					return fn();
+				});
+			});
+		},
+		"getCurrentDomain":function bucketoperation_getCurrentDomain(interval){
 
 			var that=this.parent;
 			//console.log(that.bucket_priority)
-			var domain=that.bucket_priority[that.bucket_pointer];
-			that.bucket_pointer+=1;
-			if(that.bucket_pointer===that.bucket_priority.length){
-				that.bucket_pointer=0;
-			}
-			if(!check.assigned(domain)){
-				that.bucket_pointer=0;
-				return that.bucketOperation.getCurrentDomain();
+			var domain=that.bucket_priority[interval].splice(0,1)[0];
+			
 
-			}
 			return domain;
 		},
 		'new_creator':function bucketoperation_new_creator(is_first, fetch_interval){
@@ -1630,7 +1812,8 @@ var pool={
 					var hashes={};
 					var intervals=config.getConfig("recrawl_intervals");
 
-					for(var k in distinct_fetch_intervals){
+					for(var k in that.distinct_fetch_intervals){
+						//console.log(k);
 						hashes[k]={};
 						hashes[k]["_id"] = ObjectId();
 						hashes[k]["links"]=[];
@@ -1639,101 +1822,53 @@ var pool={
 
 					var n_domains=_.size(that.links);
 					
-					var interval_size=_.size(distinct_fetch_intervals);
+					var interval_size=_.size(that.distinct_fetch_intervals);
 					var completed=0;
-					for(var k in distinct_fetch_intervals){
-						(function creator(k){
-								msg('Generating bucket for '+k+' interval','info');
-								var done=0;
-								var domains=[];
-								var summer=0;
-								var first_pointer=that.bucket_pointer;
-								var continue_flag=false;
-								while(summer<10){
-									var d=that.bucketOperation.getCurrentDomain();
+					var done = 0;
+					//console.log(that.sub_list,"that.sub_list");
+					var domains = [];
+					var sub_group = that.sub_list.splice(0,1)[0]; //dequeue
 
-									//#debug#console.log(d)
-									if(first_pointer===that.bucket_pointer){
-										//when round is complete
-										if(domains.length===0){
-											//entire round is complete and still we got zero domains
-											continue_flag=true; //got nothing skip this fetch_interval
+					that.sub_list.push(sub_group); //enqueue
+
+					domains = sub_group["domains"];
+					for (var i = 0; i < domains.length; i++) { 
+						//#debug#console.log(i)
+						(function(dd,limit){
+
+								var ratio=parseInt(config.getConfig("batch_size")/10);
+								var eachh=ratio*dd["priority"];
+								var key=dd["_id"];
+								var k=dd["fetch_interval"];
+								//#debug#console.log("EACHH "+eachh);
+								var pusher=that.bucketOperation.pusher;
+								//console.log(key,eachh,k);
+								that.bucketOperation.dequeue(key,eachh,k,function(l){
+										hashes[k]["domain_group_id"] = sub_group["_id"];
+										hashes[k]["links"] = hashes[k]["links"].concat(l);
+										//console.log(hashes);
+										++done;
+										if(done===limit){
+											if(check.emptyObject(hashes)){
+												process.bucket_creater_locked=false;
+												return;
+											}
+												pusher(hashes,function(){
+													process.bucket_creater_locked=false;
+												});
+											
+											
 										}
-										else{
-											continue_flag=false; //was not able to add up to 10 
-										}
-										
-										break;
-									}
-									
-									if(d["fetch_interval"]!==k){
-											//if fetched domain does not have the fetch interval we are looking for
-											continue;
-									}
-									summer+=d["priority"];
-									domains.push(d);
-									if(summer===10){
-										//when ratio is complete break
-										break;
-									}
-									else if(summer>10){
-										//retrace if sum > 10
-										summer-=d["priority"];
-										that.bucket_pointer-=1;//dec
-										domains.pop();
-										break;
-									}
-								}
-								//console.log(domains,k)
-								if(continue_flag || domains.length===0){
-									interval_size-=1;
-									//#debug#console.log("skip");
-									return;
-								}
-								msg('Got domains '+JSON.stringify(domains)+' for fetch_interval '+k+' for bucket creator','info');
-								//#debug#console.log("heree")
-								for (var i = 0; i < domains.length; i++) {
-									//#debug#console.log(i)
-									(function(dd,limit){
+								});	
+
+						})(domains[i],domains.length);
+						
+					};
 
 
-											var ratio=parseInt(config.getConfig("batch_size")/10);
-											var eachh=ratio*dd["priority"];
-											var key=dd["_id"];
-											var k=dd["fetch_interval"];
-											//#debug#console.log("EACHH "+eachh);
-											var pusher=that.bucketOperation.pusher;
-											//#debug#console.log(key,eachh,k);
-											that.bucketOperation.dequeue(key,eachh,k,function(l){
-												//#debug#console.log(l,"dequeue	"+l);
-
-													hashes[k]["links"] = hashes[k]["links"].concat(l);
-													
-													++done;
-													if(done===limit){
-														++completed;
-														if(check.emptyObject(hashes)){
-															process.bucket_creater_locked=false;
-															return;
-														}
-														//#debug#console.log(hashes)
-														if(completed===interval_size){
-															pusher(hashes,function(){
-																process.bucket_creater_locked=false;
-															});
-														}
-														
-													}
-											});	
-
-									})(domains[i],domains.length);
-									
-								};
-
-
-						})(k);
-				
-					}
+					
+			
+					
 		
 		
 				return;
@@ -1749,7 +1884,6 @@ var pool={
 				return;
 			}
 			
-			//#debug#console.log(hashes);
 			//#debug#console.log("herere 2");
 			if(!check.assigned(hashes)){
 				fn(false);
@@ -1761,7 +1895,7 @@ var pool={
 			for(var key in hashes){
 				(function(key){
 					//first links are added to the db to avoid same links
-					//console.log(hashes[key]);
+					//console.log(hashes[key], "HASH KEYS");
 					that.addLinksToDB(hashes[key],key,function(numOfLinks){
 						//uniform pool of urls are generated
 						//console.log("numOfLinks "+numOfLinks+" "+key);
@@ -1777,8 +1911,8 @@ var pool={
 						}
 							var stamp1=new Date().getTime();
 							var links_to_be_inserted=_.pluck(hashes[key]["links"],'url');
-							var domains = _.pluck(hashes[key]["links"], 'domain');
-							that.bucket_collection.insert({"_id":hashes[key]["_id"],"links":links_to_be_inserted, "domains":domains, "score":hashes[key]["score"],"recrawlLabel":key,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":numOfLinks},function bucketInsert(err,results){
+							var domain_id = hashes[key]["domain_group_id"];
+							that.bucket_collection.insert({"_id":hashes[key]["_id"],"links":links_to_be_inserted, "domains":domain_id, "score":hashes[key]["score"],"recrawlLabel":key,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":numOfLinks},function bucketInsert(err,results){
 								//console.log(arguments);
 								if(err){
 									msg(("pool.addToPool"+err),"error");
@@ -1813,11 +1947,12 @@ var pool={
 		"dequeue":function bucketoperation_dequeue(domain,count,interval,fn){
 			var that=this.parent;
 			var li=[];
-			var rem=[];
 			if(!check.assigned(proxy_cache)){
 				proxy_cache = new proxy_cache_class(config.getConfig('inlink_cache_size'));
 			}
 			var cache_urls = proxy_cache.fetchURLs(domain, count);
+			msg('Got '+cache_urls.length+' urls from links cache for '+domain,"success");
+			//console.log(cache_urls, "FROM CACHE");
 			if(cache_urls.length < ((50/100)*count)){
 				//load some urls from the db
 				that.mongodb_collection.find({"domain":domain,"bucket_id":null,"bucketed":false,"fetch_interval":interval,"partitionedBy":config.getConfig("bot_name")},{limit:count*5,sort:{level:1}}).toArray(function loadFromCache(err,object){
@@ -1844,7 +1979,6 @@ var pool={
 		}
 	},
 	"seedCount":0,
-	"bot_pointer":0,
 	"cache":{},
 	"links":{}
 };

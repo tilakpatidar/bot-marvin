@@ -332,10 +332,6 @@ var bot = {
     "fetchWebPage": function fetchWebPage(link) {
         var req_url = link.details.url;
         //console.log(bot.links, link.details.domain);
-        if (bot.links[link.details.domain]["phantomjs"]) {
-            //new url if phantomjs is being used
-            req_url = "http://127.0.0.1:" + config.getConfig("phantomjs_port") + "/?q=" + req_url;
-        }
 
         //console.log(req_url);
         var req = request({

@@ -66,9 +66,7 @@ var config={
       "Accept-Encoding": "gzip, deflate",
       "Connection": "keep-alive"
     },
-  "phantomjs_port": 9000,
   "allow_robots": true,
-  "robots_timeout":10000,
   "external_links": false,
   "batch_size": 100,
   "db_type": "mongodb",
