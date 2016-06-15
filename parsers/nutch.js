@@ -1,6 +1,5 @@
 var cheerio = require('cheerio');
 var parent_dir=process.getAbsolutePath(__dirname);
-var config=process.bot_config;
 var check = require('check-types');
 var _ = require("underscore");
 var URL =require("url");
@@ -8,22 +7,27 @@ var URL =require("url");
 var NLP = {
 	"normalizeImport":function(q,fn){
 		fn(null);
-}
+	}
 };
 
-function fetchMultipleAttr(selector, attribute){
 
-	var list = [];
-	selector.each(function (index, element) {
-	  list.push($(element).attr(attribute));
-	});
 
-	return _.flatten(list);
+var NutchParser = function(config_obj){
+	var config = config_obj;
+	var that = this;
+	
+	function fetchMultipleAttr(selector, attribute){
 
-}
+		var list = [];
+		selector.each(function (index, element) {
+		  list.push($(element).attr(attribute));
+		});
 
-var app={
-	"parse":function(data,url,fn){
+		return _.flatten(list);
+
+	};
+
+	this.parse = function(config, data,url,fn){
 		var indexed = {};
 
 		function afterParse(indexed){
@@ -72,22 +76,23 @@ var app={
 			if(url.match(config.getConfig("tika_supported_files"))!==null){
 				//console.log('web0');
 				isWebPage = false;
-				indexed=app.parseDocument(data,url,afterParse);
+				indexed=that.parseDocument(data,url,afterParse);
 			}
 			else{
 				//console.log('web1');
 				isWebPage = true;
-				indexed=app.parseWebPage(data,url,afterParse);
+				indexed=that.parseWebPage(data,url,afterParse);
 			}
 		}
 		else{
 			//console.log('web2');
 			isWebPage = true;
-			indexed=app.parseWebPage(data,url,afterParse);
+			indexed=that.parseWebPage(data,url,afterParse);
 		}
 
-	},
-	"parseDocument":function(data,url,fn){
+	};
+
+	this.parseDocument = function(data,url,fn){
 		//data is a {} with keys text,meta
 		data["text"]=data["text"].replace(/(\n+)|(\t+)|(\s+)|(\r+)/g,' ');
 		var tmp = data["text"];
@@ -112,7 +117,7 @@ var app={
 			
 			 ret["title"]=url.split("/").pop();
 			 ret["body"]=data["text"];
-			 ret["output"]=app.getID(url);
+			 ret["output"]=that.getID(url);
 			 ret["id"]=ret["output"][0];
 			 ret["host"]=ret["output"][1];
 			 ret["meta_keywords"]=data["meta"]["title"];
@@ -125,8 +130,9 @@ var app={
 			 ret["html"]=null;
 			 fn(ret);
 		 });
-	},
-	"parseWebPage":function(data,url,fn){
+	};
+
+	this.parseWebPage = function(data,url,fn){
 		var domain = url.split("/").slice(0,3).join("/");
 		//data is text
 		    data = data.replace(/(<.*?>)/gi,"$1 "); //replace html elemets with html element and space to avoid joined words on .text()
@@ -160,7 +166,7 @@ var app={
 		 
 		
 		 
-			 ret["output"]=app.getID(url);
+			 ret["output"]=that.getID(url);
 			 ret["id"]=ret["output"][0];
 			 ret["host"]=ret["output"][1];
 			 ret["meta_keywords"]=$('meta[name="keywords" i]').attr('content');
@@ -320,8 +326,9 @@ var app={
 			 ret["html"]=data;
 			 fn(ret);
 		 });
-	},
-	"getID":function(url){
+	};
+
+	this.getID = function(url){
 		var type;
 		var type1;
 		if(url.indexOf("https://")===0){
@@ -344,5 +351,8 @@ var app={
 	}
 };
 
-exports.init=app;
+
+
+
+module.exports = NutchParser;
 

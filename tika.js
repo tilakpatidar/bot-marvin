@@ -5,6 +5,7 @@ var exec = require('child_process').exec;
 var URL = require(__dirname + "/lib/url.js");
 var fs = require('fs');
 var request = require('request');
+var Logger = require(__dirname + "/lib/logger.js");
 var check = require("check-types");
 var log;
 var crypto = require('crypto');
@@ -96,12 +97,12 @@ var app = {
         //first kill an old instance of tika if exists
         var pid = "";
         try {
-            pid = fs.readFileSync(__dirname + "/db/sqlite/tikaPID.txt").toString();
+            pid = fs.readFileSync(__dirname + "/db/pids/tikaPID.txt").toString();
             msg("Trying to kill an old instance of tika if active", "info");
         } catch (err) {
             //if file not exists
             //touch file if not exists
-            var stream = fs.createWriteStream(__dirname + "/db/sqlite/tikaPID.txt");
+            var stream = fs.createWriteStream(__dirname + "/db/pids/tikaPID.txt");
             stream.write("");
             stream.end();
         }
@@ -118,7 +119,7 @@ var app = {
                 //maybe process is already killed
                 msg("Old tika instance was already killed", "info");
                 msg("Reset tika pid file", "info");
-                var stream = fs.createWriteStream(__dirname + "/db/sqlite/tikaPID.txt");
+                var stream = fs.createWriteStream(__dirname + "/db/pids/tikaPID.txt");
                 stream.write("");
                 stream.end();
             } else {
@@ -498,7 +499,8 @@ if (require.main === module) {
             } else {
                 color_debug = "no_verbose";
             }
-            log = require(__dirname + "/lib/logger.js");
+
+            log = new Logger(config);
 
             var files = fs.readdirSync(__dirname + '/pdf-store/');
             for (var i = 0; i < files.length; i++) {

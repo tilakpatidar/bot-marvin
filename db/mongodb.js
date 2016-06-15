@@ -1,264 +1,282 @@
 //global connection to mongodb
 //mongodb connection file
+
+
 var ObjectId = require('mongodb').ObjectId;
 var Immutable = require('immutable');
 var crypto = require('crypto');
 var MongoClient = require('mongodb').MongoClient;
 var parent_dir=process.getAbsolutePath(__dirname);
-var log=require(parent_dir+"/lib/logger.js");
-var config=process.bot_config;
-var mongodb=config.getConfig("mongodb","mongodb_uri");
 var child=require('child_process');
-var score=require(parent_dir+'/lib/score.js').init;
+var Score=require(parent_dir+'/lib/score.js');
 var proto=require(parent_dir+'/lib/proto.js');
 var proxy_cache_class = require(parent_dir + "/lib/bucket_proxy.js");
 var proxy_cache;
 var JSONX=proto.JSONX;
-var old_bot_count = 0;
-var first_bot_count = true;
 var ObjectX=proto.ObjectX;
 var _ = require("underscore");
 var check = require('check-types');
-var mongodb_collection=config.getConfig("mongodb","mongodb_collection");
-var mongodb_collection=config.getConfig("mongodb","mongodb_collection");
-var bucket_collection=config.getConfig("mongodb","bucket_collection");
-var bot_collection=config.getConfig("mongodb","bot_collection");
-var semaphore_collection=config.getConfig("mongodb","semaphore_collection");
-var cluster_info_collection=config.getConfig("mongodb","cluster_info_collection");
-var parsers_collection=config.getConfig("mongodb","parsers_collection");
-var sitemap_collection=config.getConfig("mongodb","sitemap_collection");
-var robots_collection=config.getConfig("mongodb","robots_collection");
-var graph_collection=config.getConfig("mongodb","graph_collection");
-var seed_collection=config.getConfig("mongodb","seed_collection");
-var author_collection=config.getConfig("mongodb","author_collection");
-var sub_list_collection = config.getConfig("mongodb","sub_list_collection");
 var fs=require('fs');
 var urllib=require('url');
-var sitemap_queue = [];
-var cluster;
+var log;
 
-//read seed file
-process.bucket_time_interval = 10000;
-process.bucket_creater_locked=true;
+var MongoDb = function(config_obj, trigger_obj){
+	var trigger = trigger_obj;
+	var config = config_obj;
+	var old_bot_count = 0;
+	var first_bot_count = true;
+	var sitemap_queue = [];
+	var bucket_time_interval = 10000; //time after which bucket creator is called
+	var that = this;
+	var distinct_fetch_intervals = {};
+	var seedCount = 0;
+	this.links_store = {};
+	var lock_speed_bucket = false;
+	var tika_indexer_busy = false;
+	var bucket_timer;
+	var bot_obj;
+	var log;
+	var pool = this;
+	var score = new Score(config);
 
-function generateMD5(str){
+	this.setLogger = function setLogger(l){
+		log = l;
+	};
+	this.setBot = function setBot(b){
+		bot_obj = b;
+	};
 
-	var md5sum = crypto.createHash('md5');
-	md5sum.update(str);
-	var hash=md5sum.digest('hex');
-	return hash;
-}
+	var mongodb=config.getConfig("mongodb","mongodb_uri");
+	var mongodb_collection=config.getConfig("mongodb","mongodb_collection");
+	var mongodb_collection=config.getConfig("mongodb","mongodb_collection");
+	var bucket_collection=config.getConfig("mongodb","bucket_collection");
+	var bot_collection=config.getConfig("mongodb","bot_collection");
+	var semaphore_collection=config.getConfig("mongodb","semaphore_collection");
+	var cluster_info_collection=config.getConfig("mongodb","cluster_info_collection");
+	var parsers_collection=config.getConfig("mongodb","parsers_collection");
+	var sitemap_collection=config.getConfig("mongodb","sitemap_collection");
+	var robots_collection=config.getConfig("mongodb","robots_collection");
+	var graph_collection=config.getConfig("mongodb","graph_collection");
+	var seed_collection=config.getConfig("mongodb","seed_collection");
+	var author_collection=config.getConfig("mongodb","author_collection");
+	var sub_list_collection = config.getConfig("mongodb","sub_list_collection");
+	trigger.set('bucket_creator_locked',true);
 
-function lazy_sitemap_updator(){
-	var domain = sitemap_queue.splice(0,1)[0];
 
-	if(!check.assigned(domain)){
-		msg("Lazy loading finished for all domains","success");
-		return;
-	}
-	
+		function generateMD5(str){
 
-
-
-	var abs = urllib.resolve(domain,'sitemap.xml');
-	
-
-	msg("Lazy loading sitemaps for "+abs, "info");
-	
-	pool.sitemap_collection.findOne({"_id": domain},function(err,docs){
-		if(check.assigned(err) || !check.assigned(docs)){
-			var sitemap = require(parent_dir+'/lib/sitemap_parser');
-			var regex_urlfilter = {'accept':config.getConfig('accept_regex'),'reject':config.getConfig('reject_regex')};
-			sitemap.init(config, regex_urlfilter);
-			sitemap.getSites(abs, function(err, sites) {
-			    if(!err) {
-			    	
-			        pool.updateSiteMap(domain,sites,function(){
-			        	setTimeout(function(){lazy_sitemap_updator();},1000);
-			        	
-			        });
-			    }
-			    else {
-			       	msg("Sitemap could not be downloaded for "+domain,"error");
-			        pool.updateSiteMap(domain,[],function(){
-			        	setTimeout(function(){lazy_sitemap_updator();},1000);
-			        });
-			    }
-			});
+			var md5sum = crypto.createHash('md5');
+			md5sum.update(str);
+			var hash=md5sum.digest('hex');
+			return hash;
 		}
-		else{
-			setTimeout(function(){lazy_sitemap_updator();},1000);
-		}
-	});
-}
 
-var pool={
-	"distinct_fetch_intervals" : {}, //keeps track of distinct fetch intervals
-	"seed":function seed(fn){
-		//this method runs first when crawler starts
-		
-		var that=this;
-		that.mongodb_collection.createIndex({"$**":"text"},{"weights": {"data._source.id":5,"data._source.host":5,"data._source.meta_description":5,"data._source.title":5,"data._source.body":1}},function(err){
-				//#debug#console.log(err);
-			});
-		that.bucket_collection.createIndex({recrawlAt:1},function(err){});//asc order sort for recrawlAt
-		that.bucket_collection.createIndex({score:1},function(err){});//asc order sort for score
-					that.getParsers(function(){
-								var done=0;
-								var success=0;
-								var stamp1=new Date().getTime()-2000;//giving less time
-								
-								//generate seed buckets from sub_lists
-
-								var mul_buckets = [];
-								for(var ind in that.sub_list){
-									var sub_group = that.sub_list[ind];
-									var domains = sub_group["_id"];
-									var links = _.pluck(sub_group["domains"],"_id");
-									var fetch_interval = sub_group["fetch_interval"];
-									mul_buckets.push({"_id": ObjectId(), "domains":domains,"links":links,"score":1,"recrawlLabel": fetch_interval,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":links.length});
-								}
-
-
- 								that.bucket_collection.insertMany(mul_buckets ,function(err,doc){
-										var successfull = doc['insertedIds'];
-										if(!check.assigned(successfull)){
-											var successfull = _.pluck(doc.getInsertedIds(), '_id');
-										}			
-										var inserted_docs = [];
-										var sitemap_urls = [];
-										mul_buckets = _.indexBy( mul_buckets, "_id");
-
-										//now check how many sub groups buckets were successfully inserted
-										//and the insert urls from those buckets
-										for(var ind in successfull){
-											var sub_list_id = successfull[ind];
-											var sub_group = mul_buckets[sub_list_id];
-											console.log(sub_group);
-											if(check.assigned(sub_group)){
-												var links = sub_group["links"];
-												console.log(links);
-												var fetch_interval = sub_group["recrawlLabel"];
-
-												for (var i = 0; i < links.length; i++) {
-											
-													var anon=(function(domain, fetch_interval, stamp){
-														
-														var md5 = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);
-														inserted_docs.push({"url":domain,"bucket_id":ObjectId(stamp),"domain":domain,"partitionedBy":config.getConfig("bot_name"),"bucketed":true,"fetch_interval":fetch_interval,"level":1, "md5": md5});				
-														
-														//for $in in sitemap collection
-														
-
-													});
-
-													anon(links[i], fetch_interval, sub_list_id);
-			
-												};
-											}
-										}
-
-										
-
-										that.getLinksFromSiteMap(links);
-										if(inserted_docs.length === 0){
-											
-											return fn(false);
-										}
-
-										that.mongodb_collection.insertMany(inserted_docs,function initBySeed(err,doc){
-											
-										
-											
-											if(err){
-												msg("pool.init maybe seed is already added","error");
-											}
-											
-											var successfull = doc['insertedIds'];
-											if(!check.assigned(successfull)){
-												var successfull = _.pluck(doc.getInsertedIds(), '_id');
-											}
-											
-											msg(("Added seeds to initialize pool"),"success");
-
-											if(successfull.length === 0){
-												that.bucket_collection.remove({"_id":{"$in":ObjectId(Object.keys(mul_buckets))}},function(){
-														//if urls are not inserted due to duplicate reason then remove all buckets
-														fn(true);
-														return;	
-
-												});
-											}else{
-												fn(true);
-												return;
-											}
-											
-											fn(false);
-											return;
-
-
-											
-	
-											});
-					
-								});
-							
-						
-			
+		this.lazy_sitemap_updator = function lazy_sitemap_updator(domain){
 			
 
-					
-
-			});
-
-	},
-	"getLinksFromSiteMap":function getLinksFromSiteMap(domain_urls, fn){
-		if(!config.getConfig('parse_sitemaps') || process.webappOnly){
-			if(check.assigned(fn)){
-				return fn();
-			}else{
+			if(!check.assigned(domain)){
+				msg("Lazy loading finished for all domains","success");
 				return;
 			}
 			
-		}
+
+
+
+			var abs = urllib.resolve(domain,'sitemap.xml');
+			
+
+			msg("Lazy loading sitemaps for "+abs, "info");
+			
+			pool.sitemap_collection.findOne({"_id": domain},function(err,docs){
+				if(check.assigned(err) || !check.assigned(docs)){
+					var sitemap = require(parent_dir+'/lib/sitemap_parser');
+					var regex_urlfilter = {'accept':config.getConfig('accept_regex'),'reject':config.getConfig('reject_regex')};
+					sitemap.init(config, regex_urlfilter);
+					sitemap.getSites(abs, function(err, sites) {
+					    if(!err) {
+					    	
+					        pool.updateSiteMap(domain,sites,function(){
+					        	setTimeout(function(){lazy_sitemap_updator(sitemap_queue.splice(0,1)[0]);},1000);
+					        	
+					        });
+					    }
+					    else {
+					       	msg("Sitemap could not be downloaded for "+domain,"error");
+					        pool.updateSiteMap(domain,[],function(){
+					        	setTimeout(function(){lazy_sitemap_updator(sitemap_queue.splice(0,1)[0]);},1000);
+					        });
+					    }
+					});
+				}
+				else{
+					setTimeout(function(){lazy_sitemap_updator(sitemap_queue.splice(0,1)[0]);},1000);
+				}
+			});
+		};
+
+		this.seed = function seed(fn){
+			that.getParsers(function(){
+									var done=0;
+									var success=0;
+									var stamp1=new Date().getTime()-2000;//giving less time
+									
+									//generate seed buckets from sub_lists
+
+									var mul_buckets = [];
+									for(var ind in that.sub_list){
+										var sub_group = that.sub_list[ind];
+										var domains = sub_group["_id"];
+										var links = _.pluck(sub_group["domains"],"_id");
+										var fetch_interval = sub_group["fetch_interval"];
+										mul_buckets.push({"_id": ObjectId(), "domains":domains,"links":links,"score":1,"recrawlLabel": fetch_interval,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":links.length});
+									}
+
+
+	 								that.bucket_collection.insertMany(mul_buckets ,function(err,doc){
+											var successfull = doc['insertedIds'];
+											if(!check.assigned(successfull)){
+												var successfull = _.pluck(doc.getInsertedIds(), '_id');
+											}			
+											var inserted_docs = [];
+											var sitemap_urls = [];
+											mul_buckets = _.indexBy( mul_buckets, "_id");
+
+											//now check how many sub groups buckets were successfully inserted
+											//and the insert urls from those buckets
+											for(var ind in successfull){
+												var sub_list_id = successfull[ind];
+												var sub_group = mul_buckets[sub_list_id];
+												//console.log(sub_group);
+												if(check.assigned(sub_group)){
+													var links = sub_group["links"];
+													//console.log(links);
+													var fetch_interval = sub_group["recrawlLabel"];
+
+													for (var i = 0; i < links.length; i++) {
+												
+														var anon=(function(domain, fetch_interval, stamp){
+															
+															var md5 = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);
+															inserted_docs.push({"url":domain,"bucket_id":ObjectId(stamp),"domain":domain,"partitionedBy":config.getConfig("bot_name"),"bucketed":true,"fetch_interval":fetch_interval,"level":1, "md5": md5});				
+															
+															//for $in in sitemap collection
+															
+
+														});
+
+														anon(links[i], fetch_interval, sub_list_id);
+				
+													};
+												}
+											}
+
+											
+
+											that.getLinksFromSiteMap(links);
+											if(inserted_docs.length === 0){
+												
+												return fn(false);
+											}
+
+											that.mongodb_collection.insertMany(inserted_docs,function initBySeed(err,doc){
+												
+											
+												
+												if(err){
+													msg("pool.init maybe seed is already added","error");
+												}
+												
+												var successfull = doc['insertedIds'];
+												if(!check.assigned(successfull)){
+													var successfull = _.pluck(doc.getInsertedIds(), '_id');
+												}
+												
+												msg(("Added seeds to initialize pool"),"success");
+
+												if(successfull.length === 0){
+													that.bucket_collection.remove({"_id":{"$in":ObjectId(Object.keys(mul_buckets))}},function(){
+															//if urls are not inserted due to duplicate reason then remove all buckets
+															fn(true);
+															return;	
+
+													});
+												}else{
+													fn(true);
+													return;
+												}
+												
+												fn(false);
+												return;
+
+
+												
 		
-		var that=this;
-		var TOTAL = new Immutable.Set(domain_urls);
-		that.sitemap_collection.find({"_id":{"$in":domain_urls}}).toArray(function sitemap_findMany(err,docs){
-			if(check.assigned(err) || !check.assigned(docs)){
-				msg("Sitemap not present in db",'error');
+												});
+						
+									});
+								
+							
+				
+				
+
+						
+
+				});
+		};
+
+		this.getLinksFromSiteMap = function getLinksFromSiteMap(domain_urls, fn){
+			if(!config.getConfig('parse_sitemaps') || trigger.get('webappOnly')){
 				if(check.assigned(fn)){
-					return fn(false);
+					return fn();
 				}else{
 					return;
 				}
+			
 			}
-			else{
-				
-				var existing = new Immutable.Set(_.pluck(docs, '_id'));
-
-				var queued = TOTAL.subtract(existing);
-
-				sitemap_queue = queued.toArray();
-
-				msg('Sitemap domains pushed into queue' , 'success');
-				
-
-				setTimeout(function(){lazy_sitemap_updator();},1000);
-				//insert sitemap urls
-				
-				if(check.assigned(fn)){
-					return fn(true);
-				}else{
-					return;
+			
+			
+			var TOTAL = new Immutable.Set(domain_urls);
+			that.sitemap_collection.find({"_id":{"$in":domain_urls}}).toArray(function sitemap_findMany(err,docs){
+				if(check.assigned(err) || !check.assigned(docs)){
+					msg("Sitemap not present in db",'error');
+					if(check.assigned(fn)){
+						return fn(false);
+					}else{
+						return;
+					}
 				}
-				
-			}
+				else{
+					
+					var existing = new Immutable.Set(_.pluck(docs, '_id'));
 
-		});
-	},
-	"updateSiteMap":function updateSiteMap(domain,sites,fn){
-		var that=this;
+					var queued = TOTAL.subtract(existing);
+
+					sitemap_queue = queued.toArray();
+
+					msg('Sitemap domains pushed into queue' , 'success');
+					
+
+					setTimeout(function(){lazy_sitemap_updator(sitemap_queue.splice(0,1)[0]);},1000);
+					//insert sitemap urls
+					
+					if(check.assigned(fn)){
+						return fn(true);
+					}else{
+						return;
+					}
+					
+				}
+
+			});
+		};
+
+
+
+	this.getLinksFromSiteMap = function getLinksFromSiteMap(domain_urls, fn){
+		
+	};
+	this.updateSiteMap = function updateSiteMap(domain,sites,fn){
+		
 		that.sitemap_collection.insert({"_id":domain,"sites": sites},function updateSiteMapInsert(err,results){
 			msg("Updated sitemap file for "+domain+"in db","info");
 
@@ -270,9 +288,9 @@ var pool={
 
 		});
 		
-	},
-	"insertLinksInDB":function insertLinksInDB(li,fn){
-			var that=this; 
+	};
+	this.insertLinksInDB = function insertLinksInDB(li,fn){
+			 
 			var inserted_docs = [];
 			var urlMap = {};
 			for (var i = 0; i < li.length; i++) {
@@ -285,7 +303,7 @@ var pool={
 					refresh_time=li[i][3];
 				}
 				else{
-					refresh_time=that.links[domain]["fetch_interval"];
+					refresh_time=that.links_store[domain]["fetch_interval"];
 				}
 				//overriding default fetch_interval with the domain specified interval
 				//#debug#console.log(refresh_time);
@@ -337,17 +355,17 @@ var pool={
 					
 											
 			});
-	},
-	"insertAuthor": function insertAuthor(data){
-		var that = this;
+	};
+	this.insertAuthor = function insertAuthor(data){
+		
 		var author_url = Object.keys(data)[0];
 		var page_url = data[author_url];
 		that.author_collection.updateOne({"_id": author_url}, {"$push":{"pages": page_url}}, {upsert: true},function(){
 
 		});
-	},
-	"addToPool":function addToPool(li,fn){
-		var that=this;
+	};
+	this.addToPool = function addToPool(li,fn){
+		
 		//urls we will be getting will be absolute
 		if(li.length===0){
 			//buckets with empty links will not be inserted
@@ -363,9 +381,9 @@ var pool={
 
 		
 			
-	},
-	"getNextBatch":function getNextBatch(result,batchSize){
-		var that=this;
+	};
+	this.getNextBatch = function getNextBatch(result,batchSize){
+		
 			var stamp1=new Date().getTime();
 			
 				that.bucket_collection.findAndModify({"domains":{"$in":that.alloted_domain_groups},"underProcess":false,"recrawlAt":{$lte:stamp1}},[['recrawlAt',1],['score',1]],{"$set":{"underProcess":true,"processingBot":config.getConfig("bot_name")}},{"remove":false},function getNextBatchFM(err1,object){
@@ -396,7 +414,7 @@ var pool={
 										return;
 									}
 									else{
-										process.bot.updateStats("processedBuckets",1);	
+										bot_obj.updateStats("processedBuckets",1);	
 										//#debug#console.log(docs);
 										msg(("Got "+docs.length+" for next Batch"),"success");
 										result(err,docs,(hash+""),refresh_label);		
@@ -413,9 +431,9 @@ var pool={
 				
 		
 
-	},
-	"insertRssFeed":function insertRssFeed(d){
-		var that = this;
+	};
+	this.insertRssFeed = function insertRssFeed(d){
+		
 		var url = d[0];
 		var rss_links = d[1];
 		var docs = [];
@@ -426,19 +444,19 @@ var pool={
 		}
 		that.rss_feeds.insertMany(docs);
 		
-	},
-	"checkUnCrawled":function checkUnCrawled(links,callback){
-		var that =this;
+	};
+	this.checkUnCrawled = function checkUnCrawled(links,callback){
+		
 		links = _.pluck(links, '_id');
 		that.mongodb_collection.find({"response":{"$exists":false},"_id":{"$in":links}}).toArray(function(err,docs){
 			return callback(err,docs);
 		});
-	},
-	"setCrawled":function setCrawled(link_details,fn){
+	};
+	this.setCrawled = function setCrawled(link_details,fn){
 		if(!check.assigned(fn)){
 			fn = function(){};
 		}
-		var that = this;
+		
 		var url = link_details.url;
 		var urlID = link_details.urlID;
 		var data = link_details.parsed_content;
@@ -573,7 +591,7 @@ var pool={
 			delete dict["response_time"];
 
 			//if so mark abandoned 
-			process.bot.updateStats("failedPages",1);
+			bot_obj.updateStats("failedPages",1);
 			msg('Abandoned due to empty response '+url,'info');
 		}
 		else if(status === "MimeTypeRejected"){
@@ -584,7 +602,7 @@ var pool={
 			delete dict["response_time"];
 
 			//if so mark abandoned 
-			process.bot.updateStats("failedPages",1);
+			bot_obj.updateStats("failedPages",1);
 			msg('Abandoned due to mime type rejection '+url,'info');
 		}
 		else if((status+"").indexOf("NOINDEX")>=0){
@@ -594,7 +612,7 @@ var pool={
 			delete dict["response_time"];
 			dict["md5"] = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);
 			//if so mark abandoned 
-			process.bot.updateStats("failedPages",1);
+			bot_obj.updateStats("failedPages",1);
 			msg('Abandoned due to no INDEX from meta '+url,'info');
 		}
 		else if(status === "ContentTypeRejected"){
@@ -604,7 +622,7 @@ var pool={
 			dict["md5"] = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);
 			delete dict["response_time"];
 			//if so mark abandoned 
-			process.bot.updateStats("failedPages",1);
+			bot_obj.updateStats("failedPages",1);
 			msg('Abandoned due to content type rejection '+url,'info');
 		}
 		else if(status === "ContentLangRejected"){
@@ -614,7 +632,7 @@ var pool={
 			dict["md5"] = ObjectId().toString()+"fake"+parseInt(Math.random()*10000);
 			delete dict["response_time"];
 			//if so mark abandoned 
-			process.bot.updateStats("failedPages",1);
+			bot_obj.updateStats("failedPages",1);
 			msg('Abandoned due to content lang rejection '+url,'info');
 		}
 		else{
@@ -706,7 +724,7 @@ var pool={
 					if(err.errmsg.indexOf("$md5_1 dup key")>=0){
 						
 						if(link_details.status_code === 404){
-							process.bot.updateStats("failedPages",1);
+							bot_obj.updateStats("failedPages",1);
 							msg("Duplicate page found but 404 thus skipping .",'info');
 							dict["abandoned"] = true;
 							delete dict["crawled"];
@@ -726,7 +744,7 @@ var pool={
 
 
 							});
-							process.bot.updateStats("failedPages",1);
+							bot_obj.updateStats("failedPages",1);
 							dict["abandoned"] = true;
 							delete dict["crawled"];
 							delete dict["data"];
@@ -745,28 +763,27 @@ var pool={
 			}
 			else{
 				if( !abandoned && dict["response"] !=="inTikaQueue"){
-					process.bot.updateStats("crawledPages",1);
+					bot_obj.updateStats("crawledPages",1);
 					msg(("Updated "+url),"success");
 				}
 				if(abandoned){
-					process.bot.updateStats("failedPages",1);
+					bot_obj.updateStats("failedPages",1);
 				}
 				
 				
 			}
 			
 		});
-	return fn();
-	},
-	"createConnection":function createConnection(fn){
-		var that=this;
+		return fn();
+	};
+	this.createConnection = function createConnection(fn){
+		
 		var serverOptions = {
 		  'auto_reconnect': true,
 		  'poolSize': config.getConfig("mongodb","pool_size")
 		};
-		process.mongo=MongoClient.connect(mongodb,serverOptions, function(err, db) {
+		MongoClient.connect(mongodb,serverOptions, function(err, db) {
 			that.db=db;
-			//#debug#console.log(err,db)
 			that.mongodb_collection=db.collection(mongodb_collection);
 			that.bucket_collection=db.collection(bucket_collection);
 			that.bot_collection=db.collection(bot_collection);
@@ -790,6 +807,12 @@ var pool={
 			that.failed_db = db.collection(config.getConfig("bot_name")+"_failed_db");
 			that.failed_db.createIndex({count:1,status:1});
 			that.tika_queue.createIndex({status: 1});
+			that.mongodb_collection.createIndex({"$**":"text"},{"weights": {"data._source.id":5,"data._source.host":5,"data._source.meta_description":5,"data._source.title":5,"data._source.body":1}},function(err){
+				//#debug#console.log(err);
+			});
+			that.graph_collection.createIndex({parent:1});
+			that.bucket_collection.createIndex({recrawlAt:1},function(err){});//asc order sort for recrawlAt
+			that.bucket_collection.createIndex({score:1},function(err){});//asc order sort for score
 			that.stats.activeBots(function(errr,docs){
 				//#debug#console.log(docs)
 				for (var i = 0; i < docs.length; i++) {
@@ -802,18 +825,18 @@ var pool={
 			return;
 			
 		});
-	},
-	close:function close(fn){
-		var that=this;
+	};
+	this.close = function close(fn){
+		
 		if(!check.assigned(fn)){
 			fn=function (argument) {
 				// body...
 			}
 		}
 		that.db.close(fn);
-	},
-	"insertTikaQueue":function(d,fn){
-		var that = this;
+	};
+	this.insertTikaQueue = function(d,fn){
+		
 		if(!check.assigned(fn)){
 			fn = function(){};
 		}
@@ -821,28 +844,27 @@ var pool={
 
 			fn(e,dd);
 		});
-	},
-	"readSeedFile":function readSeedFile(fn){
+	};
+	this.readSeedFile = function readSeedFile(fn){
+
 		var URL=require(parent_dir+'/lib/url.js');
 		var regex_urlfilter = {};
 		regex_urlfilter["accept"]=config.getConfig("accept_regex");
 		regex_urlfilter["reject"]=config.getConfig("reject_regex");
 		URL.init(config, regex_urlfilter);
-		var that=this;
+		
 		that.sub_list_collection.find({"bot_name": config.getConfig("bot_name")}).toArray(function readSeedCol(err,results){
 			
 			that.sub_list = _.clone(results);
 			if(results.length===0){
 				//empty seed file
 				msg("Empty seed file","error");
-				process.bot.stopBot(function(){
-						process.exit(0);
-				});
+				trigger_obj.set("stop_bot_and_exit");
 				fn([],[]);
 				return;
 			}
 			that.alloted_domain_groups = _.flatten(_.pluck(results, '_id'));
-			console.log(that.alloted_domain_groups);
+			
 			results = _.flatten(_.pluck(results, "domains"));
 			var intervals = _.pluck(results, 'fetch_interval');
 			intervals = _.uniq(intervals);
@@ -859,7 +881,7 @@ var pool={
 
 			for (var i = 0; i < intervals.length; i++) {
 				
-				that.distinct_fetch_intervals[intervals[i]] = true; //mark the fetch interval for bucket creation
+				distinct_fetch_intervals[intervals[i]] = true; //mark the fetch interval for bucket creation
 				dict[intervals[i]] = [];
 
 			};
@@ -868,11 +890,11 @@ var pool={
 			
 			
 			
-			that["links"] = results;
-			that["seedCount"] = results.length;
+			that.links_store = results;
+			seedCount = results.length;
 
 
-			// that.links is json with domains as keys
+			// links_store is json with domains as keys
 			// that.bucket_priority is list of seed jsons
 
 			fn(results);
@@ -881,9 +903,9 @@ var pool={
 		
 		
 		
-	},
-	"batchFinished":function batchFinished(hash,refresh_label,fn, updateStats){
-		var that=this;
+	};
+	this.batchFinished = function batchFinished(hash,refresh_label,fn, updateStats){
+		
 		var stamp1=new Date().getTime()+config.getConfig("recrawl_intervals",refresh_label);
 		var lm=new Date().getTime();
 		that.bucket_collection.findAndModify({"_id":ObjectId(hash)},[],{$set:{"underProcess":false,"recrawlAt":stamp1,"lastModified":lm}},{"remove":false},function markFinished(err,object){
@@ -901,9 +923,9 @@ var pool={
 				
 
 		});
-	},
-	"resetBuckets":function resetBuckets(fn){
-		var that=this;
+	};
+	this.resetBuckets = function resetBuckets(fn){
+		
 		var stamp1=new Date().getTime()-2000;//giving less time
 		that.bucket_collection.update({"underProcess":true,"processingBot":config.getConfig("bot_name")},{$set:{"underProcess":false,"recrawlAt":stamp1}},{multi:true},function(err,results){
 		//resetting just buckets processed by this bot
@@ -923,9 +945,9 @@ var pool={
 			
 		});
 
-	},
-	"addLinksToDB":function addLinksToDB(hashes_obj,freqType,fn){
-		var that=this;
+	};
+	this.addLinksToDB = function addLinksToDB(hashes_obj,freqType,fn){
+		
 		var li=hashes_obj["links"];
 		if(li.length===0){
 			fn(null);
@@ -960,9 +982,9 @@ var pool={
 			
 		};
 		
-	},
-	"drop":function drop(fn){
-		var that=this;
+	};
+	this.drop = function drop(fn){
+		
 		that.db.dropDatabase();
 		try{
 			fs.unlinkSync(parent_dir+'/db/tika_queue');
@@ -972,26 +994,25 @@ var pool={
 			return;
 		}
 		
+	};
+
+	this.insertParseFile = function insertParseFile(filename,fn){
 		
+		var data=fs.readFileSync(parent_dir+'/parsers/'+filename+".js");
+		var hash= generateMD5(data.toString());
+		that.parsers_collection.update({"_id":filename},{"$set":{"data":data,"hash":hash}},{upsert:true},function(err,results){
+			if(err){
+				fn(false);
+				return;
+			}
+			else{
+				fn(true);
+				return;
+			}
+		});
+	};
+	this.removeSeed = function removeSeed(url,fn){
 		
-	},
-	"insertParseFile":function insertParseFile(filename,fn){
-		var that=this;
-	var data=fs.readFileSync(parent_dir+'/parsers/'+filename+".js");
-	var hash= generateMD5(data.toString());
-	that.parsers_collection.update({"_id":filename},{"$set":{"data":data,"hash":hash}},{upsert:true},function(err,results){
-		if(err){
-			fn(false);
-			return;
-		}
-		else{
-			fn(true);
-			return;
-		}
-	});
-	},
-	"removeSeed":function removeSeed(url,fn){
-		var that=this;
 		var cluster_name=config.getConfig("cluster_name");
 		var org_url=url;
 		that.seed_collection.removeOne({"_id":url},function(err,result){
@@ -1000,28 +1021,28 @@ var pool={
 				return;
 			}
 			else{
-				delete that.links[org_url];
+				delete that.links_store[org_url];
 				fn(true);
 				return;
 			}
 		});
-	},
-	"clearSeed":function clearSeed(fn){
-		var that=this;
+	};
+	this.clearSeed = function clearSeed(fn){
+		
 		that.seed_collection.remove({},function(err,result){
 			if(err){
 				fn(false);
 				return;
 			}
 			else{
-				that.links={};
+				that.links_store={};
 				fn(true);
 				return;
 			}
 		});
-	},
-	"isSeedPresent":function isSeedPresent(url,fn){
-		var that=this;
+	};
+	this.isSeedPresent = function isSeedPresent(url,fn){
+		
 		that.seed_collection.findOne({"_id":url},function(err,doc){
 			if(check.assigned(doc)){
 				fn(true);
@@ -1030,9 +1051,9 @@ var pool={
 			}
 
 		});
-	},
-	"moveSeedCollection":function moveSeedCollection(fn){
-		var that = this;
+	};
+	this.moveSeedCollection = function moveSeedCollection(fn){
+		
 		that.seed_collection.rename("seed_tmp",function(){
 			that.sub_list_collection.rename("sub_lists_tmp",function(){
 				that.seed_collection=that.db.collection(config.getConfig("mongodb","seed_collection"));
@@ -1040,9 +1061,9 @@ var pool={
 				fn();
 			});
 		})
-	},
-	"restoreSeedCollection":function restoreSeedCollection(fn){
-		var that = this;
+	};
+	this.restoreSeedCollection = function restoreSeedCollection(fn){
+		
 		that.db.collection(config.getConfig("mongodb","seed_collection")).drop(function(){
 			that.db.collection("seed_tmp").rename(config.getConfig("mongodb","seed_collection"),function(){
 				that.seed_collection=that.db.collection(config.getConfig("mongodb","seed_collection"));
@@ -1060,16 +1081,16 @@ var pool={
 				});
 				
 			
-	},
-	"successSeedCollection":function successSeedCollection(fn){
-		var that = this;
+	};
+	this.successSeedCollection = function successSeedCollection(fn){
+		
 		that.db.collection("seed_tmp").drop(function(){
 			that.db.collection("sub_lists_tmp").drop(function(){
 				fn();
 			});
 		});
-	},
-	"insertSeed":function insertSeed(url,parseFile,priority,fetch_interval,fn){
+	};
+	this.insertSeed = function insertSeed(url,parseFile,priority,fetch_interval,fn){
 
 		var URL=require(parent_dir+'/lib/url.js');
 		var regex_urlfilter = {};
@@ -1083,7 +1104,7 @@ var pool={
 			fn([false,{}]);
 			return;
 		}
-		var that=this;
+		
 		//console.log(url);
 		var url=URL.url(url).details.url;
 		if(!check.assigned(fetch_interval)){
@@ -1100,9 +1121,9 @@ var pool={
 		
 		
 		
-	},
-	"checkIfBotActive":function checkIfBotActive(fn){
-		var that=this;
+	};
+	this.checkIfBotActive = function checkIfBotActive(fn){
+		
 		that.bot_collection.findOne({"_id":config.getConfig("bot_name"),"active":true},function(err,result){
 			if(err){
 				fn(true);
@@ -1119,10 +1140,10 @@ var pool={
 			}
 
 		});
-	},
-	"checkIfNewCrawl":function checkIfNewCrawl(fn){
+	};
+	this.checkIfNewCrawl = function checkIfNewCrawl(fn){
 		var id_name=config.getConfig("cluster_name");
-		var that=this;
+		
 		that.cluster_info_collection.findOne({"_id":id_name},function findInCluster(err,results){
 			//console.log(err,results)
 			if(!results){
@@ -1143,10 +1164,10 @@ var pool={
 			}
 			
 		});
-	},
+	};
 	
-	"getParsers":function getParsers(fn){
-		var that=this;
+	this.getParsers = function getParsers(fn){
+		
 		that.parsers_collection.find({},{}).toArray(function(err,docs){
 			for (var i = 0; i < docs.length; i++) {
 				var d=docs[i];
@@ -1167,9 +1188,10 @@ var pool={
 			return;
 				
 		});
-	},
-	"pullSeedLinks":function pullSeedLinks(fn){
-		var that=this;
+	};
+
+	this.pullSeedLinks = function pullSeedLinks(fn){
+		
 		that.sub_list_collection.find({"bot_name":config.getConfig("bot_name")}).toArray(function(err,results){
 			if(check.emptyArray(results)){
 				fn(err,null);
@@ -1181,7 +1203,6 @@ var pool={
 				return;
 			}
 			if(!err){
-				process.domain_range = _.pluck(seeds, '_id');
 				fn(err,_.flatten(_.pluck(seeds, "domains")));
 				return;
 			}
@@ -1191,16 +1212,16 @@ var pool={
 			}
 
 		});
-	},
-	"seedReloader":function seedReloader(){
-		var that=this;
+	};
+	this.seedReloader = function seedReloader(){
+		
 		that.pullSeedLinks(function(new_config){
 			if(check.assigned(new_config)){
 				fs.writeFile(parent_dir+"/config/seed.json",JSON.stringify(new_config,null,2),function writeSeedFile(){
 					if(!ObjectX.isEquivalent(new_config,that.seed_db_copy)){
 						
 							msg("Seed Links changed from db ","info");
-							process.emit("restart");//will be caught by death and it will cause to restart
+							trigger.set("restart");//will be caught by death and it will cause to restart
 
 						
 
@@ -1211,9 +1232,9 @@ var pool={
 				});
 			}
 		});
-	},
-	"parserReloader":function parserReloader(){
-		var that=this;
+	};
+	this.parserReloader = function parserReloader(){
+		
 		that.parsers_collection.find({}).toArray(function getNewParsers(err,results){
 			for (var i = 0; i < results.length; i++) {
 				var doc=results[i];
@@ -1221,21 +1242,23 @@ var pool={
 				var hash =  generateMD5(data.toString());
 				if(hash!==doc["hash"]){
 					msg("Parsers changed from server restarting . . .","info");
-					process.emit("restart");
+					trigger.emit("restart");
 				}
 			};
 		});
-	},
-	'setParent':function setParent(){
+	};
+
+	this.setParent = function setParent(){
 			this.bot.parent=this;
 			this.cluster.parent=this;
 			this.stats.parent=this;
 			this.config_reloader.parent=this;
 			this.bucketOperation.parent=this;
-	},
-	"bot":{
-		"requestToBecomeMaster":function bot_requestToBecomeMaster(bot_name,fn){
-			var that=this.parent;
+	};
+
+	this.bot = {
+		"requestToBecomeMaster": function bot_requestToBecomeMaster(bot_name,fn){
+			
 			that.semaphore_collection.findOne({"_id":"master"},function(err,doc){
 				if(check.assigned(doc)){
 					fn(false);
@@ -1283,8 +1306,8 @@ var pool={
 				}
 			});
 		},
-		"checkIfStillMaster":function bot_checkIfStillMaster(fn){
-			var that=this.parent;
+		"checkIfStillMaster": function bot_checkIfStillMaster(fn){
+			
 			that.semaphore_collection.findOne({"_id":"master"},function(err,doc){
 				if(check.assigned(doc)){
 					if(doc.bot_name===config.getConfig("bot_name")){
@@ -1307,39 +1330,41 @@ var pool={
 				}
 			});
 		},
-		"startBotGetBotActiveStatus":function bot_startBotGetBotActiveStatus(fn){
-			var that=this.parent;
+		"startBotGetBotActiveStatus": function bot_startBotGetBotActiveStatus(fn){
+			
 			that.bot_collection.findOne({"_id":config.getConfig("bot_name"),"active":true},function(err,results){
 				fn(err,results);
 				return;
 			});
 		},
-		"startBotAddNewBot":function bot_startBotAddNewBot(t,fn){
-			var that=this.parent;
+		"startBotAddNewBot": function bot_startBotAddNewBot(t,fn){
+			
 			that.bot_collection.findAndModify({"_id":config.getConfig("bot_name")},[],{"$set":{"registerTime":t,"active":true}},{remove:false,upsert:true},function(err,result){
 				fn(err,result);
 				return;
 			});
 		},
-		"updateBotInfo":function bot_updateBotInfo(n_dic,fn){
-			var that=this.parent;
+		"updateBotInfo": function bot_updateBotInfo(n_dic,fn){
+			
 			that.bot_collection.update({"_id":config.getConfig('bot_name')},n_dic,function(err,results){
 				fn(err,results);
 				return;
 
 			});
 		},
-		"BotMarkInactive":function bot_BotMarkInactive(fn){
-			var that=this.parent;
+		"BotMarkInactive": function bot_BotMarkInactive(fn){
+			
 			that.bot_collection.findAndModify({"_id":config.getConfig("bot_name")},[],{"$set":{"active":false}},{remove:false},function(err,result){
 				fn(err,result);
 				return;
 			});
 		}
-	},
-	"cluster":{
-		"getMaster":function cluster_getMaster(fn){
-			var that=this.parent;
+	};
+
+
+	this.cluster = {
+		"getMaster": function cluster_getMaster(fn){
+			
 			that.cluster_info_collection.findOne({"_id":config.getConfig("cluster_name")},function(e,d){
 				if(check.assigned(d)){
 					fn(d.master);
@@ -1351,7 +1376,7 @@ var pool={
 			});
 		},
 		"getBotConfig":function cluster_getBotConfig(bot_name,fn){
-			var that=this.parent;
+			
 			that.bot_collection.findOne({"_id":bot_name},function(err,results){
 				fn(err,results);
 				return;
@@ -1359,7 +1384,7 @@ var pool={
 			});
 		},
 		"getSeed":function cluster_getSeed(fn){
-			var that=this.parent;
+			
 			that.seed_collection.find({}).toArray(function(err,results){
 					var seeds=results;
 					fn(err,seeds);
@@ -1367,10 +1392,10 @@ var pool={
 
 			});
 		}
-	},
-	"stats":{
+	};
+	this.stats = {
 		"getPage":function stats_getPage(url,fn){
-			var that=this.parent;
+			
 			//#debug#console.log(url)
 			that.mongodb_collection.findOne({"_id":ObjectId(url)},function(err,results){
 				
@@ -1379,7 +1404,7 @@ var pool={
 			});
 		},
 		"getBucket":function stats_getBucket(url,fn){
-			var that=this.parent;
+			
 			//#debug#console.log(url)
 			that.bucket_collection.findOne({"_id":ObjectId(url)},function(err,results){
 				
@@ -1388,14 +1413,14 @@ var pool={
 			});
 		},
 		"cluster_info":function stats_cluster_info(id_name,fn){
-			var that=this.parent;
+			
 			that.cluster_info_collection.findOne({"_id":id_name},function(err,results){
 				fn(err,results);
 				return;
 			});
 		},
 		"activeBots":function stats_activeBots(fn){
-			var that=this.parent;
+			
 			
 			that.bot_collection.find({},{}).toArray(function(err,docs){
 				//this method is called by cluster in some interval which will also update the new added bots for partioning
@@ -1420,7 +1445,7 @@ var pool={
 						first_bot_count = false;
 					}else{
 						//console.log(active_bots ,"\t", old_bot_count,"CALC");
-						if(Math.abs(active_bots.length - old_bot_count)>0 && process.cluster_master){
+						if(Math.abs(active_bots.length - old_bot_count)>0 && trigger.get('cluster_master')){
 							
 
 							msg("new bots added, start load balancing" ,"info");
@@ -1437,7 +1462,7 @@ var pool={
 		},
 		"crawlStats":function stats_crawlStats(fn){
 			var dic={};
-			var that=this.parent;
+			
 			that.bot_collection.find({},{}).toArray(function(err,docs){
 				if(!check.assigned(err) && check.assigned(docs)){
 					var processed_buckets = 0;
@@ -1471,7 +1496,7 @@ var pool={
 			});
 		},
 		"getCrawledPages":function stats_getCrawledPages(d,len,i,sor,fn){
-			var that=this.parent;
+			
 			var cursor=that.mongodb_collection.find(d,{},{});
 			cursor.count(function(err,c){
 				cursor.limit(len).skip(i).sort(sor).toArray(function(err,docs){
@@ -1482,7 +1507,7 @@ var pool={
 			})
 		},
 		"getFailedPages":function stats_getFailedPages(d,len,i,sor,fn){
-			var that=this.parent;
+			
 			var cursor=that.mongodb_collection.find(d,{},{});
 			cursor.count(function(err,c){
 				count=c;
@@ -1494,7 +1519,7 @@ var pool={
 			
 		},
 		"getTotalPages":function stats_getTotalPages(d,len,i,sor,fn){
-			var that=this.parent;
+			
 			var cursor=that.bucket_collection.find(d,{},{});
 			cursor.count(function(err,c){
 				count=c;
@@ -1505,7 +1530,7 @@ var pool={
 			})
 		},
 		"getTotalBuckets":function stats_getTotalBuckets(d,len,i,sor,fn){
-			var that=this.parent;
+			
 			var cursor=that.bucket_collection.find(d,{},{});
 			cursor.count(function(err,c){
 				count=c;
@@ -1516,7 +1541,7 @@ var pool={
 			})
 		},
 		"getProcessedBuckets":function stats_getProcessedBuckets(d,len,i,sor,fn){
-			var that=this.parent;
+			
 			var cursor=that.bucket_collection.find(d,{},{});
 			cursor.count(function(err,c){
 				count=c;
@@ -1527,7 +1552,7 @@ var pool={
 			})
 		},
 		"updateConfig":function stats_updateConfig(bot_name,js,fn){
-			var that=this.parent;
+			
 			that.bot_collection.update({"_id":bot_name},{"$set":{"config":js}},function(err,results){
 				//console.log(err)
 				fn(err,results);
@@ -1540,16 +1565,16 @@ var pool={
 				i=0;
 			}
 			i=i*10;
-			var that=this.parent;
+			
 			that.mongodb_collection.find({$text: {$search: query}}, {score: {$meta: "textScore"}},{ skip: i, limit: 10 }).sort({score:{$meta:"textScore"}}).toArray(function(err,docs){
 				fn(err,docs);
 				return;
 			});
 		}
-	},
-	"config_reloader":{
+	};
+	this.config_reloader = {
 		"pullDbConfig":function stats_pullDbConfig(idd,fn){
-			var that=this.parent;
+			
 					that.bot_collection.findOne({"_id":idd},function pullDbConfig1(err,results){
 						//console.log(results)
 						if(!check.assigned(results)){
@@ -1569,8 +1594,8 @@ var pool={
 						}
 					});
 		}
-	},
-	"bucketOperation":{
+	};
+	this.bucketOperation = {
 		/*var descriptions
 		that.bucket_priority type->list when seed file is read it is stored with dicts of each seed info
 		that.bucket_pointer just an int counter to iterate on that.bucket_priority
@@ -1578,7 +1603,7 @@ var pool={
 
 		*/
 		"generateSubLists":function generateSubLists(results, fn){
-			var that =this.parent;
+			
 			//create bot_priority array from results
 			_.sortBy(results, "priority", this).reverse();//descending order
 
@@ -1614,7 +1639,7 @@ var pool={
 			//each sublist priority sums to 10 and all of them having same fetch_interval
 			
 
-			var n_domains=_.size(that.links);
+			var n_domains=_.size(that.links_store);
 					
 			var interval_size=_.size(intervals);
 			//console.log(intervals,n_domains, interval_size);
@@ -1733,7 +1758,7 @@ var pool={
 		},
 		"getCurrentDomain":function bucketoperation_getCurrentDomain(interval){
 
-			var that=this.parent;
+			
 			//console.log(that.bucket_priority)
 			var domain=that.bucket_priority[interval].splice(0,1)[0];
 			
@@ -1743,12 +1768,12 @@ var pool={
 		'new_creator':function bucketoperation_new_creator(is_first, fetch_interval){
 			/*
 			var that = this.parent;
-			process.bucket_creater_locked=true;
+			trigger.set('bucket_creator_locked',true);
 			//just pinging so that we do not run short of buckets
 			//while we have links in our mongodb cache
 			//generating new buckets based on refresh interval and uniformity
 			if(!check.assigned(that.cache)){
-				process.bucket_creater_locked=false;
+				trigger.set('bucket_creator_locked',false);
 				return;
 			}
 			var d=that.bucketOperation.getCurrentDomain();
@@ -1797,22 +1822,22 @@ var pool={
 			*/
 		},
 		"creator":function bucketoperation_creator(){
-			var that=this.parent;
+			
 			//#debug#console.log("pinging")
 			//#debug#console.log(li);
 			//#debug#console.log(that.cache)
-			process.bucket_creater_locked=true;
+			trigger.set('bucket_creator_locked',true);
 			//just pinging so that we do not run short of buckets
 			//while we have links in our mongodb cache
 			//generating new buckets based on refresh interval and uniformity
-			if(!check.assigned(that.links)){
-				process.bucket_creater_locked=false;
+			if(!check.assigned(that.links_store)){
+				trigger.set('bucket_creator_locked',false);
 				return;
 			}
 					var hashes={};
 					var intervals=config.getConfig("recrawl_intervals");
 
-					for(var k in that.distinct_fetch_intervals){
+					for(var k in distinct_fetch_intervals){
 						//console.log(k);
 						hashes[k]={};
 						hashes[k]["_id"] = ObjectId();
@@ -1820,9 +1845,9 @@ var pool={
 						
 					}
 
-					var n_domains=_.size(that.links);
+					var n_domains=_.size(that.links_store);
 					
-					var interval_size=_.size(that.distinct_fetch_intervals);
+					var interval_size=_.size(distinct_fetch_intervals);
 					var completed=0;
 					var done = 0;
 					//console.log(that.sub_list,"that.sub_list");
@@ -1850,11 +1875,11 @@ var pool={
 										++done;
 										if(done===limit){
 											if(check.emptyObject(hashes)){
-												process.bucket_creater_locked=false;
+												trigger.set('bucket_creator_locked',false);
 												return;
 											}
 												pusher(hashes,function(){
-													process.bucket_creater_locked=false;
+													trigger.set('bucket_creator_locked',false);
 												});
 											
 											
@@ -1875,23 +1900,23 @@ var pool={
 		},
 		"pusher":function bucketoperation_pusher(hashes,fn){
 			//console.log(JSON.stringify(hashes,null,2));
-			var that=pool;
 			//#debug#console.log(that)
 			try{
-				hashes=score.getScore(hashes,that.links);
+				hashes = score.getScore(hashes,that.links_store);
 			}catch(err){
+				console.log(err);
 				fn(true);
 				return;
 			}
 			
-			//#debug#console.log("herere 2");
+			//console.log("herere 2");
 			if(!check.assigned(hashes)){
 				fn(false);
 				return;
 			}
 			var done=0;
 			var counter=_.size(hashes);
-			//#debug#console.log("hashes",hashes);
+			//console.log("hashes",hashes);
 			for(var key in hashes){
 				(function(key){
 					//first links are added to the db to avoid same links
@@ -1921,7 +1946,7 @@ var pool={
 								}
 								else{
 									msg(("Updated bucket "+results["ops"][0]["_id"]),"success");
-									process.bot.updateStats("createdBuckets",1);
+									bot_obj.updateStats("createdBuckets",1);
 									//fn(true);
 									//return;
 								}
@@ -1941,11 +1966,8 @@ var pool={
 			
 
 		},
-		"enqueue":function bucketoperation_enqueue(){
-			var that=this.parent;
-		},
 		"dequeue":function bucketoperation_dequeue(domain,count,interval,fn){
-			var that=this.parent;
+			
 			var li=[];
 			if(!check.assigned(proxy_cache)){
 				proxy_cache = new proxy_cache_class(config.getConfig('inlink_cache_size'));
@@ -1977,198 +1999,188 @@ var pool={
 					
 			
 		}
-	},
-	"seedCount":0,
-	"cache":{},
-	"links":{}
-};
-pool.setParent();//setting the parent reference
+	};
 
-var tika_indexer_busy = false;
-function indexTikaDocs(){
-	try{
-		if(tika_indexer_busy){
-			return;
-		}
-		tika_indexer_busy = true;
-		pool.tika_f_queue.find({},{limit: 100}).toArray(function(err,docs){
-			//console.log(err,docs);
-			if(!check.assigned(err) && check.assigned(docs) && docs.length !==0){
-				var done = 0;
-				for(var index in docs){
-					try{
-						var doc = docs[index];
-						(function(doc){
-							fs.readFile(doc["content"],function(err,data){
-								//if file is not written yet to the cache race condition
-								if(!check.assigned(data) || check.assigned(err)){
-									++done;
-									if(done === docs.length){
-										tika_indexer_busy = false;
+
+
+
+
+	function indexTikaDocs(){
+		try{
+			if(tika_indexer_busy){
+				return;
+			}
+			tika_indexer_busy = true;
+			pool.tika_f_queue.find({},{limit: 100}).toArray(function(err,docs){
+				//console.log(err,docs);
+				if(!check.assigned(err) && check.assigned(docs) && docs.length !==0){
+					var done = 0;
+					for(var index in docs){
+						try{
+							var doc = docs[index];
+							(function(doc){
+								fs.readFile(doc["content"],function(err,data){
+									//if file is not written yet to the cache race condition
+									if(!check.assigned(data) || check.assigned(err)){
+										++done;
+										if(done === docs.length){
+											tika_indexer_busy = false;
+										}
+										return;
 									}
-									return;
-								}
-								try{
-									var link_details = JSON.parse(data.toString());
-								}catch(ee){
+									try{
+										var link_details = JSON.parse(data.toString());
+									}catch(ee){
+										
+										return pool.mongodb_collection.updateOne({"_id":ObjectId(doc["urlID"])},{$set:{"response":"JSON_PARSE_ERROR","abandoned":true, "crawled":false}},function FailedTikaUpdateDoc(err,results){
+											pool.tika_f_queue.remove({_id: doc["_id"]},function(e,d){
+											//console.log(e,d,2);
+												fs.unlink(doc["content"],function tika_doc_indexer(){
+
+													msg("Tika doc parse error "+doc["urlID"], "error");
+													bot_obj.updateStats("failedPages",1);
+													++done;
+													if(done === docs.length){
+														tika_indexer_busy = false;
+													}
+
+												});
+											
+
+											});
+
+										});
+									}
 									
-									return pool.mongodb_collection.updateOne({"_id":ObjectId(doc["urlID"])},{$set:{"response":"JSON_PARSE_ERROR","abandoned":true, "crawled":false}},function FailedTikaUpdateDoc(err,results){
+									pool.setCrawled(link_details,function(){
 										pool.tika_f_queue.remove({_id: doc["_id"]},function(e,d){
-										//console.log(e,d,2);
+											//console.log(e,d,2);
 											fs.unlink(doc["content"],function tika_doc_indexer(){
 
-												msg("Tika doc parse error "+doc["urlID"], "error");
-												process.bot.updateStats("failedPages",1);
+												msg('Tika doc indexed','success');
 												++done;
 												if(done === docs.length){
 													tika_indexer_busy = false;
 												}
-
 											});
-										
+											
 
 										});
 
 									});
-								}
-								
-								pool.setCrawled(link_details,function(){
-									pool.tika_f_queue.remove({_id: doc["_id"]},function(e,d){
-										//console.log(e,d,2);
-										fs.unlink(doc["content"],function tika_doc_indexer(){
-
-											msg('Tika doc indexed','success');
-											++done;
-											if(done === docs.length){
-												tika_indexer_busy = false;
-											}
-										});
-										
-
-									});
-
 								});
-							});
-						})(doc);
-					}catch(ee){
-						++done;
-						if(done === docs.length){
-							tika_indexer_busy = false;
-						}	
+							})(doc);
+						}catch(ee){
+							++done;
+							if(done === docs.length){
+								tika_indexer_busy = false;
+							}	
+						}
+
 					}
-
 				}
-			}
-			
+				
 
-		});
-	}catch(errr){
-		tika_indexer_busy = false;
+			});
+		}catch(errr){
+			tika_indexer_busy = false;
+		}
 	}
-}
 
 
-process.lock_speed_bucket = false;
 
-function speedUpBucketCreation(){
 
-	if(process.lock_speed_bucket){
-		return;
-	}
-	process.lock_speed_bucket = true;
-	try{
-		pool.stats.crawlStats(function bucket_speed(dic){
+	function speedUpBucketCreation(){
 
-			var processed_buckets = dic["processed_buckets"];
-			var created_buckets = dic["bucket_count"];
-			if(check.assigned(processed_buckets) && check.assigned(created_buckets)){
-				var ratio = processed_buckets/created_buckets;
-				if(ratio > 0.4){
-					process.bucket_time_interval = 2000;
-					msg("Speed up the process of bucket creation","info");
-					//speed up bucket creation
+		if(lock_speed_bucket){
+			return;
+		}
+		lock_speed_bucket = true;
+
+		try{
+			pool.stats.crawlStats(function bucket_speed(dic){
+
+				var processed_buckets = dic["processed_buckets"];
+				var created_buckets = dic["bucket_count"];
+				if(check.assigned(processed_buckets) && check.assigned(created_buckets)){
+					var ratio = processed_buckets/created_buckets;
+					if(ratio > 0.4){
+						bucket_time_interval = 2000;
+						msg("Speed up the process of bucket creation","info");
+						//speed up bucket creation
+					}else{
+						bucket_time_interval = 10000;
+						msg("Slow up the process of bucket creation","info");
+						//slow up bucket creation
+					}
 				}else{
-					process.bucket_time_interval = 10000;
-					msg("Slow up the process of bucket creation","info");
-					//slow up bucket creation
+						bucket_time_interval = 2000;
+						msg("Speed up the process of bucket creation","info");	
+						//speed up bucket creation		
 				}
-			}else{
-					process.bucket_time_interval = 2000;
-					msg("Speed up the process of bucket creation","info");	
-					//speed up bucket creation		
-			}
-			process.lock_speed_bucket = false;
-			clearInterval(process.bucket_timer);
-			process.bucket_timer=setInterval(function(){
-				if(!process.webappOnly && !process.bucket_creater_locked){
+				lock_speed_bucket = false;
+				clearInterval(bucket_timer);
+				bucket_timer=setInterval(function(){
+					if(!trigger.get('webappOnly') && !trigger.get('bucket_creater_locked')){
+						
+						pool.bucketOperation.creator();
+					}
 					
-					pool.bucketOperation.creator();
-				}
-				
-			}, process.bucket_time_interval);
-			process.my_timers.push(process.bucket_timer);
+				}, bucket_time_interval);
+				trigger.get('my_timers').push(bucket_timer);
 
 
-		});
-	}catch(err){
-			process.lock_speed_bucket = false;
-			clearInterval(process.bucket_timer);
-			process.bucket_timer=setInterval(function(){
-				if(!process.webappOnly && !process.bucket_creater_locked){
+			});
+		}catch(err){
+				lock_speed_bucket = false;
+				clearInterval(bucket_timer);
+				bucket_timer=setInterval(function(){
+					if(!trigger.get('webappOnly') && !trigger.get('bucket_creater_locked')){
+						
+						pool.bucketOperation.creator();
+					}
 					
-					pool.bucketOperation.creator();
-				}
-				
-			}, process.bucket_time_interval);
-			process.my_timers.push(process.bucket_timer);		
+				}, bucket_time_interval);
+				trigger.get('my_timers').push(bucket_timer);		
+		}
+
+
 	}
 
 
-}
+	var pool_check_mode=setInterval(function(){
+		if(!trigger.get('tika_setup') && trigger.get('begin_intervals')){
+			var d=setInterval(function(){
+				pool.parserReloader();
 
+			},10000);
 
-process.pool_check_mode=setInterval(function(){
-	if(!process.tika_setup && process.begin_intervals){
-		var d=setInterval(function(){
-			pool.parserReloader();
-
-		},10000);
-		process.my_timers.push(d);
-		process.bucket_timer=setInterval(function(){
-			if(!process.webappOnly && !process.bucket_creater_locked){
+			trigger.get('my_timers').push(d);
+			bucket_timer=setInterval(function(){
+				if(!trigger.get('webappOnly') && !trigger.get('bucket_creater_locked')){
+					
+					pool.bucketOperation.creator();
+				}
 				
-				pool.bucketOperation.creator();
-			}
+			},10000);
+			trigger.get('my_timers').push(bucket_timer);
+			clearInterval(pool_check_mode);//once intervals are set clear the main interval
 			
-		},10000);
-		process.my_timers.push(process.bucket_timer);
-		clearInterval(process.pool_check_mode);//once intervals are set clear the main interval
-		
-		var sb = setInterval(function(){
-			speedUpBucketCreation();
-		},10000);
+			var sb = setInterval(function(){
+				speedUpBucketCreation();
+			},10000);
 
-		process.my_timers.push(sb);
-		if(!process.webappOnly){
-			var tika_indexer = setInterval(indexTikaDocs,1000);
-			process.my_timers.push(tika_indexer);
-		}	
-	}
-},5000);
+			trigger.get('my_timers').push(sb);
+			if(!trigger.get('webappOnly')){
+				var tika_indexer = setInterval(indexTikaDocs,1000);
+				trigger.get('my_timers').push(tika_indexer);
+			}	
+		}
+	},5000);
 
+function msg(){if(!check.assigned(log)){console.log(arguments[0]);return;} log.put(arguments[0],arguments[1],__filename.split('/').pop(), arguments.callee.caller.name.toString());}
 
-
-
-//prototype
-
-
-
-function init(){
-	return pool;
-}
-exports.init=init;
-
-exports.getDic=function(){
-	return pool;
 };
-function msg(){log.put(arguments[0],arguments[1],__filename.split('/').pop(), arguments.callee.caller.name.toString());}
+
+module.exports = MongoDb;
+
