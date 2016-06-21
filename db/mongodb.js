@@ -131,7 +131,7 @@ var MongoDb = function(config_obj, trigger_obj){
 										mul_buckets.push({"_id": ObjectId(), "domains":domains,"links":links,"score":1,"recrawlLabel": fetch_interval,"underProcess":false,"insertedBy":config.getConfig("bot_name"),"recrawlAt":stamp1,"numOfLinks":links.length});
 									}
 
-
+									try{
 	 								that.bucket_collection.insertMany(mul_buckets ,function(err,doc){
 											var successfull = doc['insertedIds'];
 											if(!check.assigned(successfull)){
@@ -214,6 +214,9 @@ var MongoDb = function(config_obj, trigger_obj){
 												});
 						
 									});
+									}catch(e){
+										
+									}
 								
 							
 				

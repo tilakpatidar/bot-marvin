@@ -56,5 +56,11 @@
     "server-graceful-shutdown": "0.1.2",
     "robots": "0.9.4",  
     "immutable": "3.8.1"
+  },
+  "devDependencies": {
+    "mocha": "2.5.3",
+    "chai": "3.5.0",
+    "jsdoc": "3.4.0",
+    "rewire": "2.5.1"
   }
 }

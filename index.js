@@ -26,7 +26,7 @@ var Cluster = require(parent_dir + '/lib/cluster.js')
 var Bot = require(parent_dir + '/lib/bot.js');
 var Robots = require(__dirname + '/lib/robots.js');
 var death = require("death");
-
+var crawler_obj;
 /**
  * Class represents the various triggers set by other classes for specific events.
  * @constructor
@@ -35,6 +35,7 @@ var death = require("death");
 
 var Trigger = function() {
 
+    var that = this;
     /** 
     	Stores the bot object 
     	@private
@@ -61,7 +62,9 @@ var Trigger = function() {
         "reset": false,
         'seedFile': null,
         "seedFileData": null,
-        "removeSeed": null
+        "removeSeed": null,
+        "success_start": false,
+        "bot_stopped":null
     }; //these are shared globally to trigger various async events
 
     /** 
@@ -88,6 +91,7 @@ var Trigger = function() {
     	Sets the trigger property of private var triggers. 
     	@param {String} key
     	@param {Object} value
+
     	@public
     */
     this.set = function set(key, value) {
@@ -95,13 +99,16 @@ var Trigger = function() {
         //first check special triggers
         switch (key) {
             case "stop_bot_and_exit":
-                bot.stopBot(function() {
-                    process.exit(0);
-                });
+                    crawler_obj.exit(function(){
+                        that.set('bot_stopped',true);
+                    });
+                    
                 break;
 
             case "grace_exit":
-                crawler_obj.exit();
+                crawler_obj.exit(function(){
+                        that.set('bot_stopped',true);
+                });
                 break;
 
             case "restart":
@@ -109,7 +116,7 @@ var Trigger = function() {
                 break;
         };
 
-        triggers[k] = value;
+        triggers[key] = value;
 
     };
 
@@ -120,7 +127,7 @@ var Trigger = function() {
 		@public
 	*/
     this.get = function get(key) {
-        return triggers[k];
+        return triggers[key];
     };
 
 };
@@ -128,10 +135,11 @@ var Trigger = function() {
 /**
  * Class responsible for loading and executing all the crawler components in proper sequence.
  * @constructor
+ * @param {Object} args - object containing cmd line args
  *	@author Tilak Patidar <tilakpatidar@gmail.com>
  */
 
-var Crawler = function() {
+var Crawler = function(args) {
 
 	/**
 		Stores Cluster object 
@@ -226,8 +234,9 @@ var Crawler = function() {
 		@private
     */
     function checkDependency() {
-        var dependency = require(__dirname + "/lib/depcheck.js");
-        dependency.check();
+        var Dependency = require(__dirname + "/lib/depcheck.js");
+        var dep_obj = new Dependency();
+        dep_obj.check();
     };
 
 
@@ -258,7 +267,7 @@ var Crawler = function() {
 		Calls cleanUp and kill all active_pids on death event. Ctrl^C
 		@private
     */
-    function deathCleanUp() {
+    function deathCleanUp(fn) {
         //console.log("CAUGHT TERMINATION ",trigger_obj.get('caught_termination'));
         if (trigger_obj.get('caught_termination')) {
             return;
@@ -292,7 +301,11 @@ var Crawler = function() {
 
                     };
                     fs.unlinkSync(__dirname + "/db/pids/active_pids.txt");
-                    process.exit(0);
+                    if(process.RUN_ENV === "TEST"){
+                        trigger_obj.set("bot_stopped",true);
+                    }else{
+                        process.exit(0);
+                    }
 
 
                 });
@@ -365,7 +378,7 @@ var Crawler = function() {
     this.startCluster = function startCluster() {
         var interval_locked = false;
         var tmp_interval = setInterval(function() {
-            //console.log("in startCluster");
+           //console.log("in startCluster");
             if (interval_locked || !isDBLoaded || !isLoggerLoaded) {
                 return;
             }
@@ -397,7 +410,9 @@ var Crawler = function() {
 
     };
 
-
+    this.isStopped = function(){
+        return trigger_obj.get('bot_stopped');
+    };
     /**
 		Reset the bot when --reset arg passed
 		@public
@@ -461,15 +476,31 @@ var Crawler = function() {
 		Exits the crawler by calling cleanUp
 		@public
     */
-    this.exit = function exit() {
+    this.exit = function exit(fn) {
 
         that.cleanUp(function(done) {
             if (done) {
-                process.exit(0);
+                if(process.RUN_ENV === "TEST"){
+                    fn();
+                }else{
+                    fn();
+                    process.exit(0);
+                }
+                
             }
 
         });
     }
+
+
+    /**
+        Returns if bot started successfully
+        @public
+        @return {boolean} status - status from triggers
+    */
+    this.isStarted = function(){
+        return trigger_obj.get('success_start');
+    };
 
 
     /**
@@ -480,6 +511,7 @@ var Crawler = function() {
     this.processInput = function(argv_obj) {
         var interval_locked = false;
         var tmp_interval = setInterval(function() {
+            //console.log("process input interval");
             if (interval_locked || !isClusterStarted || !isDBLoaded || !isLoggerLoaded) {
                 return;
             }
@@ -497,13 +529,24 @@ var Crawler = function() {
 
 
     /**
+        Returns if bot stopped. 
+        Default null. When stopped returns true.
+        @public
+        @return {boolean} status
+    */
+    this.botStopped = function(){
+
+        return trigger_obj.get('bot_stopped');
+    }
+
+    /**
 		When args is parsed this is called to select the action of crawler.
 		@public
     */
     this.selectInput = function selectInput() {
         var interval_locked = false;
         var tmp_interval = setInterval(function() {
-
+        //console.log("selectInput interval");
             if (interval_locked || !isInputsParsed || !isDBLoaded || !isClusterStarted || !isLoggerLoaded) {
                 return;
             }
@@ -514,7 +557,7 @@ var Crawler = function() {
                 config.pullConfig(function() {
 
                     mongo_pool.checkIfNewCrawl(function() {
-
+                        trigger_obj.set('success_start',true);
                         if (trigger_obj.get('editSeedFile')) {
                             seed.editSeedFile();
                         } else if (trigger_obj.get('removeSeed')) {
@@ -551,8 +594,9 @@ var Crawler = function() {
     this.startNormalCrawl = function startNormalCrawl() {
         var interval_locked = false;
         var tmp_interval = setInterval(function() {
-
+            //console.log("start normal interval");
             if (interval_locked || !isInputsParsed || !isDBLoaded || !isClusterStarted || !isNormalCrawl || !isLoggerLoaded) {
+                 
                 return;
             }
 
@@ -611,13 +655,13 @@ var Crawler = function() {
 		@public
 		@param {Function} fn - Callback
     */
-    this.cleanUp = function cleanUp(fn) {
+    this.cleanUp = function cleanUp(fn1) {
         msg("Performing cleanUp ", "info");
-
+        bot_obj.stopBot(function(){
         try {
             process.kill(trigger_obj.get('tikaPID'), "SIGINT");
         } catch (err) {
-            console.log(err);
+            //console.log(err);
             //trying to kill the tika server jar
         }
         //console.log(1);
@@ -647,23 +691,23 @@ var Crawler = function() {
         //console.log(105);
         if (!check.assigned(cluster.fileServer.shutdown)) {
             cluster.fileServer.shutdown = function(fn) {
-                fn();
+                if(fn.constructor.name === 'Function') fn();
             };
         }
         // console.log(106);
         if (!check.assigned(child_manager)) {
             child_manager = {};
-            child_manager.setManagerLocked = function() {
+            child_manager.setManagerLocked = function(fn) {
 
-                fn();
+                if(fn.constructor.name === 'Function') fn();
             };
-            child_manager.killWorkers = function() {
+            child_manager.killWorkers = function(fn) {
 
-                fn();
+                if(fn.constructor.name === 'Function') fn();
 
             };
             child_manager.flushAllInlinks = function(fn) {
-                fn();
+                if(fn.constructor.name === 'Function') fn();
             };
         }
 
@@ -703,7 +747,7 @@ var Crawler = function() {
 
 
                                     mongo_pool.close(function() {
-                                        return fn(true);
+                                        return fn1(true);
                                     });
 
                                 });
@@ -721,7 +765,7 @@ var Crawler = function() {
             });
 
         }); //kill all the workers before quiting
-
+        })
     };
 
 
@@ -729,7 +773,7 @@ var Crawler = function() {
 		Restarts the bot.
 		@public
     */
-    this.restart = function restart() {
+    this.restart = function restart(fn) {
         //restart
         that.cleanUp(function(done) {
             if (done) {
@@ -742,7 +786,12 @@ var Crawler = function() {
                 //ls.stdout.pipe(process.stdout);
                 //process.exit(0);			
                 ls.on("exit", function() {
-                    process.exit(0)
+                    if(process.RUN_ENV === "TEST"){
+                        trigger_obj.set("bot_stopped",true);
+                    }else{
+                        process.exit(0)
+                    }
+                    
                 });
 
             }
@@ -759,7 +808,7 @@ var Crawler = function() {
     this.setLogger = function setLogger(l) {
         var interval_locked = false;
         var tmp_interval = setInterval(function() {
-
+            //console.log("logger interval");
             if (interval_locked || !isDBLoaded) {
                 return;
             }
@@ -786,7 +835,7 @@ var Crawler = function() {
 		@type {Trigger}
     */
     var trigger_obj = new Trigger();
-
+    trigger_obj.setCrawler(this);
 
 	/**
 		Main method of the Crawler.
@@ -796,7 +845,8 @@ var Crawler = function() {
     this.run = function run() {
 
         //some args need to be parsed before
-        var argv = require('minimist')(process.argv.slice(2));
+
+        var argv = require('minimist')(args);
         if (check.assigned(argv["force"])) {
             trigger_obj.set('force_mode', true);
         }
@@ -812,19 +862,15 @@ var Crawler = function() {
         var argv_obj = new ArgumentProcesser(argv, config_obj, seed_obj, trigger_obj);
 
 
-        crawler_obj.loadConfig(config_obj);
-        crawler_obj.loadSeed(seed_obj);
-        crawler_obj.loadDB(pool_obj);
+        that.loadConfig(config_obj);
+        that.loadSeed(seed_obj);
+        that.loadDB(pool_obj);
 
-        crawler_obj.setLogger(log_obj);
-
-        crawler_obj.startCluster();
-
-        crawler_obj.processInput(argv_obj);
-
-        crawler_obj.selectInput();
-
-        crawler_obj.startNormalCrawl();
+        that.setLogger(log_obj);
+        that.startCluster();
+        that.processInput(argv_obj);
+        that.selectInput();
+        that.startNormalCrawl();
 
 
 
@@ -844,7 +890,7 @@ var Crawler = function() {
 
 
 if (require.main === module) {
-    var crawler_obj = new Crawler();
+    crawler_obj = new Crawler(process.argv.slice(2));
     crawler_obj.run();
 
 } else {
