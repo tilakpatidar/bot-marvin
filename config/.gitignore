@@ -1,4 +1,0 @@
-*.log
-*.jar
-*.json
-!.gitignore

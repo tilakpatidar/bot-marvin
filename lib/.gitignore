@@ -1,6 +1,0 @@
-./jars
-./org
-./*.java
-./*.class
-*.jar
-!.gitignore
