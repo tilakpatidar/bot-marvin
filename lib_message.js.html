@@ -54,14 +54,96 @@ var Message = function() {
         "bucket_creator_lock": new Lock(), //used in bucket.js to lock the bucket creator
         "failed_batch_lock": new Lock(), //used in child_manager.js to lock failed queue child creator
         "cluster_master": null, //is this bot running as cluster master
-        "proxy_cache": {}, //url cache for faster bucket creation
+        "proxy_cache": null, //url cache for faster bucket creation
         "inlinks_pool": [], //used in child_manager.js to store discovered urls by spawned workers
         "tikaPID": NaN, //current pid of tika-server.jar
-        "log": {}, //Logger
-        "config": {}, //Config
-        "mongodb_pool": {},//MongoDB
-        "links_store": {} //stores the data from domain_group collection
+        "log": null, //Logger
+        "config": null, //Config
+        "mongodb_pool": null,//MongoDB
+        "links_store": null, //stores the data from domain_group collection
+        "tika_indexer_busy": new Lock(), //used in child_manager.js to lock tika indexer setInterval
+        "rss_updator_lock": new Lock() //used in childmanger.js to lock rss update
     }; //these are shared globally to trigger various async events
+
+
+    /*
+            [ { _id: 'ffd1a56dd8e26ef3c548b7f3430b5269',
+            domains: 
+             [ [Object],
+               [Object],
+               [Object],
+               [Object],
+               [Object],
+               [Object],
+               [Object],
+               [Object],
+               [Object],
+               [Object] ],
+            fetch_interval: 'monthly',
+            bot_name: 'zaphod' } ]    &lt;======  'domain_group'
+
+
+
+            [ 'ffd1a56dd8e26ef3c548b7f3430b5269' ] &lt;======= 'alloted_domain_groups'
+
+
+
+
+            { 'http://www.whitelabelhost.in':     &lt;========== 'links_store'
+               { _id: 'http://www.whitelabelhost.in',
+                 parseFile: 'nutch',
+                 priority: 1,
+                 fetch_interval: 'monthly' },
+              'http://www.anatta.in': 
+               { _id: 'http://www.anatta.in',
+                 parseFile: 'nutch',
+                 priority: 1,
+                 fetch_interval: 'monthly' },
+              'http://www.news-stand.in': 
+               { _id: 'http://www.news-stand.in',
+                 parseFile: 'nutch',
+                 priority: 1,
+                 fetch_interval: 'monthly' },
+              'http://www.chococraft.in': 
+               { _id: 'http://www.chococraft.in',
+                 parseFile: 'nutch',
+                 priority: 1,
+                 fetch_interval: 'monthly' },
+              'http://www.frivil.in': 
+               { _id: 'http://www.frivil.in',
+                 parseFile: 'nutch',
+                 priority: 1,
+                 fetch_interval: 'monthly' },
+              'http://www.customercarenumbers.co.in': 
+               { _id: 'http://www.customercarenumbers.co.in',
+                 parseFile: 'nutch',
+                 priority: 1,
+                 fetch_interval: 'monthly' },
+              'http://www.dgvcl.in': 
+               { _id: 'http://www.dgvcl.in',
+                 parseFile: 'nutch',
+                 priority: 1,
+                 fetch_interval: 'monthly' },
+              'http://www.absplastic.in': 
+               { _id: 'http://www.absplastic.in',
+                 parseFile: 'nutch',
+                 priority: 1,
+                 fetch_interval: 'monthly' },
+              'http://www.smshorizon.co.in': 
+               { _id: 'http://www.smshorizon.co.in',
+                 parseFile: 'nutch',
+                 priority: 1,
+                 fetch_interval: 'monthly' },
+              'http://www.andsanddekh.in': 
+               { _id: 'http://www.andsanddekh.in',
+                 parseFile: 'nutch',
+                 priority: 1,
+                 fetch_interval: 'monthly' } } 'links_store'
+
+
+
+
+    */
 
 
     /** 
@@ -121,13 +203,13 @@ module.exports = Message;</code></pre>
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul><h3>Global</h3><ul><li><a href="global.html#get">get</a></li><li><a href="global.html#set">set</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="RSSFetcher.html">RSSFetcher</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Spawn.html">Spawn</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul><h3>Global</h3><ul><li><a href="global.html#get">get</a></li><li><a href="global.html#set">set</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Sun Jul 10 2016 14:28:30 GMT+0530 (IST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Wed Jul 13 2016 22:34:32 GMT+0530 (IST)
 </footer>
 
 <script> prettyPrint(); </script>

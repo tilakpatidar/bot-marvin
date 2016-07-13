@@ -60,7 +60,7 @@ var TikaQueue = function(message_obj) {
 
     var tika_queue = db.collection(config.getConfig("bot_name") + "_tika_queue");
     var tika_f_queue = db.collection(config.getConfig("bot_name") + "_tika_f_queue");
-
+    //console.log('obj created');
 
     /**
         Dequeue tika jobs from db.
@@ -79,6 +79,11 @@ var TikaQueue = function(message_obj) {
             if (check.assigned(err) || !check.assigned(docs)) {
                 return fn([]);
             }
+
+            if (done === docs.length) {
+                return fn(null);
+            }
+
             for (var index in docs) {
                 var doc = docs[index];
                 (function(doc) {
@@ -148,6 +153,8 @@ var Tika = function(message_obj) {
     var config = message_obj.get('config');
     var URL = new URLClass(message_obj);
     var message = message_obj;
+    var tika_queue;
+    var tika_f_queue;
 
     var that = this;
     var color_debug;
@@ -195,8 +202,8 @@ var Tika = function(message_obj) {
             "status": 0
         }, function revert_queue() {
             msg("pdf-store queue reverted", "success");
-            var tika_f_queue = db.collection(config.getConfig("bot_name") + "_tika_f_queue");
-
+            tika_queue = db.collection(config.getConfig("bot_name") + "_tika_queue");
+            tika_f_queue = db.collection(config.getConfig("bot_name") + "_tika_f_queue");
             that.startServer();
             tika_queue_obj = new TikaQueue(message_obj);
 
@@ -269,6 +276,7 @@ var Tika = function(message_obj) {
     this.submitFile = function submitFile(url, callback) {
         var err;
         //main function of the module
+        //console.log("1", url);
         that.addFileToStore(url, function addFileToStore1(err1) {
 
             if (err1) {
@@ -312,6 +320,8 @@ var Tika = function(message_obj) {
         @public
     */
     this.addFileToStore = function addFileToStore(url, callback) {
+        //console.log("2");
+        //console.log(url, 'addFileToStore');
         var st = fs.createWriteStream(that.getFileName(url)).on('error', function fsstream_addfilestore(err) {
             msg(err.stack, color_debug);
             return callback("TikeFileStreamError");
@@ -433,7 +443,9 @@ var Tika = function(message_obj) {
                 source = fs.createReadStream(that.getFileName(url)).on('error', function source_create(err) {
                     msg(err.stack, color_debug);
                     callback("TikaFileStoreReadError", {});
-                });;
+                });
+
+                //console.log('http://' + config.getConfig("tika_host") + ':' + config.getConfig('tika_port') + '/meta');
                 source.pipe(request.put({
                     url: 'http://' + config.getConfig("tika_host") + ':' + config.getConfig('tika_port') + '/meta',
                     headers: {
@@ -496,19 +508,22 @@ var Tika = function(message_obj) {
         @private
     */
     var processNext = function processNext() {
-        //  console.log("here");
+        //console.log("here processNext");
         if (!tika_queue_lock.enter()) {
             return;
         }
 
+    
 
         try {
+           
             tika_queue_obj.dequeue(function tika_dequeue(li) {
-                //console.log(li);
+                
                 if (!check.assigned(li)) {
                     tika_queue_lock.release();
                     return;
-                } else if (check.assigned(li) &amp;&amp; li.length === 0) {
+                }
+                if (check.assigned(li) &amp;&amp; li.length === 0) {
                     tika_queue_lock.release();
                     return;
                 }
@@ -519,7 +534,7 @@ var Tika = function(message_obj) {
                     (function(fileName, parseFile, uniqueId, link_details) {
 
                         try {
-                            tika.submitFile(fileName, function tika_submit_file(err, body) {
+                            that.submitFile(fileName, function tika_submit_file(err, body) {
                                 //console.log(err);
                                 //console.log(body);
                                 if (err) {
@@ -538,28 +553,32 @@ var Tika = function(message_obj) {
 
                                 } else {
                                     //console.log(body);
-                                    var parser = require(__dirname + "/parsers/" + parseFile);
-                                    var dic = parser.init.parse(body, fileName); //pluggable parser
-                                    msg("fetchFile for " + fileName, "success");
-                                    try {
-                                        var link = URL.url(fileName);
-                                        link.setUrlId(link_details.urlID);
-                                        link.setStatusCode(200);
-                                        link.setParsed(dic[1]);
-                                        link.setResponseTime(0);
-                                        link.setContent(dic[3]);
-                                        if (check.assigned(body) &amp;&amp; check.assigned(body["text"])) {
-                                            var md5sum = crypto.createHash('md5');
-                                            md5sum.update(body["text"]);
-                                            var hash = md5sum.digest('hex');
-                                            link.setContentMd5(hash);
+                                    var Parser = require(__dirname + "/parsers/" + parseFile);
+                                    var parser_obj = new Parser(config);
+                                    parser_obj.parse(body, fileName,function(dic){
+
+
+                                         //pluggable parser
+                                        msg("fetchFile for " + fileName, "success");
+                                        try {
+                                            var link = URL.url(fileName);
+                                            link.setUrlId(link_details.urlID);
+                                            link.setStatusCode(200);
+                                            link.setParsed(dic[1]);
+                                            link.setResponseTime(0);
+                                            link.setContent(dic[3]);
+                                            if (check.assigned(body) &amp;&amp; check.assigned(body["text"])) {
+                                                var md5sum = crypto.createHash('md5');
+                                                md5sum.update(body["text"]);
+                                                var hash = md5sum.digest('hex');
+                                                link.setContentMd5(hash);
+                                            }
+
+                                            that.indexTikaDoc(link);
+                                        } catch (e) {
+                                            msg(e.stack, color_debug);
                                         }
-
-                                        that.indexTikaDoc(link);
-                                    } catch (e) {
-                                        msg(e.stack, color_debug);
-                                    }
-
+                                    });
 
                                 }
                                 ++done;
@@ -573,6 +592,7 @@ var Tika = function(message_obj) {
 
                             });
                         } catch (err) {
+                            //console.log(err, "IN error block");
                             msg("error from fetchFile for " + fileName, "error");
                             try {
                                 var link = URL.url(fileName);
@@ -605,6 +625,8 @@ var Tika = function(message_obj) {
 
             }, config.getConfig("tika_batch_size")); //[[],[]]
         } catch (e) {
+            
+            console.log(e, "error");
             tika_queue_lock.release();
         }
 
@@ -720,13 +742,13 @@ function msg() {
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul><h3>Global</h3><ul><li><a href="global.html#get">get</a></li><li><a href="global.html#set">set</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="RSSFetcher.html">RSSFetcher</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Spawn.html">Spawn</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul><h3>Global</h3><ul><li><a href="global.html#get">get</a></li><li><a href="global.html#set">set</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Sun Jul 10 2016 14:28:30 GMT+0530 (IST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Wed Jul 13 2016 22:34:32 GMT+0530 (IST)
 </footer>
 
 <script> prettyPrint(); </script>

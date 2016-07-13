@@ -287,11 +287,12 @@ var Sitemap = function(message_obj) {
                     };
                     parseCnt++;
                     //console.log(parseCnt,"parseCnt",sUrlSize)
-                    if (parseCnt === sUrlSize) {
+                    if (parseCnt >= sUrlSize) {
                         callback(error, js);
                         return;
                     }
                 } else if (s = data.sitemapindex) {
+                	parseCnt++;
                     var sitemapUrls = _.flatten(_.pluck(s.sitemap, "loc"));
                     sUrlSize += _.size(sitemapUrls);
                     _.each(sitemapUrls, function(url) {
@@ -300,11 +301,16 @@ var Sitemap = function(message_obj) {
                     });
                 } else {
                     error = "no valid xml";
+                    parseCnt++;
+                    if (parseCnt >= sUrlSize) {
+                        callback(error, js);
+                        return;
+                    }
                 }
             } else {
                 parseCnt++;
-                //console.log(parseCnt,"parseCnt",sUrlSize)
-                if (parseCnt === sUrlSize) {
+                //console.log(parseCnt,"parseCnt",sUrlSize,"  two")
+                if (parseCnt >= sUrlSize) {
                     callback(error, js);
                     return;
                 }
@@ -322,21 +328,25 @@ var Sitemap = function(message_obj) {
 
     */
     this.updateSiteMap = function updateSiteMap(domain, sites, fn) {
+    	
+    		pool.sitemap_collection.insert({
+            "_id": domain
+        	}, function updateSiteMapInsert(err, results) {
+	            msg("Updated sitemap file for " + domain + "in db", "info");
 
-        pool.sitemap_collection.insert({
-            "_id": domain,
-            "sites": sites
-        }, function updateSiteMapInsert(err, results) {
-            msg("Updated sitemap file for " + domain + "in db", "info");
+	            message.set('inlinks_pool', message.get('inlinks_pool').concat(sites));
+	            if(check.assigned(fn)){
+	            	fn();
+	            }else{
+	            	return;
+	            }
 
-            message.set('inlinks_pool', message.get('inlinks_pool').concat(sites));
-
-
-        });
+        	});
+    	
 
     };
 
-
+  
     /**
     	Queues urls for sitemap fetching
     	@public
@@ -379,9 +389,9 @@ var Sitemap = function(message_obj) {
                 msg('Sitemap domains pushed into queue', 'success');
 
 
-                setTimeout(function() {
+                process.nextTick(function() {
                     lazy_sitemap_updator(sitemap_queue.splice(0, 1)[0]);
-                }, 1000);
+                });
                 //insert sitemap urls
 
                 if (check.assigned(fn)) {
@@ -424,27 +434,28 @@ var Sitemap = function(message_obj) {
 
 
                 that.getSites(abs, function(err, sites) {
+                	//console.log(arguments);
                     if (!err) {
 
                         that.updateSiteMap(domain, sites, function() {
-                            setTimeout(function() {
+                            process.nextTick(function() {
                                 lazy_sitemap_updator(sitemap_queue.splice(0, 1)[0]);
-                            }, 1000);
+                            });
 
                         });
                     } else {
                         msg("Sitemap could not be downloaded for " + domain, "error");
-                        pool.updateSiteMap(domain, [], function() {
-                            setTimeout(function() {
+                        that.updateSiteMap(domain, [], function() {
+                            process.nextTick(function() {
                                 lazy_sitemap_updator(sitemap_queue.splice(0, 1)[0]);
-                            }, 1000);
+                            });
                         });
                     }
                 });
             } else {
-                setTimeout(function() {
+                process.nextTick(function() {
                     lazy_sitemap_updator(sitemap_queue.splice(0, 1)[0]);
-                }, 1000);
+                });
             }
         });
     };
@@ -467,13 +478,13 @@ module.exports = Sitemap;</code></pre>
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul><h3>Global</h3><ul><li><a href="global.html#get">get</a></li><li><a href="global.html#set">set</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="RSSFetcher.html">RSSFetcher</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Spawn.html">Spawn</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul><h3>Global</h3><ul><li><a href="global.html#get">get</a></li><li><a href="global.html#set">set</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Sun Jul 10 2016 14:28:30 GMT+0530 (IST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Wed Jul 13 2016 22:34:32 GMT+0530 (IST)
 </footer>
 
 <script> prettyPrint(); </script>

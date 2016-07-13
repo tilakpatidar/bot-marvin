@@ -196,19 +196,23 @@ var SeedLoader = function SeedReloader(message_obj) {
     		@public
     */
     this.seed = function seed(fn) {
-
+    	var sitemap_links = [];
         that.getParsers(function() {
             var done = 0;
             var success = 0;
             var stamp1 = new Date().getTime() - 2000; //giving less time
 
             //generate seed buckets from domain_groups
-
+            //console.log(message.get('domain_group'));
             var mul_buckets = [];
             for (var ind in message.get('domain_group')) {
                 var sub_group = message.get('domain_group')[ind];
+
                 var domains = sub_group["_id"];
                 var links = _.pluck(sub_group["domains"], "_id");
+                if(sub_group["bot_name"] === config.getConfig("bot_name")){
+                	sitemap_links = sitemap_links.concat(links);
+                }
                 var fetch_interval = sub_group["fetch_interval"];
                 mul_buckets.push({
                     "_id": ObjectId(),
@@ -224,7 +228,7 @@ var SeedLoader = function SeedReloader(message_obj) {
             }
 
             try {
-                pool.bucket_collection.insertMany(mul_buckets, function(err, doc) {
+                pool.bucket_collection.insertMany(mul_buckets, {ordered: false}, function(err, doc) {
                     var successfull = doc['insertedIds'];
                     if (!check.assigned(successfull)) {
                         var successfull = _.pluck(doc.getInsertedIds(), '_id');
@@ -276,14 +280,14 @@ var SeedLoader = function SeedReloader(message_obj) {
                     };
                     //console.log(regex_urlfilter)
                     var sitemap = new Sitemap(message_obj);
-                    sitemap.queueSitemaps(links);
+                    sitemap.queueSitemaps(sitemap_links);
 
                     if (inserted_docs.length === 0) {
 
                         return fn(false);
                     }
 
-                    pool.mongodb_collection.insertMany(inserted_docs, function initBySeed(err, doc) {
+                    pool.mongodb_collection.insertMany(inserted_docs, {ordered: false},function initBySeed(err, doc) {
 
 
 
@@ -370,7 +374,7 @@ var SeedLoader = function SeedReloader(message_obj) {
 
         var domain_group = [];
         //list is nested list with each list having domains and last element having md5 hash of domains concataneated
-        //each sublist priority sums to 10 and all of them having same fetch_interval
+        //each sublist priority sums to 100 and all of them having same fetch_interval
 
 
         var n_domains = _.size(message.get('links_store'));
@@ -398,7 +402,7 @@ var SeedLoader = function SeedReloader(message_obj) {
                     var summer = 0;
                     var continue_flag = false;
                     var iterations = 0;
-                    while (summer &lt; 10) {
+                    while (summer &lt; 100) {
                         message.get('bucket_priority')[k].push("begin"); //marker element
                         var d = getCurrentDomain(k);
                         iterations += 1;
@@ -409,7 +413,7 @@ var SeedLoader = function SeedReloader(message_obj) {
                                 //entire round is complete and still we got zero domains
                                 continue_flag = true; //got nothing skip this fetch_interval
                             } else {
-                                continue_flag = false; //was not able to add up to 10 
+                                continue_flag = false; //was not able to add up to 100 
                             }
                             message.get('bucket_priority')[k].splice(0, 1)[0];
                             message.get('bucket_priority')[k].push("begin"); //marker element
@@ -427,11 +431,11 @@ var SeedLoader = function SeedReloader(message_obj) {
                         domains.push(d);
 
 
-                        if (summer === 10) {
+                        if (summer === 100) {
                             //when ratio is complete break
                             break;
-                        } else if (summer > 10) {
-                            //retrace if sum > 10
+                        } else if (summer > 100) {
+                            //retrace if sum > 100
                             summer -= d["priority"];
 
 
@@ -484,9 +488,9 @@ var SeedLoader = function SeedReloader(message_obj) {
 
 
 
-            console.log(docs_temp, "docs_temp");
+            //console.log(docs_temp, "docs_temp");
             //return fn();
-            pool.domain_group_collection.insertMany(docs_temp, function bulkInsertSublist() {
+            pool.domain_group_collection.insertMany(docs_temp, {ordered: false}, function bulkInsertSublist() {
                 msg("Sub list dumped in db", 'success');
                 return fn();
             });
@@ -718,7 +722,7 @@ var SeedLoader = function SeedReloader(message_obj) {
                 var hash = generateMD5(data.toString());
                 if (hash !== doc["hash"]) {
                     msg("Parsers changed from server restarting . . .", "info");
-                    message.emit("restart");
+                    message.set("restart", true);
                 }
             };
         });
@@ -772,7 +776,7 @@ var SeedLoader = function SeedReloader(message_obj) {
 
         priority = parseInt(priority);
 
-        if (!check.number(priority) || priority > 10) {
+        if (!check.number(priority) || priority > 100) {
             fn([false, {}]);
             return;
         }
@@ -831,6 +835,7 @@ var SeedLoader = function SeedReloader(message_obj) {
         }).toArray(function readSeedCol(err, results) {
 
             message.set('domain_group', _.clone(results));
+            //console.log(message.get('domain_group'), "domain_group");
             if (results.length === 0) {
                 //empty seed file
                 msg("Empty seed file", "error");
@@ -839,7 +844,7 @@ var SeedLoader = function SeedReloader(message_obj) {
                 return;
             }
             message.set('alloted_domain_groups', _.flatten(_.pluck(results, '_id')));
-
+            //console.log(message.get('alloted_domain_groups'), 'alloted_domain_groups');
             results = _.flatten(_.pluck(results, "domains"));
             var intervals = _.pluck(results, 'fetch_interval');
             intervals = _.uniq(intervals);
@@ -868,7 +873,7 @@ var SeedLoader = function SeedReloader(message_obj) {
 
 
             message.set('links_store', results);
-
+            //console.log(message.get('links_store'), 'links_store');
 
             // links_store is json with domains as keys
             // that.bucket_priority is list of seed jsons
@@ -1030,13 +1035,13 @@ module.exports = SeedLoader;</code></pre>
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul><h3>Global</h3><ul><li><a href="global.html#get">get</a></li><li><a href="global.html#set">set</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="RSSFetcher.html">RSSFetcher</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Spawn.html">Spawn</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul><h3>Global</h3><ul><li><a href="global.html#get">get</a></li><li><a href="global.html#set">set</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Sun Jul 10 2016 14:28:30 GMT+0530 (IST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Wed Jul 13 2016 22:34:32 GMT+0530 (IST)
 </footer>
 
 <script> prettyPrint(); </script>

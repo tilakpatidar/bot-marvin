@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: lib/proto.js</title>
+    <title>JSDoc: Source: lib/rss.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: lib/proto.js</h1>
+    <h1 class="page-title">Source: lib/rss.js</h1>
 
     
 
@@ -26,47 +26,60 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>/**
-    Provides all the prototype classes.
-    @author Tilak Patidar&lt;tilakpatidar@gmail.com>
-    @constructor
+            <pre class="prettyprint source linenums"><code>var feed = require("feed-read");
+var _ = require("underscore");
+
+/**
+	Parses RSS feeds and updates inlinks in the crawler.
+	Links are provided from rss collection of the crawler.
+	@constructor
+	@author Tilak Patidar&lt;tilakpatidar@gmail.com>
+	@param {Message} message_obj
 */
-var Proto = function() {
+
+var RSSFetcher = function(message_obj){
+
+	var message = message_obj;
+
+	/**
+		Returns links of all the articles from the rss.
+		@public
+		@param {String} rss_link
+	*/
+	this.getLinks = function(rss_link, fn){
+		
+		feed(rss_link, function(err, articles) {
+			//console.log(arguments);
+			if(err){
+				return fn([]);
+			}
+
+			return fn(_.pluck(articles, "link"));
+		});
+
+	};
+
+
+	/**
+		Returns links of all the articles from the rss.
+		@public
+		@param {String} rss_link
+	*/
+	this.getRssContent = function(rss_link){
+
+		feed(rss_link, function(err, articles) {
+
+			if(err){
+				return fn([]);
+			}
+
+			return articles;
+		});
+	};
 
 };
 
-
-var JSONX = require("./JSONX.js");
-var ObjectX = require("./ObjectX.js");
-
-
-/**
-    Static link to JSONX class
-    @static
-    @type {JSONX}
-*/
-Proto.JSONX = JSONX;
-/**
-    Static link to ObjectX class
-    @static
-    @type {ObjectX}
-*/
-Proto.ObjectX = ObjectX;
-
-/**
-    Provides absolute path of the file, from where it is called.
-    @static
-    @param {String} dirname - pass the __dirname
-    @returns {String}
-*/
-Proto.getAbsolutePath = function(dirname) {
-    var temp = dirname.split("/");
-    temp.pop();
-    var parent_dir = temp.join("/");
-    return parent_dir;
-}
-
-module.exports = Proto</code></pre>
+module.exports = RSSFetcher;</code></pre>
         </article>
     </section>
 

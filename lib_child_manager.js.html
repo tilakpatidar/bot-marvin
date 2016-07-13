@@ -50,7 +50,8 @@ var fs = require("fs");
 var ObjectId = require('mongodb').ObjectId;
 var proxy_cache_class = require(parent_dir + '/lib/bucket_proxy.js');
 var Lock = require(parent_dir + '/lib/lock.js');
-
+var RSSFetcher = require(parent_dir + '/lib/rss.js');
+var URL = require(parent_dir+ "/lib/url.js");
 /**
     Manages crawling workers owned by the bot and manages 
     the communication and cordination between workers. 
@@ -69,6 +70,7 @@ var ChildManager = function(message_obj) {
     message.set('inlinks_pool', []);
 
     var first_time_lock = new Lock();
+    var prev_domain_grp = "";
 
     
     message.set('begin_intervals', true);
@@ -82,6 +84,8 @@ var ChildManager = function(message_obj) {
     var graph = new Graph(message);
     var server = new Server(message);
     server.start();
+    URL = new URL(message);
+    var rss_fetcher_obj = new RSSFetcher(message);
 
     /**
         Responsible for allocating vacant childs 
@@ -130,11 +134,18 @@ var ChildManager = function(message_obj) {
 
 
     var getNextBatch = function getNextBatch(result, batchSize) {
+        
+        var grp = JSON.parse(JSON.stringify(message.get('alloted_domain_groups')));
+        var indexx = message.get('alloted_domain_groups').indexOf(prev_domain_grp);
+        
+        if(indexx >= 0){
+            delete grp[indexx];
+        }
 
         var stamp1 = new Date().getTime();
         pool.bucket_collection.findAndModify({
             "domains": {
-                "$in": message.get('alloted_domain_groups')
+                "$in": grp
             },
             "underProcess": false,
             "recrawlAt": {
@@ -154,6 +165,8 @@ var ChildManager = function(message_obj) {
             //console.log(object,err1)
             if (check.assigned(object) &amp;&amp; check.assigned(object.value)) {
                 var hash = object["value"]["_id"];
+                prev_domain_grp = object["value"]["domains"];
+                //console.log(prev_domain_grp, "prev_domain_grp");
                 //#debug#console.log(hash);
                 var refresh_label = object["value"]["recrawlLabel"];
                 pool.mongodb_collection.find({
@@ -164,6 +177,7 @@ var ChildManager = function(message_obj) {
                 }, {}, {}).toArray(function getNextBatchFind(err, docs) {
                     //console.log(err,docs);
                     if (!check.assigned(err) &amp;&amp; docs.length === 0) {
+                        prev_domain_grp = "";
                         //we got empty bucket remove it 
                         //every time seed bucket is readded if seeds are already added
                         //this could lead to empty bucket
@@ -179,7 +193,7 @@ var ChildManager = function(message_obj) {
                         });
                     }
                     if (err) {
-
+                        prev_domain_grp = "";
                         msg("getNextBatch", "error");
                         result(null, [], null, null);
                         return;
@@ -481,6 +495,57 @@ var ChildManager = function(message_obj) {
 
     }
 
+    /**
+        Fetches rss files and updates links from it.
+        Rss file links are provided from the rss collection of crawler.
+        This function is run in a setInterval.
+        @private
+    */
+
+    function rss_links_updator(){
+
+        if(!message.get("rss_updator_lock").enter()){
+            return;
+        }
+
+        try{
+            pool.rss_feeds.findOne({"nextRefresh":{"$lt": new Date().getTime()}}, function(err, doc){
+               
+               if(check.assigned(err) || !check.assigned(doc)){
+                    message.get("rss_updator_lock").release();
+                    return;
+               }
+                rss_fetcher_obj.getLinks(doc["_id"],function(li){
+
+                    pool.rss_feeds.updateOne({"_id": doc["_id"]},{"$set":{"nextRefresh": new Date().getTime() + 86400000}},function(){
+                        
+                        var l = [];
+
+                        for(var index in li){
+                            var item = li[index];
+                            var url = URL.url(item);
+                            if(url.isAccepted()){
+                                l.push(url.details.url);
+                            }
+                        }
+
+                        
+
+                        message.set('inlinks_pool', message.get('inlinks_pool').concat(l));
+
+                        msg("links " + l.length + " obtained from rss " + doc["_id"], "success");
+                        message.get("rss_updator_lock").release();
+                    
+                    });
+                });
+            });
+        }catch(e){
+            console.log(e, "rss_links_updator");
+            message.get("rss_updator_lock").release();
+        }
+
+
+    }
 
     /**
         Launches a child process for pdf requests
@@ -496,6 +561,9 @@ var ChildManager = function(message_obj) {
             });
             spawned["tika"] = tika;
             tika.on("message", childFeedback);
+            tika.on("error",function(){
+                console.log(arguments);
+            });
             tika.on('close', function tika_close(code) {
                 if (code !== 0) {
 
@@ -544,6 +612,7 @@ var ChildManager = function(message_obj) {
         }, 20000);
         var a = setInterval(starter, 2000);
         var b = setInterval(nextFailedBatch, 15000);
+        var rss = setInterval(rss_links_updator, 1000);
         //var c1 = setInterval(botKiller,config.getConfig('child_timeout'));
         message.set('my_timers', message.get('my_timers').concat([a, b, tika_restarter]));
 
@@ -597,7 +666,6 @@ var ChildManager = function(message_obj) {
         }
 
         var inserted_docs = [];
-        var urlMap = {};
         for (var i = 0; i &lt; li.length; i++) {
             //inserting new links in cache
             var domain = li[i][1];
@@ -634,7 +702,6 @@ var ChildManager = function(message_obj) {
                 "level": level,
                 "md5": md5
             };
-            urlMap[unique_id] = doc;
             inserted_docs.push(doc);
 
 
@@ -642,31 +709,16 @@ var ChildManager = function(message_obj) {
 
         };
 
-        pool.mongodb_collection.insertMany(inserted_docs, function insertLinksMany(err, doc) {
+        pool.mongodb_collection.insertMany(inserted_docs, {ordered: false}, function insertLinksMany(err, doc) {
             //console.log(arguments);
             //console.log(err);
             if (check.assigned(err)) {
                 msg("error in insertMany, may be some duplicate urls discovered", "error");
-                fn();
+                
             } else {
                 msg("Inlinks flushed in db", "success");
             }
-            var successfull = doc['insertedIds'];
-            if (!check.assigned(successfull)) {
-                var successfull = _.pluck(doc.getInsertedIds(), '_id');
-            }
-            for (var index in successfull) {
-                var success = successfull[index];
-                var url_obj = urlMap[success];
-                if (!check.assigned(message.get('proxy_cache'))) {
-                    message.set('proxy_cache', new proxy_cache_class(config.getConfig('inlink_cache_size')));
-                }
-                message.get('proxy_cache').pushURL(url_obj);
-                fn();
-            }
-
-
-
+            fn();
 
 
         });
@@ -1085,33 +1137,44 @@ var ChildManager = function(message_obj) {
 
     function indexTikaDocs() {
         try {
-            if (tika_indexer_busy) {
+            
+
+            if (!message.get("tika_indexer_busy").enter()) {
                 return;
             }
-            tika_indexer_busy = true;
+
             pool.tika_f_queue.find({}, {
                 limit: 100
             }).toArray(function(err, docs) {
-                //console.log(err,docs);
+
                 if (!check.assigned(err) &amp;&amp; check.assigned(docs) &amp;&amp; docs.length !== 0) {
+
                     var done = 0;
+
                     for (var index in docs) {
+
                         try {
                             var doc = docs[index];
                             (function(doc) {
+
                                 fs.readFile(doc["content"], function(err, data) {
                                     //if file is not written yet to the cache race condition
+                                    //console.log(arguments);
                                     if (!check.assigned(data) || check.assigned(err)) {
                                         ++done;
                                         if (done === docs.length) {
-                                            tika_indexer_busy = false;
+                                            message.get("tika_indexer_busy").release();
                                         }
+                                        
                                         return;
+
                                     }
+
+
                                     try {
                                         var link_details = JSON.parse(data.toString());
                                     } catch (ee) {
-                                        console.log(ee);
+                                        //console.log(ee);
                                         return pool.mongodb_collection.updateOne({
                                             "_id": ObjectId(doc["urlID"])
                                         }, {
@@ -1131,7 +1194,7 @@ var ChildManager = function(message_obj) {
                                                     bot_obj.updateStats("failedPages", 1);
                                                     ++done;
                                                     if (done === docs.length) {
-                                                        tika_indexer_busy = false;
+                                                        message.get("tika_indexer_busy").release();
                                                     }
 
                                                 });
@@ -1142,7 +1205,7 @@ var ChildManager = function(message_obj) {
                                         });
                                     }
 
-                                    pool.setCrawled(link_details, function() {
+                                    that.setCrawled(link_details, function() {
                                         pool.tika_f_queue.remove({
                                             _id: doc["_id"]
                                         }, function(e, d) {
@@ -1152,7 +1215,8 @@ var ChildManager = function(message_obj) {
                                                 msg('Tika doc indexed', 'success');
                                                 ++done;
                                                 if (done === docs.length) {
-                                                    tika_indexer_busy = false;
+                                                    message.get("tika_indexer_busy").release();
+                                                    return;
                                                 }
                                             });
 
@@ -1165,17 +1229,26 @@ var ChildManager = function(message_obj) {
                         } catch (ee) {
                             ++done;
                             if (done === docs.length) {
-                                tika_indexer_busy = false;
+                                message.get("tika_indexer_busy").release();
+                                return;
                             }
                         }
 
                     }
+                }else{
+                    message.get("tika_indexer_busy").release();
+                    return;
                 }
+
+
+
+
 
 
             });
         } catch (errr) {
-            tika_indexer_busy = false;
+            console.log(errr, "err");
+            message.get("tika_indexer_busy").release();
         }
     }
 
@@ -1222,13 +1295,13 @@ module.exports = ChildManager;</code></pre>
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul><h3>Global</h3><ul><li><a href="global.html#get">get</a></li><li><a href="global.html#set">set</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="RSSFetcher.html">RSSFetcher</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Spawn.html">Spawn</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul><h3>Global</h3><ul><li><a href="global.html#get">get</a></li><li><a href="global.html#set">set</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Sun Jul 10 2016 14:28:30 GMT+0530 (IST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Wed Jul 13 2016 22:34:32 GMT+0530 (IST)
 </footer>
 
 <script> prettyPrint(); </script>
