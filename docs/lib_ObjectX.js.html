@@ -34,18 +34,18 @@
 
 */
 
-var ObjectX = function(){
+var ObjectX = function() {
 
 
 };
 
- if (!Array.prototype.find) {
-      Array.prototype.find = function(predicate) {
+if (!Array.prototype.find) {
+    Array.prototype.find = function(predicate) {
         if (this === null) {
-          throw new TypeError('Array.prototype.find called on null or undefined');
+            throw new TypeError('Array.prototype.find called on null or undefined');
         }
         if (typeof predicate !== 'function') {
-          throw new TypeError('predicate must be a function');
+            throw new TypeError('predicate must be a function');
         }
         var list = Object(this);
         var length = list.length >>> 0;
@@ -53,20 +53,21 @@ var ObjectX = function(){
         var value;
 
         for (var i = 0; i &lt; length; i++) {
-          value = list[i];
-          if (predicate.call(thisArg, value, i, list)) {
-            return value;
-          }
+            value = list[i];
+            if (predicate.call(thisArg, value, i, list)) {
+                return value;
+            }
         }
         return undefined;
-      };
-    }
+    };
+}
 
-    if (!Object.freeze || typeof Object.freeze !== 'function') {
-        throw Error('ES5 support required');
-    }
-    // from ES5
-    var O = Object, OP = O.prototype,
+if (!Object.freeze || typeof Object.freeze !== 'function') {
+    throw Error('ES5 support required');
+}
+// from ES5
+var O = Object,
+    OP = O.prototype,
     create = O.create,
     defineProperty = O.defineProperty,
     defineProperties = O.defineProperties,
@@ -92,33 +93,46 @@ function defaults(dst, src) {
     });
     return dst;
 };
-var isObject = function(o) { return o === Object(o) };
-var isPrimitive = function(o) { return o !== Object(o) };
-var isFunction = function(f) { return typeof(f) === 'function' };
-var signatureOf = function(o) { return toString.call(o) };
+var isObject = function(o) {
+    return o === Object(o)
+};
+var isPrimitive = function(o) {
+    return o !== Object(o)
+};
+var isFunction = function(f) {
+    return typeof(f) === 'function'
+};
+var signatureOf = function(o) {
+    return toString.call(o)
+};
 var HASWEAKMAP = (function() { // paranoia check
     try {
         var wm = new WeakMap();
         wm.set(wm, wm);
         return wm.get(wm) === wm;
-    } catch(e) {
+    } catch (e) {
         return false;
     }
 })();
 // exported
-function is (x, y) {
-    return x === y
-        ? x !== 0 ? true
-        : (1 / x === 1 / y) // +-0
-    : (x !== x &amp;&amp; y !== y); // NaN
+function is(x, y) {
+    return x === y ?
+        x !== 0 ? true :
+        (1 / x === 1 / y) // +-0
+        :
+        (x !== x &amp;&amp; y !== y); // NaN
 };
-function isnt (x, y) { return !is(x, y) };
+
+function isnt(x, y) {
+    return !is(x, y)
+};
 var defaultCK = {
-    descriptors:true,
-    extensibility:true, 
-    enumerator:getOwnPropertyNames
+    descriptors: true,
+    extensibility: true,
+    enumerator: getOwnPropertyNames
 };
-function equals (x, y, ck) {
+
+function equals(x, y, ck) {
     var vx, vy;
     if (HASWEAKMAP) {
         vx = new WeakMap();
@@ -127,70 +141,72 @@ function equals (x, y, ck) {
     ck = defaults(ck || {}, defaultCK);
     return (function _equals(x, y) {
         if (isPrimitive(x)) return is(x, y);
-        if (isFunction(x))  return is(x, y);
+        if (isFunction(x)) return is(x, y);
         // check deeply
-        var sx = signatureOf(x), sy = signatureOf(y);
+        var sx = signatureOf(x),
+            sy = signatureOf(y);
         var i, l, px, py, sx, sy, kx, ky, dx, dy, dk, flt;
         if (sx !== sy) return false;
         switch (sx) {
-        case '[object Array]':
-        case '[object Object]':
-            if (ck.extensibility) {
-                if (isExtensible(x) !== isExtensible(y)) return false;
-                if (isSealed(x) !== isSealed(y)) return false;
-                if (isFrozen(x) !== isFrozen(y)) return false;
-            }
-            if (vx) {
-                if (vx.has(x)) {
-                    // console.log('circular ref found');
-                    return vy.has(y);
+            case '[object Array]':
+            case '[object Object]':
+                if (ck.extensibility) {
+                    if (isExtensible(x) !== isExtensible(y)) return false;
+                    if (isSealed(x) !== isSealed(y)) return false;
+                    if (isFrozen(x) !== isFrozen(y)) return false;
                 }
-                vx.set(x, true);
-                vy.set(y, true);
-            }
-            px = ck.enumerator(x);
-            py = ck.enumerator(y);
-            if (ck.filter) {
-                flt = function(k) {
-                    var d = getOwnPropertyDescriptor(this, k);
-                    return ck.filter(d, k, this);
-                };
-                px = px.filter(flt, x);
-                py = py.filter(flt, y);
-            }
-            if (px.length != py.length) return false;
-            px.sort(); py.sort();
-            for (i = 0, l = px.length; i &lt; l; ++i) {
-                kx = px[i];
-                ky = py[i];
-                if (kx !== ky) return false;
-                dx = getOwnPropertyDescriptor(x, ky);
-                dy = getOwnPropertyDescriptor(y, ky);
-                if ('value' in dx) {
-                    if (!_equals(dx.value, dy.value)) return false;
-                } else {
-                    if (dx.get &amp;&amp; dx.get !== dy.get) return false;
-                    if (dx.set &amp;&amp; dx.set !== dy.set) return false;
+                if (vx) {
+                    if (vx.has(x)) {
+                        // console.log('circular ref found');
+                        return vy.has(y);
+                    }
+                    vx.set(x, true);
+                    vy.set(y, true);
                 }
-                if (ck.descriptors) {
-                    if (dx.enumerable !== dy.enumerable) return false;
-                    if (ck.extensibility) {
-                        if (dx.writable !== dy.writable)
-                            return false;
-                        if (dx.configurable !== dy.configurable)
-                            return false;
+                px = ck.enumerator(x);
+                py = ck.enumerator(y);
+                if (ck.filter) {
+                    flt = function(k) {
+                        var d = getOwnPropertyDescriptor(this, k);
+                        return ck.filter(d, k, this);
+                    };
+                    px = px.filter(flt, x);
+                    py = py.filter(flt, y);
+                }
+                if (px.length != py.length) return false;
+                px.sort();
+                py.sort();
+                for (i = 0, l = px.length; i &lt; l; ++i) {
+                    kx = px[i];
+                    ky = py[i];
+                    if (kx !== ky) return false;
+                    dx = getOwnPropertyDescriptor(x, ky);
+                    dy = getOwnPropertyDescriptor(y, ky);
+                    if ('value' in dx) {
+                        if (!_equals(dx.value, dy.value)) return false;
+                    } else {
+                        if (dx.get &amp;&amp; dx.get !== dy.get) return false;
+                        if (dx.set &amp;&amp; dx.set !== dy.set) return false;
+                    }
+                    if (ck.descriptors) {
+                        if (dx.enumerable !== dy.enumerable) return false;
+                        if (ck.extensibility) {
+                            if (dx.writable !== dy.writable)
+                                return false;
+                            if (dx.configurable !== dy.configurable)
+                                return false;
+                        }
                     }
                 }
-            }
-            return true;
-        case '[object RegExp]':
-        case '[object Date]':
-        case '[object String]':
-        case '[object Number]':
-        case '[object Boolean]':
-            return ''+x === ''+y;
-        default:
-            throw TypeError(sx + ' not supported');
+                return true;
+            case '[object RegExp]':
+            case '[object Date]':
+            case '[object String]':
+            case '[object Number]':
+            case '[object Boolean]':
+                return '' + x === '' + y;
+            default:
+                throw TypeError(sx + ' not supported');
         }
     })(x, y);
 }
@@ -223,17 +239,17 @@ var defaultProperties = function(dst, descs) {
        @param {Object} src
 */
 ObjectX.clone = function clone(src, deep, ck) {
-        var wm;
-        if (deep &amp;&amp; HASWEAKMAP) {
-            wm = new WeakMap();
-        }
-        ck = defaults(ck || {}, defaultCK);
-        return (function _clone(src) {
-            // primitives and functions
-            if (isPrimitive(src)) return src;
-            if (isFunction(src)) return src;
-            var sig = signatureOf(src);
-            switch (sig) {
+    var wm;
+    if (deep &amp;&amp; HASWEAKMAP) {
+        wm = new WeakMap();
+    }
+    ck = defaults(ck || {}, defaultCK);
+    return (function _clone(src) {
+        // primitives and functions
+        if (isPrimitive(src)) return src;
+        if (isFunction(src)) return src;
+        var sig = signatureOf(src);
+        switch (sig) {
             case '[object Array]':
             case '[object Object]':
                 if (wm) {
@@ -253,7 +269,7 @@ ObjectX.clone = function clone(src, deep, ck) {
                         if (ck.descriptors) {
                             var desc = getOwnPropertyDescriptor(src, k);
                             if (ck.filter &amp;&amp; !ck.filter(desc, k, src)) return;
-                            if (deep &amp;&amp; 'value' in desc) 
+                            if (deep &amp;&amp; 'value' in desc)
                                 desc.value = _clone(src[k]);
                             defineProperty(dst, k, desc);
                         } else {
@@ -275,9 +291,9 @@ ObjectX.clone = function clone(src, deep, ck) {
                 return deep ? new src.constructor(src.valueOf()) : src;
             default:
                 throw TypeError(sig + ' is not supported');
-            }
-        })(src);
-    };
+        }
+    })(src);
+};
 
 /**
         Check if two objects are equivalent.
@@ -287,80 +303,74 @@ ObjectX.clone = function clone(src, deep, ck) {
         @returns {boolean}
 
 */
-ObjectX.isEquivalent =  function isEquivalent(a, b) {
+ObjectX.isEquivalent = function isEquivalent(a, b) {
     var anil = false;
     var bnil = false;
 
-      if(a===undefined || a===null){
+    if (a === undefined || a === null) {
         anil = true;
-      }
-      if(b===undefined || b===null){
+    }
+    if (b === undefined || b === null) {
         bnil = true;
-      }
-      if(anil &amp;&amp; bnil){
+    }
+    if (anil &amp;&amp; bnil) {
         return true;
-      }else if(anil === true &amp;&amp; bnil === false){
+    } else if (anil === true &amp;&amp; bnil === false) {
         return false;
-      }
-      else if(bnil === true &amp;&amp; anil === false){
+    } else if (bnil === true &amp;&amp; anil === false) {
         return false;
-      }
+    }
 
-      if(a.constructor.name !== b.constructor.name){
+    if (a.constructor.name !== b.constructor.name) {
         return false;
-      }
-      
-      if(typeof a==="number"){
-        if(a===b){
-          return true;
-        }
-        else{
-          return false;
-        }
-      }
-      else if(typeof a ==="string"){
-        if(a===b){
-          return true;
-        }
-        else{
-          return false;
-        }
-      }
-      else if(a.constructor.name === "Array" &amp;&amp; b.constructor.name === "Array"){
-        a.sort();
-        b.sort();
-      }
-        // Create arrays of property names
-        var aProps = Object.getOwnPropertyNames(a);
-        var bProps = Object.getOwnPropertyNames(b);
+    }
 
-        // If number of properties is different,
-        // objects are not equivalent
-        if (aProps.length != bProps.length) {
+    if (typeof a === "number") {
+        if (a === b) {
+            return true;
+        } else {
             return false;
         }
+    } else if (typeof a === "string") {
+        if (a === b) {
+            return true;
+        } else {
+            return false;
+        }
+    } else if (a.constructor.name === "Array" &amp;&amp; b.constructor.name === "Array") {
+        a.sort();
+        b.sort();
+    }
+    // Create arrays of property names
+    var aProps = Object.getOwnPropertyNames(a);
+    var bProps = Object.getOwnPropertyNames(b);
 
-        for (var i = 0; i &lt; aProps.length; i++) {
-            var propName = aProps[i];
+    // If number of properties is different,
+    // objects are not equivalent
+    if (aProps.length != bProps.length) {
+        return false;
+    }
 
-            // If values of same property are not equal,
-            // objects are not equivalent
-            if(typeof a[propName] ==="object"){
-              if (!isEquivalent(a[propName],b[propName])){
+    for (var i = 0; i &lt; aProps.length; i++) {
+        var propName = aProps[i];
+
+        // If values of same property are not equal,
+        // objects are not equivalent
+        if (typeof a[propName] === "object") {
+            if (!isEquivalent(a[propName], b[propName])) {
                 return false;
-              }
             }
-            else{
-              if (a[propName] !== b[propName]) {
-                  return false;
-              }
+        } else {
+            if (a[propName] !== b[propName]) {
+                return false;
             }
-            
         }
 
-        // If we made it this far, objects
-        // are considered equivalent
-        return true;
+    }
+
+    // If we made it this far, objects
+    // are considered equivalent
+    return true;
 };
 
 /**
@@ -368,21 +378,14 @@ ObjectX.isEquivalent =  function isEquivalent(a, b) {
     @static
     @returns {Array}
 */
-ObjectX.values = function values(dic){
-          var li=[]
-          for(var key in dic){
-            li.push(key);
-          }
-          return li;
+ObjectX.values = function values(dic) {
+    var li = []
+    for (var key in dic) {
+        li.push(key);
+    }
+    return li;
 };
-module.exports = ObjectX;
-
-
-
-
-
-    
-</code></pre>
+module.exports = ObjectX;</code></pre>
         </article>
     </section>
 
@@ -392,13 +395,13 @@ module.exports = ObjectX;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Logger.html">Logger</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Server.html">Server</a></li><li><a href="Trigger.html">Trigger</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul><h3>Global</h3><ul><li><a href="global.html#get">get</a></li><li><a href="global.html#set">set</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Tue Jun 21 2016 20:41:25 GMT+0530 (IST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Sun Jul 10 2016 14:28:30 GMT+0530 (IST)
 </footer>
 
 <script> prettyPrint(); </script>

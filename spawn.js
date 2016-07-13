@@ -8,18 +8,39 @@ var check = require("check-types");
 var colors = require('colors');
 var urllib = require('url');
 var crypto = require('crypto');
-
 var Logger = require(__dirname + "/lib/logger.js");
+var Message = require(__dirname + "/lib/message.js");
+var Lock = require(__dirname + "/lib/lock.js");
+/**
+    Represents a spawned fetcher process.
+    @constructor
+    @author Tilak Patidar <tilakpatidar@gmail.com>
 
-var Spawn = function(){
-
+*/
+var Spawn = function() {
+    var message;
     var that = this;
     var log;
+    /**
+        Stores the fetch queue.
+        @private
+        @type {Array}
+
+    */
     var GLOBAL_QUEUE = [];
+    /**
+        http request pool
+        @private
+    */
     var separateReqPool;
     var regex_urlfilter = {};
     var config = require(__dirname + "/lib/spawn_config.js");
 
+    /**
+        Global counter to store number of urls queued.
+        @private
+        @type {Number}
+    */
     this.queued = 0;
     this.active_sockets = 0;
     this.batch = {};
@@ -43,16 +64,19 @@ var Spawn = function(){
                 that.batchId = k[4];
                 that.refresh_label = k[5];
                 config = config.init(k[6], k[7], k[8]);
+                message = new Message();
+                message.set('config', config);
                 that.bot_type = k[9];
-                log = new Logger(config);
+                log = new Logger(message);
+                message.set('log', log);
                 separateReqPool = {
                     maxSockets: config.getConfig("http", "max_sockets_per_host")
                 };
                 regex_urlfilter["accept"] = config.getConfig("accept_regex");
                 regex_urlfilter["reject"] = config.getConfig("reject_regex");
-                
+                message.set('regex_urlfilter', regex_urlfilter);
                 //prepare regexes
-                URL.init(config, regex_urlfilter);
+                URL = new URL(message);
                 process.http_proxy = config.getConfig("http", "http_proxy");
                 process.https_proxy = config.getConfig("http", "https_proxy");
                 return fn(that.batch);
@@ -492,7 +516,7 @@ var Spawn = function(){
 
                 var Parser = require(__dirname + "/parsers/" + that.links[link.details.domain]["parseFile"]);
                 var parser_obj = new Parser(config);
-                parser_obj.parse(config, html, link.details.url, function(dic) {
+                parser_obj.parse(html, link.details.url, function(dic) {
 
                     //pluggable parser
                     var inlinksGrabbed = 1;
@@ -507,13 +531,11 @@ var Spawn = function(){
                                 "bot": "spawn",
                                 "insertRssFeed": [link.details.url, feeds]
                             });
-                        }catch(err){
+                        } catch (err) {
                             console.log(err);
-                        }
-                         finally {
-                        }
+                        } finally {}
 
-                        
+
                     }
                     //check for author tag
                     if (check.assigned(dic[1]._source["author"])) {
@@ -715,9 +737,7 @@ var Spawn = function(){
                 } finally {
                     if (!sent) {
                         sent = true;
-                        console.log(that.active_sockets, "before");
                         that.active_sockets -= 1;
-                        console.log(that.active_sockets, "after");
                     }
                 }
 
@@ -803,9 +823,9 @@ var Spawn = function(){
                 } finally {
                     if (!sent) {
                         sent = true;
-                        console.log(that.active_sockets, "before");
+                        //console.log(that.active_sockets, "before");
                         that.active_sockets -= 1;
-                        console.log(that.active_sockets, "after");
+                        //console.log(that.active_sockets, "after");
                     }
                 }
                 return that.isLinksFetched();
@@ -855,17 +875,25 @@ var Spawn = function(){
 
 
 
+    var global_queue_lock = new Lock();
 
     this.getTask(function getTask(links) {
         that.queueLinks(links);
-        setInterval(function() {
+        setInterval(function global_queue_pusher() {
+
+            if (!global_queue_lock.enter()) {
+                return;
+            }
+
 
             var len = GLOBAL_QUEUE.length;
             for (var i = 0; i < len; i++) {
                 that.processLink(GLOBAL_QUEUE.pop());
             };
 
-            console.log(that.batchId, " bot id     ", that.queued, "   bot   ", that.batch.length, "  active_sockets ", that.active_sockets);
+            global_queue_lock.release();
+
+            log.put(that.batchId + " <- bot id     " + that.queued + " <-  queued urls   " + that.batch.length + " <- batch length  " + that.active_sockets + " <- active_sockets", 'info');
         }, 5000);
 
     });
@@ -876,23 +904,3 @@ var Spawn = function(){
 };
 
 var spawn_obj = new Spawn();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -48,6 +48,10 @@
 
 <div class="description">
     Class responsible for loading and executing all the crawler components in proper sequence.
+Responsiblities:
+     Loads other classes and instantiate them
+     Supply all the requirements of other classes
+     Creates singleton objects which are shared along the program
 </div>
 
 
@@ -147,7 +151,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line142">line 142</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line39">line 39</a>
     </li></ul></dd>
     
 
@@ -245,7 +249,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line186">line 186</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line84">line 84</a>
     </li></ul></dd>
     
 
@@ -317,7 +321,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line179">line 179</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line77">line 77</a>
     </li></ul></dd>
     
 
@@ -389,7 +393,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line149">line 149</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line46">line 46</a>
     </li></ul></dd>
     
 
@@ -461,7 +465,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line161">line 161</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line58">line 58</a>
     </li></ul></dd>
     
 
@@ -533,7 +537,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line202">line 202</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line100">line 100</a>
     </li></ul></dd>
     
 
@@ -605,7 +609,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line196">line 196</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line94">line 94</a>
     </li></ul></dd>
     
 
@@ -677,7 +681,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line208">line 208</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line106">line 106</a>
     </li></ul></dd>
     
 
@@ -749,7 +753,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line219">line 219</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line117">line 117</a>
     </li></ul></dd>
     
 
@@ -811,7 +815,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line213">line 213</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line111">line 111</a>
     </li></ul></dd>
     
 
@@ -883,7 +887,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line155">line 155</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line52">line 52</a>
     </li></ul></dd>
     
 
@@ -901,7 +905,79 @@
 
         
             
-<h4 class="name" id="~mongo_pool"><span class="type-signature">(private, inner) </span>mongo_pool<span class="type-signature"> :MongoDB</span></h4>
+<h4 class="name" id="~message_obj"><span class="type-signature">(private, inner) </span>message_obj<span class="type-signature"> :Message</span></h4>
+
+
+
+
+<div class="description">
+    Message object which is shared with all the crawler components.
+</div>
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">Message</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line743">line 743</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="~mongo_pool"><span class="type-signature">(private, inner) </span>mongo_pool<span class="type-signature"> :<a href="MongoDB.html">MongoDB</a></span></h4>
 
 
 
@@ -916,7 +992,7 @@
     <ul>
         <li>
             
-<span class="param-type">MongoDB</span>
+<span class="param-type"><a href="MongoDB.html">MongoDB</a></span>
 
 
         </li>
@@ -955,7 +1031,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line173">line 173</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line71">line 71</a>
     </li></ul></dd>
     
 
@@ -973,7 +1049,7 @@
 
         
             
-<h4 class="name" id="~seed"><span class="type-signature">(private, inner) </span>seed<span class="type-signature"> :Seed</span></h4>
+<h4 class="name" id="~seed"><span class="type-signature">(private, inner) </span>seed<span class="type-signature"> :<a href="SeedLoader.html">SeedLoader</a></span></h4>
 
 
 
@@ -988,7 +1064,7 @@
     <ul>
         <li>
             
-<span class="param-type">Seed</span>
+<span class="param-type"><a href="SeedLoader.html">SeedLoader</a></span>
 
 
         </li>
@@ -1027,7 +1103,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line167">line 167</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line64">line 64</a>
     </li></ul></dd>
     
 
@@ -1099,79 +1175,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line225">line 225</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-        
-            
-<h4 class="name" id="~trigger_obj"><span class="type-signature">(private, inner) </span>trigger_obj<span class="type-signature"> :<a href="Trigger.html">Trigger</a></span></h4>
-
-
-
-
-<div class="description">
-    Trigger object which is shared with all the crawler components.
-</div>
-
-
-
-    <h5>Type:</h5>
-    <ul>
-        <li>
-            
-<span class="param-type"><a href="Trigger.html">Trigger</a></span>
-
-
-        </li>
-    </ul>
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line837">line 837</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line123">line 123</a>
     </li></ul></dd>
     
 
@@ -1250,7 +1254,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line537">line 537</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line439">line 439</a>
     </li></ul></dd>
     
 
@@ -1403,7 +1407,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line658">line 658</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line565">line 565</a>
     </li></ul></dd>
     
 
@@ -1485,7 +1489,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line479">line 479</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line380">line 380</a>
     </li></ul></dd>
     
 
@@ -1567,7 +1571,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line501">line 501</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line402">line 402</a>
     </li></ul></dd>
     
 
@@ -1594,7 +1598,7 @@
 
         
 <div class="param-desc">
-    status - status from triggers
+    status - status from messages
 </div>
 
 
@@ -1720,7 +1724,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line360">line 360</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line260">line 260</a>
     </li></ul></dd>
     
 
@@ -1853,7 +1857,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line343">line 343</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line242">line 242</a>
     </li></ul></dd>
     
 
@@ -1933,7 +1937,7 @@
             <td class="type">
             
                 
-<span class="param-type">Seed</span>
+<span class="param-type"><a href="SeedLoader.html">SeedLoader</a></span>
 
 
             
@@ -1984,7 +1988,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line370">line 370</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line270">line 270</a>
     </li></ul></dd>
     
 
@@ -2115,7 +2119,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line511">line 511</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line412">line 412</a>
     </li></ul></dd>
     
 
@@ -2246,7 +2250,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line421">line 421</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line322">line 322</a>
     </li></ul></dd>
     
 
@@ -2328,7 +2332,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line776">line 776</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line683">line 683</a>
     </li></ul></dd>
     
 
@@ -2367,7 +2371,7 @@
 
 <div class="description">
     Main method of the Crawler.
-		Executes the crawler by loading all components.
+    	Executes the crawler by loading all components.
 </div>
 
 
@@ -2411,7 +2415,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line845">line 845</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line759">line 759</a>
     </li></ul></dd>
     
 
@@ -2493,7 +2497,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line546">line 546</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line448">line 448</a>
     </li></ul></dd>
     
 
@@ -2624,7 +2628,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line808">line 808</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line715">line 715</a>
     </li></ul></dd>
     
 
@@ -2706,7 +2710,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line378">line 378</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line278">line 278</a>
     </li></ul></dd>
     
 
@@ -2788,7 +2792,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line594">line 594</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line500">line 500</a>
     </li></ul></dd>
     
 
@@ -2871,7 +2875,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line236">line 236</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line134">line 134</a>
     </li></ul></dd>
     
 
@@ -2953,7 +2957,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line270">line 270</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line169">line 169</a>
     </li></ul></dd>
     
 
@@ -3035,7 +3039,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line884">line 884</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line795">line 795</a>
     </li></ul></dd>
     
 
@@ -3117,7 +3121,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line322">line 322</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line221">line 221</a>
     </li></ul></dd>
     
 
@@ -3249,7 +3253,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line249">line 249</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line147">line 147</a>
     </li></ul></dd>
     
 
@@ -3291,13 +3295,13 @@
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Logger.html">Logger</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Server.html">Server</a></li><li><a href="Trigger.html">Trigger</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul><h3>Global</h3><ul><li><a href="global.html#get">get</a></li><li><a href="global.html#set">set</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Tue Jun 21 2016 20:41:25 GMT+0530 (IST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Sun Jul 10 2016 14:28:30 GMT+0530 (IST)
 </footer>
 
 <script> prettyPrint(); </script>

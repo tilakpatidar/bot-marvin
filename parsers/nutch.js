@@ -27,7 +27,7 @@ var NutchParser = function(config_obj){
 
 	};
 
-	this.parse = function(config, data,url,fn){
+	this.parse = function(data,url,fn){
 		var indexed = {};
 
 		function afterParse(indexed){
@@ -226,7 +226,7 @@ var NutchParser = function(config_obj){
 			 //gather rss feeds from pages
 
 			 ret['rss_feeds'] = fetchMultipleAttr($('link[rel="alternate" i][type="application/rss+xml" i]'),'href');
-
+			 ret['rss_feeds'] = ret['rss_feeds'].concat(fetchMultipleAttr($('link[rel="alternate" i][type="application/atom+xml" i]'),'href'));
 
 
 

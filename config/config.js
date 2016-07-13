@@ -49,7 +49,7 @@ var config={
   },
   "default_recrawl_interval": "monthly",
   "override_recrawl_interval_of_sitesmap_file": false,
-  "tika_host": "0.0.0.0",
+  "tika_host": "127.0.0.1",
   "tika_port": "9998",
   "tika": true,
   "tika_debug":true,
@@ -67,6 +67,7 @@ var config={
       "Connection": "keep-alive"
     },
   "allow_robots": true,
+  "robots_parser_threads": 500,
   "external_links": false,
   "batch_size": 100,
   "db_type": "mongodb",

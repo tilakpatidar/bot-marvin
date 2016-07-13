@@ -33,26 +33,23 @@ var seed = require(__dirname + "/seed-reloader.js");
 var edit = require('string-editor');
 
 /**
-	Parses and executes or returns triggers for command line args.
+	Parses and executes or triggers messages for command line args.
 	@constructor
 	@author Tilak Patidar &lt;tilakpatidar@gmail.com>
 	@constructor 
-	@param {Object} argv_obj - Arguments processed by minimist
-	@param {Config} config_obj
-	@param {Seed} seed_obj
-	@param {Trigger} trigger_obj
+	@param {Message} message_obj
 */
-var ArgumentProcesser = function(argv_obj, config_obj, seed_obj, trigger_obj) {
+var ArgumentProcesser = function(message_obj) {
 
     var proto = require(__dirname + "/proto.js");
     var JSONX = proto.JSONX;
+    var message = message_obj;
     var parent_dir = proto.getAbsolutePath(__dirname);
-    var config = config_obj;
-    var seed = seed_obj;
+    var config = message.get('config');
+    var seed = message.get('seed');
     var args = {};
-    var trigger = trigger_obj;
-    var argv = argv_obj;
-    
+    var argv = message.get('argv');
+
     /**
 		Updates config in db.
 		@param {Object} result - JSON rep of the config.
@@ -66,7 +63,7 @@ var ArgumentProcesser = function(argv_obj, config_obj, seed_obj, trigger_obj) {
                 } else {
                     console.log("Config updated [SUCCESS]");
                 }
-                trigger.set('stop_bot_and_exit');
+                message.set('stop_bot_and_exit');
             }, 2000);
 
         }); //regex safe json update to db
@@ -99,26 +96,26 @@ var ArgumentProcesser = function(argv_obj, config_obj, seed_obj, trigger_obj) {
             args['batch_size'] = item;
         },
         "force": function() {
-            trigger.set('force_mode', true);
+            message.set('force_mode', true);
         },
         "reset": function() {
-           trigger.set('reset', true);
+            message.set('reset', true);
         },
         "loadSeedFile": function() {
-        	trigger.set('seedFile',argv['loadSeedFile']);
+            message.set('seedFilePath', argv['loadSeedFile']);
         },
         "editSeedFile": function() {
-            trigger.set('editSeedFile', true);
+            message.set('editSeedFile', true);
             args["verbose"] = false;
             args["logging"] = false;
-            trigger.set('webappOnly', true);
+            message.set('webappOnly', true);
         },
         "removeSeed": function() {
-        	trigger.set('removeSeed',{});
-        	trigger.get('removeSeed')[argv["removeSeed"]] = true;
+            message.set('removeSeed', {});
+            message.get('removeSeed')[argv["removeSeed"]] = true;
         },
         "webapp": function() {
-            trigger.set('webappOnly', true);
+            message.set('webappOnly', true);
         },
         "allow_robots": function() {
             var item = JSON.parse(argv["allow_robots"]);
@@ -133,12 +130,12 @@ var ArgumentProcesser = function(argv_obj, config_obj, seed_obj, trigger_obj) {
             args['parse_sitemaps'] = item;
         },
         "config": function() {
-            trigger.set('modifyConfig', true);
+            message.set('modifyConfig', true);
             config.getConfigFromDb(function(err, result) {
                 if (err || (!check.assigned(err) &amp;&amp; !check.assigned(result))) {
                     //config not present in the db user want to set it first time
                     var c = require(parent_dir + "/config/config.js").load();
-                    
+
                     var jsonx_str = new JSONX(c);
 
                     edit(c.stringify(), "config.json", function(err, result) {
@@ -164,10 +161,10 @@ var ArgumentProcesser = function(argv_obj, config_obj, seed_obj, trigger_obj) {
             });
             args["verbose"] = false;
             args["logging"] = false;
-            trigger.set('webappOnly', true);
+            message.set('webappOnly', true);
         },
         "dump-config": function() {
-            trigger.set('modifyConfig', true);
+            message.set('modifyConfig', true);
             var p = require("path");
             var path_json = p.join(argv["dump-config"], "config.json");
             console.log(path_json);
@@ -184,16 +181,16 @@ var ArgumentProcesser = function(argv_obj, config_obj, seed_obj, trigger_obj) {
                 stream.write(JSON.stringify(config_str, null, 2));
                 stream.end();
                 stream.on('finish', function() {
-                    trigger.set('stop_bot_and_exit');
+                    message.set('stop_bot_and_exit');
                 });
 
             });
             args["verbose"] = false;
             args["logging"] = false;
-            trigger.set('webappOnly', true);
+            message.set('webappOnly', true);
         },
         "load-config": function() {
-            trigger.set('modifyConfig', true);
+            message.set('modifyConfig', true);
             console.log("Updating config please wait!");
             //console.log(result)
             var path_json = argv["load-config"];
@@ -203,20 +200,20 @@ var ArgumentProcesser = function(argv_obj, config_obj, seed_obj, trigger_obj) {
 
             args["verbose"] = false;
             args["logging"] = false;
-            trigger.set('webappOnly', true);
+            message.set('webappOnly', true);
         },
         "help": function() {
             console.log("For help options run \"man bot-marvin\"");
-            trigger.set('stop_bot_and_exit');
+            message.set('stop_bot_and_exit');
         }
     }
 
     /**
-		Set triggers for supplied args and returns overriden config.
+		Set messages for supplied args and returns overriden config.
 		@public
     */
     this.parse = function() {
-    	//console.log("Command line argv recieved "+JSON.stringify(argv), "info");
+        //console.log("Command line argv recieved "+JSON.stringify(argv), "info");
         for (var key in actions) {
             if (check.assigned(argv[key])) {
                 actions[key]();
@@ -228,9 +225,7 @@ var ArgumentProcesser = function(argv_obj, config_obj, seed_obj, trigger_obj) {
 };
 
 
-module.exports = ArgumentProcesser;
-
-</code></pre>
+module.exports = ArgumentProcesser;</code></pre>
         </article>
     </section>
 
@@ -240,13 +235,13 @@ module.exports = ArgumentProcesser;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Logger.html">Logger</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Server.html">Server</a></li><li><a href="Trigger.html">Trigger</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul><h3>Global</h3><ul><li><a href="global.html#get">get</a></li><li><a href="global.html#set">set</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Tue Jun 21 2016 20:41:25 GMT+0530 (IST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Sun Jul 10 2016 14:28:30 GMT+0530 (IST)
 </footer>
 
 <script> prettyPrint(); </script>

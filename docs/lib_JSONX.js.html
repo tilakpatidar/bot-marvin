@@ -26,71 +26,70 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>
-/**
+            <pre class="prettyprint source linenums"><code>/**
 	JSON implementation which supports RegExp storage.
 	@author Tilak Patidar &lt;tilakpatidar@gmail.com>
 	@constructor
 	@param {Object} json_obj
 
 */
-var JSONX = function(json_obj){
+var JSONX = function(json_obj) {
 
-	var obj = json_obj;
-	var that = this;
+    var obj = json_obj;
+    var that = this;
 
-	/**
-		Returns Object representation
-		@public
-		@returns {Object}
-	*/
-	this.get = function (){
-		return obj;
-	};
+    /**
+    	Returns Object representation
+    	@public
+    	@returns {Object}
+    */
+    this.get = function() {
+        return obj;
+    };
 
-	/**
-		Sets object
-		@public
-	*/
-	this.set = function(ob){
-		obj = ob;
-	};
+    /**
+    	Sets object
+    	@public
+    */
+    this.set = function(ob) {
+        obj = ob;
+    };
 
-	/**
-		Returns regex safe json.
-		@public
-		@returns {String}
+    /**
+    	Returns regex safe json.
+    	@public
+    	@returns {String}
 
-	*/
-	this.toString = function(){
-		return that.stringify();
-	};
+    */
+    this.toString = function() {
+        return that.stringify();
+    };
 
-	/**
-		Replaces regex with __REGEXP
-		@private
-		@param {Object} key
-		@param {Object} value
-	*/
-	var replacer=function (key, value) {
-		  if (value instanceof RegExp)
-		    return ("__REGEXP " + value.toString());
-		  else
-		    return value;
-	};
+    /**
+    	Replaces regex with __REGEXP
+    	@private
+    	@param {Object} key
+    	@param {Object} value
+    */
+    var replacer = function(key, value) {
+        if (value instanceof RegExp)
+            return ("__REGEXP " + value.toString());
+        else
+            return value;
+    };
 
-	/**
-		Returns regex safe json.
-		@public
-		@returns {String}
+    /**
+    	Returns regex safe json.
+    	@public
+    	@returns {String}
 
-	*/
-	this.stringify=function(){
-		return JSON.stringify(obj, replacer, 2);
-	};
+    */
+    this.stringify = function() {
+        return JSON.stringify(obj, replacer, 2);
+    };
 
 
-	
+
 };
 
 /**
@@ -98,21 +97,20 @@ var JSONX = function(json_obj){
 	@static
 	@param {String} js_str
 */
-JSONX.parse=function(js_str){
+JSONX.parse = function(js_str) {
 
-			var reviver=function(key, value) {
-				  if (value.toString().indexOf("__REGEXP ") == 0) {
-				    var m = value.split("__REGEXP ")[1].match(/\/(.*)\/(.*)?/);
-				    return new RegExp(m[1], m[2] || "");
-				  } else
-				    return value;
-			};
-		return JSON.parse(js_str, reviver);
+    var reviver = function(key, value) {
+        if (value.toString().indexOf("__REGEXP ") == 0) {
+            var m = value.split("__REGEXP ")[1].match(/\/(.*)\/(.*)?/);
+            return new RegExp(m[1], m[2] || "");
+        } else
+            return value;
+    };
+    return JSON.parse(js_str, reviver);
 };
 
 
-module.exports = JSONX;
-</code></pre>
+module.exports = JSONX;</code></pre>
         </article>
     </section>
 
@@ -122,13 +120,13 @@ module.exports = JSONX;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Logger.html">Logger</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Server.html">Server</a></li><li><a href="Trigger.html">Trigger</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul><h3>Global</h3><ul><li><a href="global.html#get">get</a></li><li><a href="global.html#set">set</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Tue Jun 21 2016 20:41:25 GMT+0530 (IST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Sun Jul 10 2016 14:28:30 GMT+0530 (IST)
 </footer>
 
 <script> prettyPrint(); </script>

@@ -26,73 +26,80 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>var fs=require("fs");
-var parent_dir=process.getAbsolutePath(__dirname);
-var proto=require(parent_dir+'/lib/proto.js');
-var JSONX=proto.JSONX;
-var check=require("check-types");
+            <pre class="prettyprint source linenums"><code>var fs = require("fs");
+var parent_dir = process.getAbsolutePath(__dirname);
+var proto = require(parent_dir + '/lib/proto.js');
+var JSONX = proto.JSONX;
+var check = require("check-types");
 /**
 	Represents a Graph
 	@author Tilak Patidar &lt;tilakpatidar@gmail.com>
 	@constructor
-	@param {Config} config_obj
-	@param {Logger} log_obj
-	@param {MongoDB} pool_obj
+	@param {Message} message_obj
 */
 
-var Graph = function(config_obj, log_obj, pool_obj){
-	var config = config_obj;
-	var log = log_obj;
-	var pool = pool_obj;
+var Graph = function(message_obj) {
+    var message = message_obj;
+    var config = message.get('config');
+    var log = message.get('log');
+    var pool = message.get('pool');
 
 
-	this.insert = function insert(url,parent_url){
-		pool.graph_collection.insert({"url":url,"parent":parent_url},function insert(){
+    this.insert = function insert(url, parent_url) {
+        pool.graph_collection.insert({
+            "url": url,
+            "parent": parent_url
+        }, function insert() {
 
-		});
-	};
+        });
+    };
 
-	this.fetchNode = function fetchNode(url,fn){
-		var li=[]
-		pool.graph_collection.find({"url":url}).toArray(function fetchNode(err,docs){
-			for (var i = 0; i &lt; docs.length; i++) {
-				var parent=docs[i]["parent"];
-				li.push(parent);
-			};
-			return fn(err,{"url":url,"parents":li});
-		})
-	};
+    this.fetchNode = function fetchNode(url, fn) {
+        var li = []
+        pool.graph_collection.find({
+            "url": url
+        }).toArray(function fetchNode(err, docs) {
+            for (var i = 0; i &lt; docs.length; i++) {
+                var parent = docs[i]["parent"];
+                li.push(parent);
+            };
+            return fn(err, {
+                "url": url,
+                "parents": li
+            });
+        })
+    };
 
-	this.fetchChildNodes = function fetchChildNodes(url,fn){
-		pool.graph_collection.find({"parent":url}).toArray(function fetchChildNodes(err,docs){
-			return fn(err,docs);
-		});
-	};
+    this.fetchChildNodes = function fetchChildNodes(url, fn) {
+        pool.graph_collection.find({
+            "parent": url
+        }).toArray(function fetchChildNodes(err, docs) {
+            return fn(err, docs);
+        });
+    };
 
-	if(config.getConfig("web_graph")){
-		msg("Web graph started.","success");
-	}
-	else{
-		msg("Web graph not selected in config.","info");
-		this.insert = function(){};
-		this.fetchNode = function(url,fn){return fn(new Error(),null);};
-		this.fetchChildNodes = function(url,fn){return fn(new Error(),null);}
-		
-	}
-	
-	function msg() {
-	    log.put(arguments[0], arguments[1], __filename.split('/').pop(), arguments.callee.caller.name.toString());
-	}
+    if (config.getConfig("web_graph")) {
+        msg("Web graph started.", "success");
+    } else {
+        msg("Web graph not selected in config.", "info");
+        this.insert = function() {};
+        this.fetchNode = function(url, fn) {
+            return fn(new Error(), null);
+        };
+        this.fetchChildNodes = function(url, fn) {
+            return fn(new Error(), null);
+        }
+
+    }
+
+    function msg() {
+        log.put(arguments[0], arguments[1], __filename.split('/').pop(), arguments.callee.caller.name.toString());
+    }
 
 };
 
 
-module.exports = Graph;
-
-	
-
-
-</code></pre>
+module.exports = Graph;</code></pre>
         </article>
     </section>
 
@@ -102,13 +109,13 @@ module.exports = Graph;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Logger.html">Logger</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Server.html">Server</a></li><li><a href="Trigger.html">Trigger</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul><h3>Global</h3><ul><li><a href="global.html#get">get</a></li><li><a href="global.html#set">set</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Tue Jun 21 2016 20:41:25 GMT+0530 (IST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Sun Jul 10 2016 14:28:30 GMT+0530 (IST)
 </footer>
 
 <script> prettyPrint(); </script>

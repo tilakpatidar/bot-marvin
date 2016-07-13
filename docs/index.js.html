@@ -28,12 +28,6 @@
         <article>
             <pre class="prettyprint source linenums"><code>#!/usr/bin/env node
 
-/*
- * @author Tilak Patidar &lt;tilakpatidar@gmail.com>
- */
-
-
-
 
 var fs = require('fs');
 var check = require('check-types');
@@ -45,6 +39,7 @@ var parent_dir = __dirname; //parent dir path for importing modules safely
 
 
 var SeedLoader = require(parent_dir + "/lib/seed-reloader.js");
+var Message = require(parent_dir + '/lib/message.js');
 var ConfigLoader = require(parent_dir + "/lib/config-reloader.js");
 var Pool = require(__dirname + '/lib/pool');
 var ChildManager = require(parent_dir + '/lib/child_manager.js')
@@ -54,114 +49,16 @@ var Cluster = require(parent_dir + '/lib/cluster.js')
 var Bot = require(parent_dir + '/lib/bot.js');
 var Robots = require(__dirname + '/lib/robots.js');
 var death = require("death");
+var Lock = require(parent_dir + '/lib/lock.js');
 var crawler_obj;
-/**
- * Class represents the various triggers set by other classes for specific events.
- * @constructor
- *	@author Tilak Patidar &lt;tilakpatidar@gmail.com>
- */
 
-var Trigger = function() {
-
-    var that = this;
-    /** 
-    	Stores the bot object 
-    	@private
-    */
-    var bot;
-
-    /** 
-    	Stores the crawler instance.
-    	@private
-    	@type {Crawler}
-    */
-    var crawler_obj;
-
-
-    /** 
-    	Stores all the trigger values 
-    	@private
-    */
-    var triggers = {
-        "caught_termination": false,
-        "begin_intervals": false,
-        "force_mode": false,
-        "my_timers": [],
-        "reset": false,
-        'seedFile': null,
-        "seedFileData": null,
-        "removeSeed": null,
-        "success_start": false,
-        "bot_stopped":null
-    }; //these are shared globally to trigger various async events
-
-    /** 
-    	Sets the bot object to make bot related triggers work. 
-    	@param {Bot} botObject
-    	@public
-    */
-    this.setBot = function setBot(botObject) {
-
-        bot = botObject;
-    };
-
-
-    /** 
-    	Sets the crawler object to make crawler related triggers work. 
-    	@param {Crawler} crawlerObject
-    	@public
-    */
-    this.setCrawler = function setCrawler(crawlerObject) {
-        crawler_obj = crawlerObject;
-    };
-
-    /** 
-    	Sets the trigger property of private var triggers. 
-    	@param {String} key
-    	@param {Object} value
-
-    	@public
-    */
-    this.set = function set(key, value) {
-
-        //first check special triggers
-        switch (key) {
-            case "stop_bot_and_exit":
-                    crawler_obj.exit(function(){
-                        that.set('bot_stopped',true);
-                    });
-                    
-                break;
-
-            case "grace_exit":
-                crawler_obj.exit(function(){
-                        that.set('bot_stopped',true);
-                });
-                break;
-
-            case "restart":
-                crawler_obj.restart();
-                break;
-        };
-
-        triggers[key] = value;
-
-    };
-
-
-	/** 
-		Get the trigger value. 
-		@param {String} key
-		@public
-	*/
-    this.get = function get(key) {
-        return triggers[key];
-    };
-
-};
 
 /**
  * Class responsible for loading and executing all the crawler components in proper sequence.
+ * Responsiblities:
+ *      Loads other classes and instantiate them
+ *      Supply all the requirements of other classes
+ *      Creates singleton objects which are shared along the program
  * @constructor
  * @param {Object} args - object containing cmd line args
  *	@author Tilak Patidar &lt;tilakpatidar@gmail.com>
@@ -169,11 +66,11 @@ var Trigger = function() {
 
 var Crawler = function(args) {
 
-	/**
-		Stores Cluster object 
-		@private
-		@type {Cluster}
-	*/
+    /**
+    	Stores Cluster object 
+    	@private
+    	@type {Cluster}
+    */
     var cluster;
     /**
 		Stores Logger object;
@@ -190,9 +87,10 @@ var Crawler = function(args) {
     /**
 		Stores Seed object;
 		@private
-		@type {Seed}
+		@type {SeedLoader}
 	*/
     var seed;
+
     /**
 		Stores MongoDB object;
 		@private
@@ -205,7 +103,7 @@ var Crawler = function(args) {
 		@type {ChildManager}
 	*/
     var child_manager;
-    
+
     /**
 		Stores Bot object;
 		@private
@@ -278,10 +176,11 @@ var Crawler = function(args) {
 
 
         //function to start the child_manager
-        mongo_pool.seed(function(completed) {
+        seed.seed(function(completed) {
             if (completed) {
                 //create a child manager
-                child_manager = new ChildManager(config, cluster, trigger_obj, mongo_pool, botObjs, log);
+
+                child_manager = new ChildManager(message_obj);
                 //#debug#console.log(process.child_manager,"child_manager")				
             }
 
@@ -296,8 +195,8 @@ var Crawler = function(args) {
 		@private
     */
     function deathCleanUp(fn) {
-        //console.log("CAUGHT TERMINATION ",trigger_obj.get('caught_termination'));
-        if (trigger_obj.get('caught_termination')) {
+        //console.log("CAUGHT TERMINATION ",message_obj.get('caught_termination'));
+        if (message_obj.get('caught_termination')) {
             return;
         }
 
@@ -311,7 +210,7 @@ var Crawler = function(args) {
             };
         }
 
-        trigger_obj.set('caught_termination', true);
+        message_obj.set('caught_termination', true);
         msg('Termination request processing', 'info');
         //console.log(crawler_obj, "crawler_obj");
         crawler_obj.cleanUp(function(done) {
@@ -329,9 +228,9 @@ var Crawler = function(args) {
 
                     };
                     fs.unlinkSync(__dirname + "/db/pids/active_pids.txt");
-                    if(process.RUN_ENV === "TEST"){
-                        trigger_obj.set("bot_stopped",true);
-                    }else{
+                    if (process.RUN_ENV === "TEST") {
+                        message_obj.set("bot_stopped", true);
+                    } else {
                         process.exit(0);
                     }
 
@@ -371,10 +270,11 @@ var Crawler = function(args) {
     this.loadDB = function loadDB(p) {
 
         var DBConnector = p.getDB(); //choosing db type
-        mongo_pool = new DBConnector(config, trigger_obj);
+        mongo_pool = new DBConnector(message_obj);
         mongo_pool.createConnection(function() {
-            config.setDB(mongo_pool);
-            seed.setDB(mongo_pool);
+            message_obj.set('pool', mongo_pool);
+            config.setDB();
+            seed.setDB();
             isDBLoaded = true;
         });
 
@@ -393,7 +293,7 @@ var Crawler = function(args) {
     /**
 		Sets Seed in our private var seed,
 		@public
-		@param {Seed} s
+		@param {SeedLoader} s
     */
     this.loadSeed = function loadSeed(s) {
         seed = s;
@@ -404,24 +304,25 @@ var Crawler = function(args) {
 		@public
     */
     this.startCluster = function startCluster() {
-        var interval_locked = false;
+
+        var interval_locked = new Lock();
+
         var tmp_interval = setInterval(function() {
-           //console.log("in startCluster");
-            if (interval_locked || !isDBLoaded || !isLoggerLoaded) {
+            //console.log("in startCluster");
+            if (interval_locked.isLocked() || !isDBLoaded || !isLoggerLoaded) {
                 return;
             }
-            interval_locked = true;
+            interval_locked.enter();
             //console.log("pass startCluster");
 
 
-            cluster = new Cluster(config, mongo_pool, trigger_obj, log);
-            bot_obj = new Bot(config, mongo_pool, cluster, trigger_obj, log);
-
-            mongo_pool.setBot(bot_obj);
-
-            trigger_obj.setBot(bot_obj);
-            cluster.setBot(bot_obj);
-            bot_obj.startBot(trigger_obj.get('force_mode'), function(status) {
+            cluster = new Cluster(message_obj);
+            message_obj.set('cluster', cluster);
+            bot_obj = new Bot(message_obj);
+            message_obj.set('bot', bot_obj);
+            mongo_pool.setBot();
+            cluster.setBot();
+            bot_obj.startBot(message_obj.get('force_mode'), function(status) {
 
                 if (status) {
                     //bot was started successfully
@@ -429,7 +330,7 @@ var Crawler = function(args) {
 
                 } else {
                     //unable to start bot exit gracefully
-                    trigger_obj.set('stop_bot_and_exit');
+                    message_obj.set('stop_bot_and_exit');
                 }
                 clearInterval(tmp_interval);
             });
@@ -438,8 +339,8 @@ var Crawler = function(args) {
 
     };
 
-    this.isStopped = function(){
-        return trigger_obj.get('bot_stopped');
+    this.isStopped = function() {
+        return message_obj.get('bot_stopped');
     };
     /**
 		Reset the bot when --reset arg passed
@@ -508,13 +409,13 @@ var Crawler = function(args) {
 
         that.cleanUp(function(done) {
             if (done) {
-                if(process.RUN_ENV === "TEST"){
+                if (process.RUN_ENV === "TEST") {
                     fn();
-                }else{
+                } else {
                     fn();
                     process.exit(0);
                 }
-                
+
             }
 
         });
@@ -524,10 +425,10 @@ var Crawler = function(args) {
     /**
         Returns if bot started successfully
         @public
-        @return {boolean} status - status from triggers
+        @return {boolean} status - status from messages
     */
-    this.isStarted = function(){
-        return trigger_obj.get('success_start');
+    this.isStarted = function() {
+        return message_obj.get('success_start');
     };
 
 
@@ -537,14 +438,15 @@ var Crawler = function(args) {
 		@param {ArgumentProcesser} argv_obj
     */
     this.processInput = function(argv_obj) {
-        var interval_locked = false;
+        var interval_locked = new Lock();
         var tmp_interval = setInterval(function() {
             //console.log("process input interval");
-            if (interval_locked || !isClusterStarted || !isDBLoaded || !isLoggerLoaded) {
+            if (interval_locked.isLocked() || !isClusterStarted || !isDBLoaded || !isLoggerLoaded) {
                 return;
             }
 
-            interval_locked = true;
+            interval_locked.enter();
+
             clearInterval(tmp_interval);
             var new_opts = argv_obj.parse(); //executes the args passed and returns overriden config
 
@@ -562,9 +464,9 @@ var Crawler = function(args) {
         @public
         @return {boolean} status
     */
-    this.botStopped = function(){
+    this.botStopped = function() {
 
-        return trigger_obj.get('bot_stopped');
+        return message_obj.get('bot_stopped');
     }
 
     /**
@@ -572,35 +474,39 @@ var Crawler = function(args) {
 		@public
     */
     this.selectInput = function selectInput() {
-        var interval_locked = false;
+        var interval_locked = new Lock();
         var tmp_interval = setInterval(function() {
-        //console.log("selectInput interval");
-            if (interval_locked || !isInputsParsed || !isDBLoaded || !isClusterStarted || !isLoggerLoaded) {
+            //console.log("selectInput interval");
+            if (interval_locked.isLocked() || !isInputsParsed || !isDBLoaded || !isClusterStarted || !isLoggerLoaded) {
                 return;
             }
-            interval_locked = true;
+            interval_locked.enter();
             clearInterval(tmp_interval);
-            if (!trigger_obj.get('modifyConfig')) { //set to true by argv if --config is selected stops bot from starting if this option is selected
+            if (!message_obj.get('modifyConfig')) { //set to true by argv if --config is selected stops bot from starting if this option is selected
 
                 config.pullConfig(function() {
 
                     mongo_pool.checkIfNewCrawl(function() {
-                        trigger_obj.set('success_start',true);
-                        if (trigger_obj.get('editSeedFile')) {
+
+                        //notify that bot started successfully
+                        message_obj.set('success_start', true);
+
+
+                        if (message_obj.get('editSeedFile')) {
                             seed.editSeedFile();
-                        } else if (trigger_obj.get('removeSeed')) {
-                            seed.removeSeed(Object.keys(trigger_obj.get('removeSeed'))[0]);
-                        } else if (trigger_obj.get('seedFile')) {
-                            seed.seedFile(trigger_obj.get('seedFile'), null, function() {
-                                trigger_obj.set("stop_bot_and_exit");
+                        } else if (message_obj.get('removeSeed')) {
+                            seed.removeSeed(Object.keys(message_obj.get('removeSeed'))[0]);
+                        } else if (message_obj.get('seedFilePath')) {
+                            seed.seedFile(message_obj.get('seedFilePath'), null, function() {
+                                message_obj.set("stop_bot_and_exit");
                             });
-                        } else if (trigger_obj.get('reset')) {
+                        } else if (message_obj.get('reset')) {
                             that.reset(function() {
-                                trigger_obj.set('stop_bot_and_exit');
+                                message_obj.set('stop_bot_and_exit');
                             });
                         } else {
                             seed.pull(function() {
-                                mongo_pool.readSeedFile(function readSeedFile() {
+                                seed.readSeedFile(function readSeedFile() {
                                     isNormalCrawl = true;
                                 });
                             });
@@ -620,15 +526,15 @@ var Crawler = function(args) {
 		@public
     */
     this.startNormalCrawl = function startNormalCrawl() {
-        var interval_locked = false;
+        var interval_locked = new Lock();
         var tmp_interval = setInterval(function() {
             //console.log("start normal interval");
-            if (interval_locked || !isInputsParsed || !isDBLoaded || !isClusterStarted || !isNormalCrawl || !isLoggerLoaded) {
-                 
+            if (interval_locked.isLocked() || !isInputsParsed || !isDBLoaded || !isClusterStarted || !isNormalCrawl || !isLoggerLoaded) {
+
                 return;
             }
 
-            interval_locked = true;
+            interval_locked.enter();
             clearInterval(tmp_interval);
             var botObjs = {}; //will store robots.txt data for seed links
 
@@ -643,34 +549,35 @@ var Crawler = function(args) {
 
 
 
+                message_obj.set('robots_links', Object.keys(message_obj.get('links_store')));
 
-                var robots = new Robots(Object.keys(mongo_pool.links_store), log, mongo_pool);
+                var robots = new Robots(message_obj);
 
                 robots.parse(function robots_init(err, obj) {
-                    //#debug#console.log(obj);
+
                     if (obj) {
                         msg("robots.txt parsed", "success");
                     } else {
                         msg("robots.txt parsing failed", "error");
                     }
-                    botObjs = obj;
-                    startBotManager(botObjs);
+                    message_obj.set('botObjs', obj);
+                    startBotManager();
 
 
                 });
             } else {
-                startBotManager(null);
+                startBotManager();
 
             }
 
             if (!process.modifyConfig &amp;&amp; !process.editSeedFile) {
                 //to disable detection of Ctrl^X if nano editor is on
 
-                (function(crawler_obj, trigger_obj, msg) {
+                (function(crawler_obj, message_obj, msg) {
 
                     death(deathCleanUp);
 
-                })(this, trigger_obj, msg);
+                })(this, message_obj, msg);
 
 
             }
@@ -685,114 +592,114 @@ var Crawler = function(args) {
     */
     this.cleanUp = function cleanUp(fn1) {
         msg("Performing cleanUp ", "info");
-        bot_obj.stopBot(function(){
-        try {
-            process.kill(trigger_obj.get('tikaPID'), "SIGINT");
-        } catch (err) {
-            //console.log(err);
-            //trying to kill the tika server jar
-        }
-        //console.log(1);
-        if (!check.assigned(cluster.cluster_server)) {
-            cluster.cluster_server = {}
-        }
-        //console.log(101);
-        if (!check.assigned(cluster.file_server)) {
-            cluster.file_server = {}
-        }
-        //console.log(102);
-        if (!check.assigned(cluster.fileServer)) {
-            cluster.fileServer = {}
-        }
-        //console.log(103);
-        if (!check.assigned(cluster.cluster_server.shutdown)) {
-            cluster.cluster_server.shutdown = function(fn) {
-                fn();
-            };
-        }
-        //console.log(104);
-        if (!check.assigned(cluster.file_server.shutdown)) {
-            cluster.file_server.shutdown = function(fn) {
-                fn();
-            };
-        }
-        //console.log(105);
-        if (!check.assigned(cluster.fileServer.shutdown)) {
-            cluster.fileServer.shutdown = function(fn) {
-                if(fn.constructor.name === 'Function') fn();
-            };
-        }
-        // console.log(106);
-        if (!check.assigned(child_manager)) {
-            child_manager = {};
-            child_manager.setManagerLocked = function(fn) {
-
-                if(fn.constructor.name === 'Function') fn();
-            };
-            child_manager.killWorkers = function(fn) {
-
-                if(fn.constructor.name === 'Function') fn();
-
-            };
-            child_manager.flushAllInlinks = function(fn) {
-                if(fn.constructor.name === 'Function') fn();
-            };
-        }
-
-        //console.log(107);
-        child_manager.setManagerLocked(true); //lock the manager so no new childs are spawned
-        //#debug#console.log(cluster.cluster_server,cluster.file_server)
-        child_manager.flushAllInlinks(function(status) {
-            //console.log(108,child_manager);
-
-            //flush all the inlinks into db before exit
-            child_manager.killWorkers(function() {
-                //console.log(109);
-
-                //clear timers
-                var timers = trigger_obj.get('my_timers');
-                for (var i = 0; i &lt; timers.length; i++) {
-                    clearInterval(timers[i]);
+        bot_obj.stopBot(function() {
+            try {
+                process.kill(message_obj.get('tikaPID'), "SIGINT");
+            } catch (err) {
+                //console.log(err);
+                //trying to kill the tika server jar
+            }
+            //console.log(1);
+            if (!check.assigned(cluster.cluster_server)) {
+                cluster.cluster_server = {}
+            }
+            //console.log(101);
+            if (!check.assigned(cluster.file_server)) {
+                cluster.file_server = {}
+            }
+            //console.log(102);
+            if (!check.assigned(cluster.fileServer)) {
+                cluster.fileServer = {}
+            }
+            //console.log(103);
+            if (!check.assigned(cluster.cluster_server.shutdown)) {
+                cluster.cluster_server.shutdown = function(fn) {
+                    fn();
                 };
-                //console.log(110);
+            }
+            //console.log(104);
+            if (!check.assigned(cluster.file_server.shutdown)) {
+                cluster.file_server.shutdown = function(fn) {
+                    fn();
+                };
+            }
+            //console.log(105);
+            if (!check.assigned(cluster.fileServer.shutdown)) {
+                cluster.fileServer.shutdown = function(fn) {
+                    if (fn.constructor.name === 'Function') fn();
+                };
+            }
+            // console.log(106);
+            if (!check.assigned(child_manager)) {
+                child_manager = {};
+                child_manager.setManagerLocked = function(fn) {
 
-                cluster.cluster_server.shutdown(function() {
-                    cluster.file_server.shutdown(function() {
-                        cluster.fileServer.shutdown(function() {
+                    if (fn.constructor.name === 'Function') fn();
+                };
+                child_manager.killWorkers = function(fn) {
 
-                            //console.log(1111);
+                    if (fn.constructor.name === 'Function') fn();
+
+                };
+                child_manager.flushInlinks = function(fn) {
+                    if (fn.constructor.name === 'Function') fn();
+                };
+            }
+
+            //console.log(107);
+            child_manager.setManagerLocked(true); //lock the manager so no new childs are spawned
+            //#debug#console.log(cluster.cluster_server,cluster.file_server)
+            child_manager.flushInlinks(function(status) {
+                //console.log(108,child_manager);
+
+                //flush all the inlinks into db before exit
+                child_manager.killWorkers(function() {
+                    //console.log(109);
+
+                    //clear timers
+                    var timers = message_obj.get('my_timers');
+                    for (var i = 0; i &lt; timers.length; i++) {
+                        clearInterval(timers[i]);
+                    };
+                    //console.log(110);
+
+                    cluster.cluster_server.shutdown(function() {
+                        cluster.file_server.shutdown(function() {
+                            cluster.fileServer.shutdown(function() {
+
+                                //console.log(1111);
 
 
-                            //clear all moduele references
-                            //#debug#console.log(process.bot);
-                            bot_obj.stopBot(function cleanUp_stopbot(err) {
-                                //if (err) throw err;
+                                //clear all moduele references
+                                //#debug#console.log(process.bot);
+                                bot_obj.stopBot(function cleanUp_stopbot(err) {
+                                    //if (err) throw err;
 
-                                msg("cleanUp done", "success");
+                                    msg("cleanUp done", "success");
 
-                                //flushing the log
-                                log.flush(function() {
+                                    //flushing the log
+                                    log.flush(function() {
 
 
-                                    mongo_pool.close(function() {
-                                        return fn1(true);
+                                        mongo_pool.close(function() {
+                                            return fn1(true);
+                                        });
+
                                     });
-
                                 });
                             });
+
+
+
+
+
                         });
 
 
-
-
-
                     });
-
-
                 });
-            });
 
-        }); //kill all the workers before quiting
+            }); //kill all the workers before quiting
         })
     };
 
@@ -814,12 +721,12 @@ var Crawler = function(args) {
                 //ls.stdout.pipe(process.stdout);
                 //process.exit(0);			
                 ls.on("exit", function() {
-                    if(process.RUN_ENV === "TEST"){
-                        trigger_obj.set("bot_stopped",true);
-                    }else{
+                    if (process.RUN_ENV === "TEST") {
+                        message_obj.set("bot_stopped", true);
+                    } else {
                         process.exit(0)
                     }
-                    
+
                 });
 
             }
@@ -834,21 +741,20 @@ var Crawler = function(args) {
 		@param {Logger} l
     */
     this.setLogger = function setLogger(l) {
-        var interval_locked = false;
+        var interval_locked = new Lock();
         var tmp_interval = setInterval(function() {
             //console.log("logger interval");
-            if (interval_locked || !isDBLoaded) {
+            if (interval_locked.isLocked() || !isDBLoaded) {
                 return;
             }
 
             log = l;
 
-            config.setLogger(log);
-            seed.setLogger(log);
-            mongo_pool.setLogger(log);
+            message_obj.set('log', log);
 
 
-            interval_locked = true;
+            interval_locked.enter();
+
             clearInterval(tmp_interval);
             isLoggerLoaded = true;
         }, 1000);
@@ -857,37 +763,42 @@ var Crawler = function(args) {
 
     checkDependency();
 
-     /**
-		Trigger object which is shared with all the crawler components.
+    /**
+		Message object which is shared with all the crawler components.
 		@private
-		@type {Trigger}
+		@type {Message}
     */
-    var trigger_obj = new Trigger();
-    trigger_obj.setCrawler(this);
+    var message_obj = new Message();
+    message_obj.set('crawler', this);
 
-	/**
-		Main method of the Crawler.
-		Executes the crawler by loading all components.
-		@public
-	*/
+
+    //some args need to be parsed before
+    var argv = require('minimist')(args);
+    if (check.assigned(argv["force"])) {
+        message_obj.set('force_mode', true);
+    }
+
+
+    /**
+    	Main method of the Crawler.
+    	Executes the crawler by loading all components.
+    	@public
+    */
     this.run = function run() {
 
-        //some args need to be parsed before
-
-        var argv = require('minimist')(args);
-        if (check.assigned(argv["force"])) {
-            trigger_obj.set('force_mode', true);
-        }
 
 
         fs.appendFileSync(__dirname + "/db/pids/active_pids.txt", process.pid + "\n");
 
 
-        var config_obj = new ConfigLoader(trigger_obj);
-        var log_obj = new Logger(config_obj);
-        var seed_obj = new SeedLoader(config_obj, trigger_obj);
-        var pool_obj = new Pool(config_obj.getConfig("db_type"));
-        var argv_obj = new ArgumentProcesser(argv, config_obj, seed_obj, trigger_obj);
+        var config_obj = new ConfigLoader(message_obj);
+        message_obj.set('config', config_obj);
+        var log_obj = new Logger(message_obj);
+        var seed_obj = new SeedLoader(message_obj);
+        message_obj.set('seed', seed_obj);
+        var pool_obj = new Pool(message_obj);
+        message_obj.set('argv', argv);
+        var argv_obj = new ArgumentProcesser(message_obj);
 
 
         that.loadConfig(config_obj);
@@ -935,13 +846,13 @@ if (require.main === module) {
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Logger.html">Logger</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Server.html">Server</a></li><li><a href="Trigger.html">Trigger</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul><h3>Global</h3><ul><li><a href="global.html#get">get</a></li><li><a href="global.html#set">set</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Tue Jun 21 2016 20:41:25 GMT+0530 (IST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Sun Jul 10 2016 14:28:30 GMT+0530 (IST)
 </footer>
 
 <script> prettyPrint(); </script>
