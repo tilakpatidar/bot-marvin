@@ -3,4 +3,5 @@ seed.json
 *.jar
 config.json
 TODOS
+.idea
 !.gitignore
