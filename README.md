@@ -55,8 +55,8 @@ sudo npm install bot-marvin
     
     _id : is the url
     parseFile : is the file name present in parsers dir (default: 'nutch')
-    priority : is from 1-10 indicates the number of urls of domain in a bucket of 10 urls.
-    Number of urls of a domain in batch = (priority/10) * batch_size
+    priority : is from 1-100 indicates the percentage of urls of the domain in a single crawl job.
+    Number of urls of a domain in batch = (priority/100) * batch_size
     Fetch interval is recrawl interval supported values (always|weekly|monthly|yearly) you can add custom time intervals in the config
     
     */
@@ -78,6 +78,7 @@ sudo bot-marvin
 
 
 ## Contributing
+    ###Documentation is available at [http://tilakpatidar.github.io/bot-marvin](http://tilakpatidar.github.io/bot-marvin)
 1. Fork it!
 2. Create your feature branch: `git checkout -b my-new-feature`
 3. Commit your changes: `git commit -am 'Add some feature'`
@@ -100,3 +101,4 @@ sudo bot-marvin
  * [progress](https://www.npmjs.com/package/progress) for download progress bars
  * [string-editor](https://www.npmjs.com/package/string-editor) for providing nano like editor for editing config from terminal 
  * [node-static](https://www.npmjs.com/package/node-static) server for web app
+ * [feed-read](https://www.npmjs.com/package/feed-read) for parsing rss feeds
