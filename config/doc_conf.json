@@ -1,8 +1,0 @@
-{
-	"source": {
-    "include": [ "./lib/", "index.js", "tika.js", "spawn.js", "./db/mongodb.js", "./parsers/" ],
-    "exclude": [ "myProject/lib/ignore.js" ],
-    "includePattern": ".+\\.js(doc)?$",
-    "excludePattern": "(^|\\/|\\\\)_"
-	}
-}
