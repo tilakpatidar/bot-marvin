@@ -1,0 +1,267 @@
+[{
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.stylepick.in",
+    "fetch_interval": "always"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.wallpaper.net.in",
+    "fetch_interval": "always"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.konicaminolta.in",
+    "fetch_interval": "always"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.redbus.in",
+    "fetch_interval": "yearly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.clay.co.in",
+    "fetch_interval": "yearly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.dj-punjab-jatt.in",
+    "fetch_interval": "yearly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.jhit.co.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.bikebazaar.co.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.sharepage.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.niscair.res.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.juspay.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.bodying.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.keralacm.gov.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.topstream.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.bitsathy.ac.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.pnrstatus.co.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.behance.net",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.irdai.gov.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.scientifit.co.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.nitdelhi.ac.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.company-registration.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.capitalsecure.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.opendi.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.time2tiffin.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.affordablehomesgurgaon.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.traininghyderabad.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.srmtransports.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.extrazoom.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.resolveindia.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.smarttips.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.timesbharat.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.cicr.org.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.entrancebaba.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.bloomigo.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.bulksmshyderabad.co.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.shareasale.com",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.itq.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.popapp.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.grepme.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.careerlife.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.dgshipping.gov.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.fresherscampus.co.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.kristujayanti.edu.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.thefullform.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.kent.co.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.mtrading.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.deepawali.co.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.ewebsoft.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.clientarea.co.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.chip.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.mapit.gov.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.condomking.in",
+    "fetch_interval": "monthly"
+}, {
+    "priority": 1,
+    "parseFile": "nutch",
+    "_id": "http://www.eis.in",
+    "fetch_interval": "monthly"
+}
+]
