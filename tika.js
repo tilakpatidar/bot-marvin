@@ -688,6 +688,7 @@ if (require.main === module) {
             regex_urlfilter["reject"] = config.getConfig("reject_regex");
             message.set('config', config);
             message.set('regex_urlfilter', regex_urlfilter);
+            message.set('links_store', o[3]);
             log = new Logger(message);
             message.set('log', log);
 
