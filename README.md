@@ -35,19 +35,22 @@ sudo npm install bot-marvin
             "_id": "http://www.imdb.com",
             "parseFile": "nutch",
             "priority": 1,
-            "fetch_interval": "monthly" 
+            "fetch_interval": "monthly",
+            "limit_depth": -1 
          },
          {
             "_id": "http://www.elastic.co",
             "parseFile": "nutch",
             "priority": 1,
-            "fetch_interval": "monthly"
+            "fetch_interval": "monthly",
+            "limit_depth": -1 
          },
          {
             "_id": "http://www.rottentomatoes.com",
             "parseFile": "nutch",
             "priority": 1,
-            "fetch_interval": "monthly"
+            "fetch_interval": "monthly",
+            "limit_depth": 10 
          }
     ]
     
@@ -58,6 +61,7 @@ sudo npm install bot-marvin
     priority : is from 1-100 indicates the percentage of urls of the domain in a single crawl job.
     Number of urls of a domain in batch = (priority/100) * batch_size
     Fetch interval is recrawl interval supported values (always|weekly|monthly|yearly) you can add custom time intervals in the config
+    limit_depth: is used to restrict crawling by depth, -1 means no limit by depth
     
     */
     
