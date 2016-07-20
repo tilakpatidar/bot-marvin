@@ -46,7 +46,7 @@ var Spawn = function() {
     this.batch = {};
     this.batchSize = 0;
     this.batchId = 0;
-    this.refresh_label = "monthly"; //default value
+    this.refresh_label = null;
     this.links = [];
     this.botObjs = {};
     this.lastAccess = {};
@@ -79,6 +79,7 @@ var Spawn = function() {
                 URL = new URL(message);
                 process.http_proxy = config.getConfig("http", "http_proxy");
                 process.https_proxy = config.getConfig("http", "https_proxy");
+                that.refresh_label = config.getConfig("default_recrawl_interval");
                 return fn(that.batch);
             }
         });

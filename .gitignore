@@ -3,6 +3,8 @@ seedf.json
 *.log
 *.jar
 config.json
+config/config_override.json
+config/db_config.json
 TODOS
 .idea
 !.gitignore
