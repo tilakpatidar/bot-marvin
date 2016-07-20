@@ -66,6 +66,7 @@ var Spawn = function() {
                 config = config.init(k[6], k[7], k[8]);
                 message = new Message();
                 message.set('config', config);
+                message.set('links_store', that.links);
                 that.bot_type = k[9];
                 log = new Logger(message);
                 message.set('log', log);
@@ -104,7 +105,7 @@ var Spawn = function() {
                             }, 100); //to avoid recursion
                         })(link);
                     } catch (err) {
-
+                            console.log(err);
                     }
                 } else if (that.bot_type === "failed_queue") {
                     var url = pools[i]['url'];
@@ -122,7 +123,7 @@ var Spawn = function() {
                             }, 100); //to avoid recursion
                         })(link);
                     } catch (err) {
-
+                        console.log(err);
                     }
                 }
 
@@ -138,7 +139,7 @@ var Spawn = function() {
     this.processLink = function processLink(link) {
         var bot = this; //inside setTimeout no global access
         //console.log(bot.batchId,"   ",link.details.url , 'ask access');
-        //console.log(bot.batchId,"   ",bot.active_sockets, "    ",config.getConfig("http","max_concurrent_sockets"));
+       //console.log(bot.batchId,"   ",bot.active_sockets, "    ",config.getConfig("http","max_concurrent_sockets"));
         if (!check.assigned(link)) {
             return;
         }
@@ -879,7 +880,9 @@ var Spawn = function() {
     var global_queue_lock = new Lock();
 
     this.getTask(function getTask(links) {
+        //console.log(links, "for fetch");
         that.queueLinks(links);
+
         setInterval(function global_queue_pusher() {
 
             if (!global_queue_lock.enter()) {
@@ -888,6 +891,8 @@ var Spawn = function() {
 
 
             var len = GLOBAL_QUEUE.length;
+            //console.log(len, "GLOBAL_QUEUE.length");
+
             for (var i = 0; i < len; i++) {
                 that.processLink(GLOBAL_QUEUE.pop());
             };
