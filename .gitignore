@@ -4,4 +4,6 @@ db
 config
 pdf-store-parsed
 man
+lib/
+seed.json
 !.gitignore
