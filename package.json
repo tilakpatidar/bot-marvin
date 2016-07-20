@@ -1,6 +1,6 @@
 {
   "name": "bot-marvin",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Highly scalable crawler with best features.",
   "main": "index.js",
   "directories": {
