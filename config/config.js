@@ -1,6 +1,4 @@
-var parent_dir=process.getAbsolutePath(__dirname);
-var proto=require(parent_dir+'/lib/proto.js');
-var JSONX=proto.JSONX;
+var JSONX = require("../lib/JSONX.js");
 var config={
   "robot_agent": "*",
   "childs": 2,
@@ -100,5 +98,4 @@ var config={
 function load(){
 return JSONX.parse(JSON.stringify(config));
 }
-exports.load=load;
-
+exports.load = load;
