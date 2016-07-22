@@ -511,6 +511,7 @@ var Spawn = function() {
                     var md5sum = crypto.createHash('md5');
                     md5sum.update(html);
                     var hash = md5sum.digest('hex');
+                    link.setContent(html);
                     link.setContentMd5(hash);
                 } catch (err_md) {
 
@@ -558,7 +559,7 @@ var Spawn = function() {
                     link.setStatusCode(res.statusCode);
                     link.setParsed(dic[1]);
                     link.setResponseTime(response_time);
-                    link.setContent(dic[3]);
+                    link.setContent(html);
                     if (check.assigned(parser_msgs) && !check.emptyObject(parser_msgs)) {
                         //link.setStatusCode("META_BOT"); //bec going to concat status
                         for (var parser_msg_key in parser_msgs) {
@@ -690,7 +691,7 @@ var Spawn = function() {
                             link.setStatusCode(code);
                             link.setParsed(dic[1]);
                             link.setResponseTime(response_time);
-                            link.setContent(dic[3]);
+                            link.setContent(html);
                             if (!sent) {
                                 process.send({
                                     "bot": "spawn",

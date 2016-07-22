@@ -5,7 +5,8 @@
 var ObjectId = require('mongodb').ObjectId;
 var Immutable = require('immutable');
 var crypto = require('crypto');
-var MongoClient = require('mongodb').MongoClient;
+var mongo = require('mongodb');
+var MongoClient = mongo.MongoClient;
 var parent_dir=process.getAbsolutePath(__dirname);
 var child=require('child_process');
 var Score=require(parent_dir+'/lib/score.js');
@@ -155,6 +156,7 @@ var MongoDB = function(message_obj){
 		};
 		MongoClient.connect(that.mongodb_name,serverOptions, function(err, db) {
 			that.db=db;
+			that.GridStore = mongo.GridStore;
 			that.mongodb_collection=db.collection(that.mongodb_collection_name);
 			that.bucket_collection=db.collection(that.bucket_collection_name);
 			that.bot_collection=db.collection(that.bot_collection_name);
