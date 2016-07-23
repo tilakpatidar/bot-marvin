@@ -42,6 +42,7 @@ var URLCreator = function(message_obj) {
     var message = message_obj;
     var config = message.get('config');
     var regex_urlfilter = message.get('regex_urlfilter');
+    var log = message.get('log');
 
 
     /**
@@ -92,7 +93,6 @@ var URLCreator = function(message_obj) {
     	@private
     */
     function normalizeDomain(url) {
-        url = sortedParams(url);
         if (url[url.length - 1] == "/") {
             url = url.slice(0, -1);
         }
@@ -108,15 +108,18 @@ var URLCreator = function(message_obj) {
     */
     function sortedParams(url) {
         var url_parts = urllib.parse(url, true);
+        //console.log(url, url_parts);
         var sorted = "";
         if (check.assigned(url_parts.query) &amp;&amp; !check.emptyObject(url_parts.query)) {
             var keys = Object.keys(url_parts.query);
+            //console.log(keys);
             keys.sort();
             sorted = [];
             for (var key in keys) {
-                sorted.push(keys[key] + "=" + url_parts.query[keys[key]]);
+                sorted.push(keys[key] + "=" + encodeURIComponent(url_parts.query[keys[key]]) );
             }
             sorted = "?" + sorted.join("&amp;");
+            //console.log(sorted)
         }
         url = url_parts.protocol + "//" + url_parts.hostname + url_parts.pathname + sorted;
         return url;
@@ -129,6 +132,7 @@ var URLCreator = function(message_obj) {
     */
     function normalizeURL(url) {
         url = normalizeProtocol(url);
+        url = sortedParams(url);
         if (url[url.length - 1] == "/") {
             url = url.slice(0, -1);
         }
@@ -176,7 +180,27 @@ var URLCreator = function(message_obj) {
     	@return {boolean}
     */
     function isAccepted(url, domain) {
+        //console.log("in isAccepted", message.get('links_store'));
+
+        var dir_length = url.replace("http://","").replace("https://").split('/').length - 1; //remove slash of domain
+
+        var domain_data = message.get('links_store')[domain];
+        
+        if(check.assigned(domain_data)){
+            var allowed = domain_data['limit_depth'];
+            //console.log("allowed  ", allowed, "  ",url);
+            if( allowed !== -1 ){
+                if(dir_length > allowed ){
+
+                    //console.log('rejected ', url, ' dir_length ', dir_length, '  allowed   ', allowed);
+                    return false;
+                }
+            }
+        }
+
+
         if (!check.assigned(url.match(regex_urlfilter.accept))) { //user give acceptance
+
             if (!config.getConfig("external_links")) {
                 if (url.indexOf(domain) &lt; 0) {
                     return false;
@@ -186,11 +210,18 @@ var URLCreator = function(message_obj) {
 
         for (var i = 0; i &lt; regex_urlfilter.reject.length; i++) {
             if (check.assigned(url.match(regex_urlfilter.reject[i]))) {
+
+                //matched by reject regex
+
                 if (check.assigned(url.match(config.getConfig("tika_supported_files")))) {
+
+                    //matched by both reject regex and tika_supported_files
                     if (!config.getConfig("tika")) {
+                        //if tika not selected then return false
                         return false;
                     }
                 } else {
+                    //if not matched by tika supported files
                     return false;
 
                 }
@@ -225,6 +256,7 @@ var URLCreator = function(message_obj) {
                 return null;
             }
             var url_obj = {};
+            url_obj["accepted"] = true;
             //check if absolute and relative
             if (url.indexOf("https://") &lt; 0 &amp;&amp; url.indexOf("http://") &lt; 0) {
                 //relative
@@ -253,9 +285,15 @@ var URLCreator = function(message_obj) {
             }
 
             url_obj["nutch_key"] = nutchStyleURLKey(url);
-            if (!check.assigned(url_obj["accepted"])) {
+            if (url_obj["accepted"]) {
                 //if not rejected by above code then run isAccepted()
                 url_obj["accepted"] = isAccepted(url, domain);
+                
+            }
+
+            if(!url_obj["accepted"]){
+                //console.log("failed");
+                    //msg(url_obj["url"] + " got rejected by filters", "error");
             }
 
             url_obj["status_code"] = null;
@@ -572,7 +610,16 @@ var URLCreator = function(message_obj) {
     };
 
     function msg() {
-        log.put(arguments[0], arguments[1], __filename.split('/').pop());
+        if (process.RUN_ENV !== "TEST") {
+            if(!check.assigned(log)){
+                
+                    console.log(arguments[0], arguments[1]);
+            
+            }else{
+                log.put(arguments[0], arguments[1], __filename.split('/').pop());
+            }
+
+        }
     }
 
 
@@ -594,7 +641,7 @@ module.exports = URLCreator;</code></pre>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Wed Jul 13 2016 23:40:09 GMT+0530 (IST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Sat Jul 23 2016 18:27:25 GMT+0530 (IST)
 </footer>
 
 <script> prettyPrint(); </script>

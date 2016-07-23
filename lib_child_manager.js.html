@@ -51,10 +51,10 @@ var ObjectId = require('mongodb').ObjectId;
 var proxy_cache_class = require(parent_dir + '/lib/bucket_proxy.js');
 var Lock = require(parent_dir + '/lib/lock.js');
 var RSSFetcher = require(parent_dir + '/lib/rss.js');
-var URL = require(parent_dir+ "/lib/url.js");
-var proto=require(parent_dir+'/lib/proto.js');
-var JSONX=proto.JSONX;
-var ObjectX=proto.ObjectX;
+var URL = require(parent_dir + "/lib/url.js");
+var proto = require(parent_dir + '/lib/proto.js');
+var JSONX = proto.JSONX;
+var ObjectX = proto.ObjectX;
 /**
     Manages workers owned by the bot and manages 
     the communication and cordination between workers. 
@@ -79,7 +79,7 @@ var ChildManager = function(message_obj) {
     */
     var prev_domain_grp = [];
 
-    
+
     message.set('begin_intervals', true);
     var active_childs = 0;
     var pool = message.get('pool'); //global db object in the entire app
@@ -141,13 +141,13 @@ var ChildManager = function(message_obj) {
 
     var first_clone = true;
     var getNextBatch = function getNextBatch(result, batchSize) {
-        
-        if(first_clone){
+
+        if (first_clone) {
             prev_domain_grp = ObjectX.clone(message.get('alloted_domain_groups'));
             first_clone = false;
         }
-        
-        var grp = prev_domain_grp.splice(0,1)[0];
+
+        var grp = prev_domain_grp.splice(0, 1)[0];
         prev_domain_grp.push(grp);
         //console.log(grp);
         var stamp1 = new Date().getTime();
@@ -170,11 +170,11 @@ var ChildManager = function(message_obj) {
         }, {
             "remove": false
         }, function getNextBatchFM(err1, object) {
-            console.log(object,err1)
-            
+            //console.log(object,err1)
+
             if (check.assigned(object) &amp;&amp; check.assigned(object.value)) {
                 var hash = object["value"]["_id"];
-                //#debug#console.log(hash);
+                //console.log(hash);
                 var refresh_label = object["value"]["recrawlLabel"];
                 pool.mongodb_collection.find({
                     "bucket_id": hash,
@@ -184,7 +184,7 @@ var ChildManager = function(message_obj) {
                 }, {}, {}).toArray(function getNextBatchFind(err, docs) {
                     //console.log(err,docs);
                     if (!check.assigned(err) &amp;&amp; docs.length === 0) {
-                        
+
                         //we got empty bucket remove it 
                         //every time seed bucket is readded if seeds are already added
                         //this could lead to empty bucket
@@ -200,7 +200,7 @@ var ChildManager = function(message_obj) {
                         });
                     }
                     if (err) {
-                        
+
                         msg("getNextBatch", "error");
                         result(null, [], null, null);
                         return;
@@ -509,44 +509,57 @@ var ChildManager = function(message_obj) {
         @private
     */
 
-    function rss_links_updator(){
+    function rss_links_updator() {
 
-        if(!message.get("rss_updator_lock").enter()){
+        if (!message.get("rss_updator_lock").enter()) {
             return;
         }
 
-        try{
-            pool.rss_feeds.findOne({"nextRefresh":{"$lt": new Date().getTime()}}, function(err, doc){
-               
-               if(check.assigned(err) || !check.assigned(doc)){
+        try {
+            pool.rss_feeds.findOne({
+                "nextRefresh": {
+                    "$lt": new Date().getTime()
+                }
+            }, function(err, doc) {
+
+                if (check.assigned(err) || !check.assigned(doc)) {
                     message.get("rss_updator_lock").release();
                     return;
-               }
-                rss_fetcher_obj.getLinks(doc["_id"],function(li){
+                }
+                rss_fetcher_obj.getLinks(doc["_id"], function(li) {
 
-                    pool.rss_feeds.updateOne({"_id": doc["_id"]},{"$set":{"nextRefresh": new Date().getTime() + 86400000}},function(){
-                        
+                    pool.rss_feeds.updateOne({
+                        "_id": doc["_id"]
+                    }, {
+                        "$set": {
+                            "nextRefresh": new Date().getTime() + 86400000
+                        }
+                    }, function() {
+
                         var l = [];
 
-                        for(var index in li){
+                        for (var index in li) {
                             var item = li[index];
                             var url = URL.url(item);
-                            if(url.isAccepted()){
-                                l.push(url.details.url);
+                            if (url.isAccepted()) {
+                                var format = [];
+                                format.push(url.details.url);
+                                format.push(url.details.domain);
+                                format.push(doc["_id"]);
+                                l.push(format);
                             }
                         }
 
-                        
 
                         message.set('inlinks_pool', message.get('inlinks_pool').concat(l));
 
                         msg("links " + l.length + " obtained from rss " + doc["_id"], "success");
                         message.get("rss_updator_lock").release();
-                    
+
                     });
                 });
             });
-        }catch(e){
+        } catch (e) {
             console.log(e, "rss_links_updator");
             message.get("rss_updator_lock").release();
         }
@@ -564,11 +577,11 @@ var ChildManager = function(message_obj) {
             msg("Tika server forked", "success");
             var c = config.getGlobals();
             tika.send({
-                "init": [c[0], c[1], c[2]]
+                "init": [c[0], c[1], c[2], message.get('links_store')]
             });
             spawned["tika"] = tika;
             tika.on("message", childFeedback);
-            tika.on("error",function(){
+            tika.on("error", function() {
                 console.log(arguments);
             });
             tika.on('close', function tika_close(code) {
@@ -679,13 +692,18 @@ var ChildManager = function(message_obj) {
             var url = li[i][0];
             var parent = li[i][2];
             var refresh_time;
-            if (check.assigned(li[i][3])) {
-                refresh_time = li[i][3];
-            } else {
-                refresh_time = message.get('links_store')[domain]["fetch_interval"];
+            try {
+                if (check.assigned(li[i][3])) {
+                    refresh_time = li[i][3];
+                } else {
+                    refresh_time = message.get('links_store')[domain]["fetch_interval"];
+                }
+            } catch (err) {
+                //console.log(err, domain);
+                //refresh time not found in seed list, maybe other domain links from rss module
+                continue;
             }
-            //overriding default fetch_interval with the domain specified interval
-            //#debug#console.log(refresh_time);
+
             if (!check.assigned(refresh_time)) {
                 refresh_time = config.getConfig("default_recrawl_interval");
             }
@@ -716,14 +734,24 @@ var ChildManager = function(message_obj) {
 
         };
 
-        pool.mongodb_collection.insertMany(inserted_docs, {ordered: false}, function insertLinksMany(err, doc) {
+        if (inserted_docs.length === 0) {
+
+            return fn();
+        }
+
+        pool.mongodb_collection.insertMany(inserted_docs, {
+            ordered: false
+        }, function insertLinksMany(err, doc) {
             //console.log(arguments);
             //console.log(err);
             if (check.assigned(err)) {
+
                 msg("error in insertMany, may be some duplicate urls discovered", "error");
-                
+
             } else {
+
                 msg("Inlinks flushed in db", "success");
+
             }
             fn();
 
@@ -1027,7 +1055,18 @@ var ChildManager = function(message_obj) {
             dict["canonical_url"] = canonical_url;
         }
 
+        //console.log(dict);
+        try {
+            var html_data = link_details.content;
+        } catch (err) {
+            var html_data = "";
+        }
+        try {
+            delete dict['data']['_source']['html'];
 
+        } catch (err) {
+
+        }
 
         pool.mongodb_collection.updateOne({
             "_id": ObjectId(urlID)
@@ -1095,8 +1134,37 @@ var ChildManager = function(message_obj) {
 
             } else {
                 if (!abandoned &amp;&amp; dict["response"] !== "inTikaQueue") {
-                    bot_obj.updateStats("crawledPages", 1);
-                    msg(("Updated " + url), "success");
+                    //console.log(html_data, typeof html_data);
+                    if (typeof html_data !== 'string') {
+                        //this is the case due to some errors
+                        //in this case skip the page
+                        html_data = "";
+                    }
+
+
+                    //var crypto = require('crypto');
+                    //var md5sum = crypto.createHash('md5');
+                    //md5sum.update(html_data);
+                    //var hash = md5sum.digest('hex');
+                    //console.log(ObjectId(urlID), "   ", hash);
+
+                    if (html_data.length !== 0) {
+
+                        var gridStore = new pool.GridStore(pool.db, ObjectId(urlID), ObjectId(urlID) + "_data.html", "w");
+                        gridStore.open(function(err, gridStore) {
+                            gridStore.write(html_data, function(err, gridStore) {
+                                gridStore.close(function(err, fileData) {
+                                    bot_obj.updateStats("crawledPages", 1);
+                                    msg(("Updated " + url), "success");
+                                });
+                            });
+                        });
+
+                    } else {
+                        bot_obj.updateStats("crawledPages", 1);
+                        msg(("Updated " + url), "success");
+                    }
+
                 }
                 if (abandoned) {
                     bot_obj.updateStats("failedPages", 1);
@@ -1144,7 +1212,7 @@ var ChildManager = function(message_obj) {
 
     function indexTikaDocs() {
         try {
-            
+
 
             if (!message.get("tika_indexer_busy").enter()) {
                 return;
@@ -1172,7 +1240,7 @@ var ChildManager = function(message_obj) {
                                         if (done === docs.length) {
                                             message.get("tika_indexer_busy").release();
                                         }
-                                        
+
                                         return;
 
                                     }
@@ -1242,7 +1310,7 @@ var ChildManager = function(message_obj) {
                         }
 
                     }
-                }else{
+                } else {
                     message.get("tika_indexer_busy").release();
                     return;
                 }
@@ -1308,7 +1376,7 @@ module.exports = ChildManager;</code></pre>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Wed Jul 13 2016 23:40:09 GMT+0530 (IST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Sat Jul 23 2016 18:27:25 GMT+0530 (IST)
 </footer>
 
 <script> prettyPrint(); </script>
