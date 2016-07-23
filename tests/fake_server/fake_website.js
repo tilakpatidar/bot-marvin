@@ -62,7 +62,7 @@ function randomURLS(domain, count){
 	
 
 
-	for(var j=0;j<20;j++){
+	for(var j=0;j<200;j++){
 		var change_domain = parseInt(Math.random()*10);
 		if(change_domain > 5){
 			var cd = parseInt(Math.random()*10)/2;

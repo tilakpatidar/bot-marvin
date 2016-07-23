@@ -485,12 +485,12 @@ var Tika = function(message_obj) {
             return;
         }
 
-    
+
 
         try {
-           
+
             tika_queue_obj.dequeue(function tika_dequeue(li) {
-                
+
                 if (!check.assigned(li)) {
                     tika_queue_lock.release();
                     return;
@@ -527,10 +527,10 @@ var Tika = function(message_obj) {
                                     //console.log(body);
                                     var Parser = require(__dirname + "/parsers/" + parseFile);
                                     var parser_obj = new Parser(config);
-                                    parser_obj.parse(body, fileName,function(dic){
+                                    parser_obj.parse(body, fileName, function(dic) {
 
 
-                                         //pluggable parser
+                                        //pluggable parser
                                         msg("fetchFile for " + fileName, "success");
                                         try {
                                             var link = URL.url(fileName);
@@ -597,7 +597,7 @@ var Tika = function(message_obj) {
 
             }, config.getConfig("tika_batch_size")); //[[],[]]
         } catch (e) {
-            
+
             console.log(e, "error");
             tika_queue_lock.release();
         }

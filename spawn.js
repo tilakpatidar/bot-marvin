@@ -105,7 +105,7 @@ var Spawn = function() {
                             }, 100); //to avoid recursion
                         })(link);
                     } catch (err) {
-                            console.log(err);
+                        console.log(err);
                     }
                 } else if (that.bot_type === "failed_queue") {
                     var url = pools[i]['url'];
@@ -139,7 +139,7 @@ var Spawn = function() {
     this.processLink = function processLink(link) {
         var bot = this; //inside setTimeout no global access
         //console.log(bot.batchId,"   ",link.details.url , 'ask access');
-       //console.log(bot.batchId,"   ",bot.active_sockets, "    ",config.getConfig("http","max_concurrent_sockets"));
+        //console.log(bot.batchId,"   ",bot.active_sockets, "    ",config.getConfig("http","max_concurrent_sockets"));
         if (!check.assigned(link)) {
             return;
         }
