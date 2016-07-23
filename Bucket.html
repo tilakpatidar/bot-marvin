@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Class: Robots</title>
+    <title>JSDoc: Class: Bucket</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Class: Robots</h1>
+    <h1 class="page-title">Class: Bucket</h1>
 
     
 
@@ -28,7 +28,7 @@
 
 <header>
     
-        <h2>Robots</h2>
+        <h2>Bucket</h2>
         
     
 </header>
@@ -40,14 +40,15 @@
 
     
 
-    <h4 class="name" id="Robots"><span class="type-signature"></span>new Robots<span class="signature">(message_obj)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="Bucket"><span class="type-signature"></span>new Bucket<span class="signature">(message_obj)</span><span class="type-signature"></span></h4>
 
     
 
 
 
 <div class="description">
-    Represents Robots.txt parser
+    Represents a bucket of urls.
+    Responsible for creation of buckets from inlinks and cached urls.
 </div>
 
 
@@ -133,7 +134,7 @@
     <dt class="tag-author">Author:</dt>
     <dd class="tag-author">
         <ul>
-            <li><a href="mailto:tilakpatidar@gmail.com">Tilak Patidar</a></li>
+            <li>Tilak Patidar&lt;tilakpatidar@gmail.com></li>
         </ul>
     </dd>
     
@@ -147,7 +148,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="lib_robots.js.html">lib/robots.js</a>, <a href="lib_robots.js.html#line15">line 15</a>
+        <a href="lib_bucket.js.html">lib/bucket.js</a>, <a href="lib_bucket.js.html#line19">line 19</a>
     </li></ul></dd>
     
 
@@ -191,16 +192,26 @@
 
         
             
-<h4 class="name" id="bots"><span class="type-signature"></span>bots<span class="type-signature"></span></h4>
+<h4 class="name" id="~bucket_time_interval"><span class="type-signature">(private, inner) </span>bucket_time_interval<span class="type-signature"> :Number</span></h4>
 
 
 
 
 <div class="description">
-    Parsed data is stored in this JSON object.
+    time after which bucket creator is called.
 </div>
 
 
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">Number</span>
+
+
+        </li>
+    </ul>
 
 
 
@@ -235,7 +246,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="lib_robots.js.html">lib/robots.js</a>, <a href="lib_robots.js.html#line183">line 183</a>
+        <a href="lib_bucket.js.html">lib/bucket.js</a>, <a href="lib_bucket.js.html#line31">line 31</a>
     </li></ul></dd>
     
 
@@ -252,82 +263,27 @@
 
 
         
-    
-
-    
-        <h3 class="subsection-title">Methods</h3>
-
-        
             
+<h4 class="name" id="~bucket_timer"><span class="type-signature">(private, inner) </span>bucket_timer<span class="type-signature"> :boolean</span></h4>
 
-    
-
-    <h4 class="name" id="parse"><span class="type-signature"></span>parse<span class="signature">(fn)</span><span class="type-signature"></span></h4>
-
-    
 
 
 
 <div class="description">
-    Parses robots.txt for loaded urls.
+    Stores interval object for bucket creator.
 </div>
 
 
 
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
+    <h5>Type:</h5>
+    <ul>
+        <li>
             
-                <td class="name"><code>fn</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">function</span>
+<span class="param-type">boolean</span>
 
 
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">callback</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
+        </li>
+    </ul>
 
 
 
@@ -362,7 +318,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="lib_robots.js.html">lib/robots.js</a>, <a href="lib_robots.js.html#line32">line 32</a>
+        <a href="lib_bucket.js.html">lib/bucket.js</a>, <a href="lib_bucket.js.html#line41">line 41</a>
     </li></ul></dd>
     
 
@@ -378,110 +334,28 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
         
             
+<h4 class="name" id="~remaining_urls_store"><span class="type-signature">(private, inner) </span>remaining_urls_store<span class="type-signature"> :Object</span></h4>
 
-    
-
-    <h4 class="name" id="~addToCache"><span class="type-signature">(private, inner) </span>addToCache<span class="signature">(key, value)</span><span class="type-signature"></span></h4>
-
-    
 
 
 
 <div class="description">
-    Adds parsed data for a url into mongodb.
+    Stores the number of remaining urls in each bucket
 </div>
 
 
 
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
+    <h5>Type:</h5>
+    <ul>
+        <li>
             
-                <td class="name"><code>key</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">String</span>
+<span class="param-type">Object</span>
 
 
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">url</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>value</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">String</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">parsed data from robots.txt</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
+        </li>
+    </ul>
 
 
 
@@ -516,7 +390,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="lib_robots.js.html">lib/robots.js</a>, <a href="lib_robots.js.html#line192">line 192</a>
+        <a href="lib_bucket.js.html">lib/bucket.js</a>, <a href="lib_bucket.js.html#line55">line 55</a>
     </li></ul></dd>
     
 
@@ -532,148 +406,9 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
         
-            
-
     
 
-    <h4 class="name" id="~loadCache"><span class="type-signature">(private, inner) </span>loadCache<span class="signature">(fn)</span><span class="type-signature"></span></h4>
-
-    
-
-
-
-<div class="description">
-    Loades already parsed robots.txt from mongodb store.
-</div>
-
-
-
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>fn</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">function</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">callback</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="lib_robots.js.html">lib/robots.js</a>, <a href="lib_robots.js.html#line154">line 154</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
     
 
     
