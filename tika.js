@@ -4,6 +4,18 @@ process.getAbsolutePath = proto.getAbsolutePath;
 var exec = require('child_process').exec;
 var URLClass = require(__dirname + "/lib/url.js");
 var fs = require('fs');
+
+//using dnscache
+//from now on all the calls made to dns module are wrapped by the cache
+//this will provide dns cache in request module
+var dns = require('dns'),
+dnscache = require('dnscache')({
+    "enable" : true,
+    "ttl" : 300,
+    "cachesize" : 1000
+});
+
+
 var request = require('request');
 var Logger = require(__dirname + "/lib/logger.js");
 var check = require("check-types");
