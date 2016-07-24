@@ -62,6 +62,7 @@ var Spawn = function() {
     this.botObjs = {};
     this.lastAccess = {};
     this.bot_type;
+    this.domain_group_id = null;
 
     this.getTask = function getTask(fn) {
         process.on('message', function process_on_msg(data) {
@@ -79,6 +80,7 @@ var Spawn = function() {
                 message.set('config', config);
                 message.set('links_store', that.links);
                 that.bot_type = k[9];
+                that.domain_group_id = k[10];
                 log = new Logger(message);
                 message.set('log', log);
                 separateReqPool = {
@@ -543,7 +545,7 @@ var Spawn = function() {
                         try {
                             process.send({
                                 "bot": "spawn",
-                                "insertRssFeed": [link.details.url, feeds]
+                                "insertRssFeed": [link.details.url, feeds, that.domain_group_id]
                             });
                         } catch (err) {
                             console.log(err);

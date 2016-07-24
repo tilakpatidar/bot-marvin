@@ -131,10 +131,11 @@ var MongoDB = function(message_obj){
 		
 		var url = d[0];
 		var rss_links = d[1];
+		var domain_group_id = d[2];
 		var docs = [];
 		for(var index in rss_links){
 			var rss_link = rss_links[index];
-			docs.push({"_id": rss_link, page: url, nextRefresh: new Date().getTime()});
+			docs.push({"_id": rss_link, page: url, nextRefresh: new Date().getTime(), domains: domain_group_id});
 			
 		}
 		that.rss_feeds.insertMany(docs);
