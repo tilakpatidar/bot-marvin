@@ -57,7 +57,8 @@
     "robots": "0.9.4",  
     "immutable": "3.8.1",
     "feed-read": "0.0.1",
-    "dnscache": "0.0.4"
+    "dnscache": "0.0.4",
+    "bloomfilter": "0.0.16"
   },
   "devDependencies": {
     "mocha": "2.5.3",
