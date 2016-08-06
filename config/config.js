@@ -88,7 +88,7 @@ var config={
     "option",
     "nav"
   ],
-  "accept_regex": "__REGEXP /http(|s):\\/\\/archive\\.org\\/details\\/.+|http(|s):\\/\\/archive\\.org\\/details\\/texts\\?&sort=-downloads&page=.+/gi",
+  "accept_regex": "__REGEXP /(\.|\\s|\\n)*/gi",
   "reject_regex": [
     "__REGEXP /^(file|ftp|mailto|javascript|javascrpt|skype|whatsapp|tel):/g",
     "__REGEXP /\\.(gif|jpg|png|ico|css|sit|eps|wmf|zip|ppt|doc|mpg|xls|gz|rpm|tgz|mov|exe|jpeg|bmp|js|swf|pdf|xlsx)$/gi"
