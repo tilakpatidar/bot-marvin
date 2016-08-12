@@ -221,7 +221,7 @@ var NutchParser = function(config_obj){
 		 		var accepted_types = config.getConfig("http","accepted_mime_types");
 		 		var accepted = false;
 
-		 		_.each(accepted_types), function(e, index){
+		 		_.each(accepted_types, function(e, index){
 		 			var a_t = accepted_types[index];
 		 			if(content_tag_content.indexOf(a_t)>=0){
 		 				accepted = true;
