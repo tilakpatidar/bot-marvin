@@ -55,6 +55,9 @@ var URL = require(parent_dir + "/lib/url.js");
 var proto = require(parent_dir + '/lib/proto.js');
 var JSONX = proto.JSONX;
 var ObjectX = proto.ObjectX;
+var BloomFilter = require('bloomfilter').BloomFilter;
+
+
 /**
     Manages workers owned by the bot and manages 
     the communication and cordination between workers. 
@@ -70,6 +73,50 @@ var ChildManager = function(message_obj) {
     var childs = config.getConfig("childs"); //childs to spawn
     var batchSize = config.getConfig("batch_size");
     var botObjs = message.get('botsObj'); //stores the robots.txt data
+
+    /** Tracks size of bloom filter
+        @private
+    */
+    var bloom_length = 0;
+
+    /** Bloom filter n value
+        @private
+    */
+    var BLOOM_N = 10000000;
+
+    /** Bloom filter m value
+        @private
+    */    
+    var BLOOM_M = 287551752;
+
+    /** Bloom filter k value
+        @private
+    */    
+    var BLOOM_K = 20;
+
+    /**
+
+        Bloom filter is used to reduce duplicate error from db for url seen test.
+        n
+        Number of items in the filter
+        p
+        Probability of false positives, float between 0 and 1 or a number indicating 1-in-p
+        m
+        Number of bits in the filter
+        k
+        Number of hash functions
+        n = 10,000,000, p = 1.0E-6 (1 in 1,000,000) → m = 287,551,752 (34.28MB), k = 20
+        http://hur.st/bloomfilter
+
+        @private
+        @type {BloomFilter}
+    */
+    var bloom = new BloomFilter(
+          BLOOM_M, // number of bits to allocate. //34.28MB
+          BLOOM_K        // number of hash functions.
+    );
+
+
     message.set('inlinks_pool', []);
 
     var first_time_lock = new Lock();
@@ -152,9 +199,7 @@ var ChildManager = function(message_obj) {
         //console.log(grp);
         var stamp1 = new Date().getTime();
         pool.bucket_collection.findAndModify({
-            "domains": {
-                "$in": [grp]
-            },
+            "domains": grp,
             "underProcess": false,
             "recrawlAt": {
                 $lte: stamp1
@@ -202,13 +247,13 @@ var ChildManager = function(message_obj) {
                     if (err) {
 
                         msg("getNextBatch", "error");
-                        result(null, [], null, null);
+                        result(null, [], null, null, null);
                         return;
                     } else {
                         bot_obj.updateStats("processedBuckets", 1);
                         //#debug#console.log(docs);
                         msg(("Got " + docs.length + " for next Batch"), "success");
-                        result(err, docs, (hash + ""), refresh_label);
+                        result(err, docs, (hash + ""), refresh_label, grp);
                     }
 
 
@@ -235,7 +280,7 @@ var ChildManager = function(message_obj) {
             encapsulated function which checks for an available 
             bucket and starts a new worker
         */
-        getNextBatch(function getNextBatch(err, results, hash, refresh_label) {
+        getNextBatch(function getNextBatch(err, results, hash, refresh_label, domain_group_id) {
 
             if (first_time_lock.enter()) {
 
@@ -247,7 +292,7 @@ var ChildManager = function(message_obj) {
                 //if bucket is not empty 
 
                 msg("Got bucket " + hash, "info");
-                createChild(results, hash, refresh_label);
+                createChild(results, hash, refresh_label, domain_group_id);
             } else {
                 active_childs -= 1;
                 //inlinks_pool into db as childs are available but no buckets
@@ -387,9 +432,9 @@ var ChildManager = function(message_obj) {
         @param {String} refresh_label - Fetch Interval of the batch
 
     */
-    function createChild(bucket_links, hash, refresh_label) {
+    function createChild(bucket_links, hash, refresh_label, domain_group_id) {
 
-
+        
         var botId = new Date().getTime() + "" + parseInt(Math.random() * 10000); //generate a random bot id
         var bot = child.fork(parent_dir + "/spawn.js", []);
         spawned[botId] = bot; //saving child process for killing later in case of cleanup
@@ -401,7 +446,7 @@ var ChildManager = function(message_obj) {
         };
         msg('Child process started ' + botId, "success");
         var c = config.getGlobals(); // tuple of config,overriden_config,db_config
-        var args = [bucket_links, bucket_links.length, message.get('links_store'), botObjs, hash, refresh_label, c[0], c[1], c[2], "normal"];
+        var args = [bucket_links, bucket_links.length, message.get('links_store'), botObjs, hash, refresh_label, c[0], c[1], c[2], "normal", domain_group_id];
         //not sending args with child process as char length limitation on bash
 
         //bot waits for this "init" msg which assigns the details of the task
@@ -473,12 +518,43 @@ var ChildManager = function(message_obj) {
 
                 break;
             case "addToPool":
-                message.get('inlinks_pool').push(data["addToPool"]);
+                
+                
+
+                var u = data["addToPool"][0];
+
+                if(bloom_length >= (BLOOM_N * 95/100)){
+
+                    //if bloom filter grows more than 95% of size reset it
+                    bloom = new BloomFilter(
+                          BLOOM_M, // number of bits to allocate. //34.28MB
+                          BLOOM_K        // number of hash functions.
+                    );
+                    bloom_length = 0;
+
+                }
+
+
+                if(!bloom.test(u)){
+
+                    bloom.add(u);
+                    bloom_length += 1;
+
+                    message.get('inlinks_pool').push(data["addToPool"]);
+
+                }else{
+                    //console.log(u, "  found in bloom filter");
+                }
+
+                
+
+
                 if (message.get('inlinks_pool').length > batchSize) {
                     that.flushInlinks(function() {
 
                     });
                 }
+
                 break;
             case "finishedBatch":
                 var g = data["finishedBatch"];
@@ -519,6 +595,9 @@ var ChildManager = function(message_obj) {
             pool.rss_feeds.findOne({
                 "nextRefresh": {
                     "$lt": new Date().getTime()
+                },
+                "domains":{
+                    "$in": message.get('alloted_domain_groups')
                 }
             }, function(err, doc) {
 
@@ -526,6 +605,8 @@ var ChildManager = function(message_obj) {
                     message.get("rss_updator_lock").release();
                     return;
                 }
+
+
                 rss_fetcher_obj.getLinks(doc["_id"], function(li) {
 
                     pool.rss_feeds.updateOne({
@@ -673,7 +754,7 @@ var ChildManager = function(message_obj) {
     */
     this.flushInlinks = function flushInlinks(fn) {
         if (!check.assigned(fn)) {
-            fn = () => {};
+            fn = function(){};
         }
         var li = message.get('inlinks_pool');
         message.set('inlinks_pool', []);
@@ -1376,7 +1457,7 @@ module.exports = ChildManager;</code></pre>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Sat Jul 23 2016 18:31:34 GMT+0530 (IST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Fri Aug 12 2016 14:41:44 GMT+0530 (IST)
 </footer>
 
 <script> prettyPrint(); </script>
