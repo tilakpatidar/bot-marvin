@@ -68,6 +68,7 @@ var config={
   "external_links": false,
   "batch_size": 100,
   "db_type": "mongodb",
+  "elasticsearch_server": true, 
   "remove_tags": [
     "table",
     "style",
