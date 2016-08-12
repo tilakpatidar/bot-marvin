@@ -4,7 +4,7 @@ process.getAbsolutePath = proto.getAbsolutePath;
 var exec = require('child_process').exec;
 var URLClass = require(__dirname + "/lib/url.js");
 var fs = require('fs');
-
+var _ = require('underscore');
 //using dnscache
 //from now on all the calls made to dns module are wrapped by the cache
 //this will provide dns cache in request module
@@ -68,8 +68,7 @@ var TikaQueue = function(message_obj) {
                 return fn(null);
             }
 
-            for (var index in docs) {
-                var doc = docs[index];
+            _.each(docs, function(doc, index) {
                 (function(doc) {
                     tika_queue.update({
                         "_id": doc["_id"]
@@ -88,7 +87,7 @@ var TikaQueue = function(message_obj) {
                         }
                     });
                 })(doc);
-            }
+            });
         });
 
     };
@@ -513,8 +512,7 @@ var Tika = function(message_obj) {
                 }
 
                 var done = 0;
-                for (var i in li) {
-                    var obj = li[i];
+                _.each(li, function(obj, i) {
                     (function(fileName, parseFile, uniqueId, link_details) {
 
                         try {
@@ -605,7 +603,7 @@ var Tika = function(message_obj) {
 
 
                     })(obj.fileName, obj.parseFile, obj.link_details.urlID, obj.link_details);
-                };
+                });
 
             }, config.getConfig("tika_batch_size")); //[[],[]]
         } catch (e) {

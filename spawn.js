@@ -3,6 +3,7 @@ var URL = require(__dirname + "/lib/url.js");
 var child = require('child_process');
 process.getAbsolutePath = proto.getAbsolutePath;
 var parent_dir = process.getAbsolutePath(__dirname);
+var _ = require('underscore');
 
 //using dnscache
 //from now on all the calls made to dns module are wrapped by the cache
@@ -411,17 +412,20 @@ var Spawn = function() {
                 var tika_allowed = config.getConfig("tika_supported_mime");
                 var match = false;
                 var tika_match = false;
-                for (var index in allowed) {
+
+                _.each(allowed, function(e, index) {
                     if (res.headers['content-type'].indexOf(allowed[index]) >= 0) {
                         match = true;
                     }
 
-                }
-                for (var index in tika_allowed) {
+                });
+
+
+                _.each(tika_allowed, function(e, index) {
                     if (res.headers['content-type'].indexOf(tika_allowed[index]) >= 0) {
                         tika_match = true;
                     }
-                }
+                });
 
                 if (!match && !tika_match) {
                     req.emit('error', "MimeTypeRejected");
@@ -575,7 +579,7 @@ var Spawn = function() {
                     link.setContent(html);
                     if (check.assigned(parser_msgs) && !check.emptyObject(parser_msgs)) {
                         //link.setStatusCode("META_BOT"); //bec going to concat status
-                        for (var parser_msg_key in parser_msgs) {
+                        _.each(parser_msgs, function(e, parser_msg_key) {
 
                             var parser_msg = parser_msgs[parser_msg_key];
                             //console.log("############## PARSER MSG ############",parser_msg_key,parser_msg);
@@ -618,9 +622,9 @@ var Spawn = function() {
                                     break;
                                 case "alternate":
                                     special_opt = true;
-                                    for (var ind in parser_msg) {
+                                    _.each(parser_msg, function(e, ind) {
                                         link.addAlternateUrl(parser_msg[ind]);
-                                    }
+                                    });
 
                                     ++inlinksGrabbed;
                                     //do not grab links from this page
@@ -661,7 +665,7 @@ var Spawn = function() {
 
 
                             };
-                        }
+                        });
                     }
 
                     if ((check.assigned(parser_msgs) && !check.emptyObject(parser_msgs)) && special_opt) {
