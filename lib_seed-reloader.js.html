@@ -205,9 +205,8 @@ var SeedLoader = function SeedReloader(message_obj) {
             //generate seed buckets from domain_groups
             //console.log(message.get('domain_group'));
             var mul_buckets = [];
-            for (var ind in message.get('domain_group')) {
-                var sub_group = message.get('domain_group')[ind];
-
+            _.each(message.get('domain_group'),function(sub_group) {
+               
                 var domains = sub_group["_id"];
                 var links = _.pluck(sub_group["domains"], "_id");
                 if (sub_group["bot_name"] === config.getConfig("bot_name")) {
@@ -225,7 +224,7 @@ var SeedLoader = function SeedReloader(message_obj) {
                     "recrawlAt": stamp1,
                     "numOfLinks": links.length
                 });
-            }
+            });
 
             try {
                 pool.bucket_collection.insertMany(mul_buckets, {
@@ -240,8 +239,8 @@ var SeedLoader = function SeedReloader(message_obj) {
 
                     //now check how many sub groups buckets were successfully inserted
                     //and the insert urls from those buckets
-                    for (var ind in successfull) {
-                        var domain_group_id = successfull[ind];
+                    _.each(successfull, function(domain_group_id){
+
                         var sub_group = mul_buckets[domain_group_id];
                         //console.log(sub_group);
                         if (check.assigned(sub_group)) {
@@ -274,7 +273,7 @@ var SeedLoader = function SeedReloader(message_obj) {
 
                             };
                         }
-                    }
+                    });
 
                     var regex_urlfilter = {
                         'accept': config.getConfig('accept_regex'),
@@ -363,11 +362,9 @@ var SeedLoader = function SeedReloader(message_obj) {
 
         };
 
-        for (var index in results) {
-            var res = results[index];
+        _.each(results, function(res) {
             dict[res['fetch_interval']].push(res);
-
-        }
+        });
 
         //delete results;
 
@@ -397,8 +394,7 @@ var SeedLoader = function SeedReloader(message_obj) {
 
             var bot_count = bots.length;
             //console.log("INTERVALS START",intervals,"INTERVALS");
-            for (var ind in intervals) {
-                var k = intervals[ind];
+            _.each(intervals, function(k) {
 
                 msg('Generating sublist for ' + k + ' interval', 'info');
                 while (true) {
@@ -476,7 +472,7 @@ var SeedLoader = function SeedReloader(message_obj) {
 
                 }
 
-            }
+            });
             //delete that.bucket_priority;
             //console.log(that.domain_group.length, "SUBLIST LEN");
             var docs_temp = [];
@@ -484,9 +480,10 @@ var SeedLoader = function SeedReloader(message_obj) {
             _.range(bots.length).map(function(i) {
                 var arr = domain_group.slice(i * n, (i + 1) * n);
                 // console.log(arr);
-                for (var index in arr) {
+                _.each(arr, function(elem, index) {
                     arr[index]["bot_name"] = bots[i];
-                }
+                });
+
                 docs_temp = docs_temp.concat(arr);
 
 
@@ -539,8 +536,9 @@ var SeedLoader = function SeedReloader(message_obj) {
                     });
                 }
                 var inserted_docs = [];
-                for (var keys in json) {
-                    var obj = json[keys];
+
+                _.each(json, function(obj) {
+                    
                     (function(a, b, dd, ee, ff) {
 
 
@@ -576,11 +574,12 @@ var SeedLoader = function SeedReloader(message_obj) {
                                     //console.log("TILAK1",s,"TILAK");
                                     //drop tmp seed collections
                                     msg("Partioning seed list", "info");
+                                    //console.log(s);
                                     that.generateSubLists(s, function() {
                                         var size = _.size(parsers);
                                         var counter = 0;
                                         //console.log(parsers);
-                                        for (var parser_keys in parsers) {
+                                        _.each(parsers, function(parseFile){
                                             (function(parseFile) {
                                                 pool.insertParseFile(parseFile, function(parseFileUpdated) {
 
@@ -604,9 +603,9 @@ var SeedLoader = function SeedReloader(message_obj) {
 
                                                 });
 
-                                            })(parsers[parser_keys]);
+                                            })(parseFile);
 
-                                        }
+                                        });
 
 
                                     });
@@ -614,7 +613,7 @@ var SeedLoader = function SeedReloader(message_obj) {
                             }
                         });
                     })(obj["_id"], obj["parseFile"], obj["priority"], obj["fetch_interval"], obj["limit_depth"]);
-                }
+                });
             } catch (err) {
                 //restore from old collection
                 console.log(err);
@@ -1044,13 +1043,13 @@ module.exports = SeedLoader;</code></pre>
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="Bucket.html">Bucket</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="Message.html">Message</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="RSSFetcher.html">RSSFetcher</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Spawn.html">Spawn</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="-_.html">_</a></li><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="Bucket.html">Bucket</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="Message.html">Message</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="RSSFetcher.html">RSSFetcher</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Spawn.html">Spawn</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Fri Aug 12 2016 14:41:44 GMT+0530 (IST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Fri Aug 12 2016 23:10:12 GMT+0530 (IST)
 </footer>
 
 <script> prettyPrint(); </script>

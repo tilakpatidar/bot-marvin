@@ -26,9 +26,10 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>var feed = require("feed-read");
-var _ = require("underscore");
-
+            <pre class="prettyprint source linenums"><code>var _ = require("underscore");
+var request = require('request');
+var FeedParser = require('feedparser');
+var Iconv = require('iconv').Iconv;
 /**
 	Parses RSS feeds and updates inlinks in the crawler.
 	Links are provided from rss collection of the crawler.
@@ -47,15 +48,19 @@ var RSSFetcher = function(message_obj) {
     	@param {String} rss_link
     */
     this.getLinks = function(rss_link, fn) {
+        try{
+            fetch(rss_link, function(err, articles) {
+                
+                if (err) {
+                    return fn([]);
+                }
 
-        feed(rss_link, function(err, articles) {
-            //console.log(arguments);
-            if (err) {
-                return fn([]);
-            }
+                return fn(_.pluck(articles, "link"));
+            });
+        }catch(err){
+            return fn([]);
+        }
 
-            return fn(_.pluck(articles, "link"));
-        });
 
     };
 
@@ -65,21 +70,124 @@ var RSSFetcher = function(message_obj) {
     	@public
     	@param {String} rss_link
     */
-    this.getRssContent = function(rss_link) {
+    this.getRssContent = function(rss_link, fn) {
 
-        feed(rss_link, function(err, articles) {
+        fetch(rss_link, function(err, articles) {
 
             if (err) {
                 return fn([]);
             }
 
-            return articles;
+            return fn(articles);
         });
     };
 
+
+
+    function fetch(feed, callback) {
+          // Define our streams
+          var once = false;
+          var posts = [];
+
+          var req = request(feed, {timeout: 10000, pool: false});
+          req.setMaxListeners(50);
+          // Some feeds do not respond without user-agent and accept headers.
+          req.setHeader('user-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/31.0.1650.63 Safari/537.36');
+          req.setHeader('accept', 'text/html,application/xhtml+xml');
+
+          var feedparser = new FeedParser();
+
+          // Define our handlers
+          req.on('error', function(){
+            if(!once){
+                once = true;
+                return callback(new Error("Request error"), posts);
+            }
+            
+          });
+
+
+          req.on('response', function(res) {
+
+            if (res.statusCode != 200) return this.emit('error', new Error('Bad status code'));
+            var charset = getParams(res.headers['content-type'] || '').charset;
+            res = maybeTranslate(res, charset);
+            // And boom goes the dynamite
+            res.pipe(feedparser);
+
+            res.on('error', function(){
+                if(!once){
+                    once = true;
+                    return callback(new Error("response error"), posts);
+                }
+            });
+
+          });
+
+          feedparser.on('error', function(){
+            if(!once){
+                once = true;
+                return callback(new Error("feedparser error"), posts);
+            }
+          });
+
+
+          feedparser.on('end', function(){
+                if(!once){
+                    once = true;
+                    return callback(null, posts);
+                }
+          });
+          
+          feedparser.on('readable', function() {
+            var post;
+            while (post = this.read()) {
+                posts.push(post);
+            }
+          });
+    }
+
+    function maybeTranslate (res, charset) {
+      var iconv;
+      // Use iconv if its not utf8 already.
+      if (!iconv &amp;&amp; charset &amp;&amp; !/utf-*8/i.test(charset)) {
+        try {
+          iconv = new Iconv(charset, 'utf-8');
+          console.log('Converting from charset %s to utf-8', charset);
+          iconv.on('error', function(){
+            res.emit('error', err);
+          });
+          // If we're using iconv, stream will be the output of iconv
+          // otherwise it will remain the output of request
+          res = res.pipe(iconv);
+        } catch(err) {
+          
+        }
+      }
+      return res;
+    }
+
+    function getParams(str) {
+      var params = str.split(';').reduce(function (params, param) {
+        var parts = param.split('=').map(function (part) { return part.trim(); });
+        if (parts.length === 2) {
+          params[parts[0]] = parts[1];
+        }
+        return params;
+      }, {});
+      return params;
+    }
+
+    
+
 };
 
-module.exports = RSSFetcher;</code></pre>
+module.exports = RSSFetcher;
+
+
+
+
+</code></pre>
         </article>
     </section>
 
@@ -89,13 +197,13 @@ module.exports = RSSFetcher;</code></pre>
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="Bucket.html">Bucket</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="Message.html">Message</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="RSSFetcher.html">RSSFetcher</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Spawn.html">Spawn</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="-_.html">_</a></li><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="Bucket.html">Bucket</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="Message.html">Message</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="RSSFetcher.html">RSSFetcher</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Spawn.html">Spawn</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Fri Aug 12 2016 14:41:44 GMT+0530 (IST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Fri Aug 12 2016 23:10:12 GMT+0530 (IST)
 </footer>
 
 <script> prettyPrint(); </script>

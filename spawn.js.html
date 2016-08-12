@@ -31,6 +31,7 @@ var URL = require(__dirname + "/lib/url.js");
 var child = require('child_process');
 process.getAbsolutePath = proto.getAbsolutePath;
 var parent_dir = process.getAbsolutePath(__dirname);
+var _ = require('underscore');
 
 //using dnscache
 //from now on all the calls made to dns module are wrapped by the cache
@@ -439,17 +440,20 @@ var Spawn = function() {
                 var tika_allowed = config.getConfig("tika_supported_mime");
                 var match = false;
                 var tika_match = false;
-                for (var index in allowed) {
+
+                _.each(allowed, function(e, index) {
                     if (res.headers['content-type'].indexOf(allowed[index]) >= 0) {
                         match = true;
                     }
 
-                }
-                for (var index in tika_allowed) {
+                });
+
+
+                _.each(tika_allowed, function(e, index) {
                     if (res.headers['content-type'].indexOf(tika_allowed[index]) >= 0) {
                         tika_match = true;
                     }
-                }
+                });
 
                 if (!match &amp;&amp; !tika_match) {
                     req.emit('error', "MimeTypeRejected");
@@ -603,7 +607,7 @@ var Spawn = function() {
                     link.setContent(html);
                     if (check.assigned(parser_msgs) &amp;&amp; !check.emptyObject(parser_msgs)) {
                         //link.setStatusCode("META_BOT"); //bec going to concat status
-                        for (var parser_msg_key in parser_msgs) {
+                        _.each(parser_msgs, function(e, parser_msg_key) {
 
                             var parser_msg = parser_msgs[parser_msg_key];
                             //console.log("############## PARSER MSG ############",parser_msg_key,parser_msg);
@@ -646,9 +650,9 @@ var Spawn = function() {
                                     break;
                                 case "alternate":
                                     special_opt = true;
-                                    for (var ind in parser_msg) {
+                                    _.each(parser_msg, function(e, ind) {
                                         link.addAlternateUrl(parser_msg[ind]);
-                                    }
+                                    });
 
                                     ++inlinksGrabbed;
                                     //do not grab links from this page
@@ -689,7 +693,7 @@ var Spawn = function() {
 
 
                             };
-                        }
+                        });
                     }
 
                     if ((check.assigned(parser_msgs) &amp;&amp; !check.emptyObject(parser_msgs)) &amp;&amp; special_opt) {
@@ -961,13 +965,13 @@ var spawn_obj = new Spawn();</code></pre>
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="Bucket.html">Bucket</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="Message.html">Message</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="RSSFetcher.html">RSSFetcher</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Spawn.html">Spawn</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="-_.html">_</a></li><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="Bucket.html">Bucket</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="Message.html">Message</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="RSSFetcher.html">RSSFetcher</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Spawn.html">Spawn</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Fri Aug 12 2016 14:41:44 GMT+0530 (IST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Fri Aug 12 2016 23:10:12 GMT+0530 (IST)
 </footer>
 
 <script> prettyPrint(); </script>

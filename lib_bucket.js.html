@@ -87,6 +87,7 @@ var Bucket = function(message_obj) {
 
         var li = [];
         var remaining_urls = remaining_urls_store[bucket_id];
+        
         if (!check.assigned(remaining_urls)) {
             remaining_urls_store[bucket_id] = 0;
             remaining_urls = 0;
@@ -132,10 +133,11 @@ var Bucket = function(message_obj) {
                     msg("Loaded " + object.length + ' items for the cache of ' + domain, 'success');
                 }
 
-                for (var index in object) {
-                    var doc = object[index];
-                    message.get('proxy_cache').pushURL(doc);
-                }
+                _.each(object, function(doc) {
+
+                     message.get('proxy_cache').pushURL(doc);
+
+                });
 
                 //console.log("1(count + remaining_urls) - cache_urls.length  ", count, "  +  ", remaining_urls, "  -  ",  cache_urls.length);
                 cache_urls = cache_urls.concat(message.get('proxy_cache').fetchURLs(domain, count + remaining_urls - cache_urls.length));
@@ -193,14 +195,14 @@ var Bucket = function(message_obj) {
         var hashes = {};
         var intervals = config.getConfig("recrawl_intervals");
 
-        for (var k in message.get('distinct_fetch_intervals')) {
+        _.each(message.get('distinct_fetch_intervals'), function(e, k) {
             //creating hashes for all declared distinct_fetch_intervals
             //console.log(k);
             hashes[k] = {};
             hashes[k]["_id"] = ObjectId();
             hashes[k]["links"] = [];
 
-        }
+        });
 
         var n_domains = _.size(links_store);
 
@@ -231,7 +233,7 @@ var Bucket = function(message_obj) {
 
                 var rounds = 0;
                 while (rounds !== 2) {
-                    for (var k in message.get('distinct_fetch_intervals')) {
+                    _.each(message.get('distinct_fetch_intervals'), function(e, k) {
                         //creating buckets for all distinct fetch intervals
 
                         (function(k) {
@@ -265,7 +267,7 @@ var Bucket = function(message_obj) {
 
                         })(k);
 
-                    }
+                    });
 
                     rounds += 1;
                 }
@@ -304,7 +306,7 @@ var Bucket = function(message_obj) {
         var done = 0;
         var counter = _.size(hashes);
         //console.log("hashes",hashes);
-        for (var key in hashes) {
+        _.each(hashes, function(e, key) {
             (function(key) {
                 //first links are added to the db to avoid same links
                 //console.log(hashes[key], "HASH KEYS");
@@ -358,7 +360,7 @@ var Bucket = function(message_obj) {
             })(key);
 
 
-        }
+        });
 
 
     };
@@ -397,13 +399,13 @@ module.exports = Bucket;</code></pre>
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="Bucket.html">Bucket</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="Message.html">Message</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="RSSFetcher.html">RSSFetcher</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Spawn.html">Spawn</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="-_.html">_</a></li><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="Bucket.html">Bucket</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="Message.html">Message</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="RSSFetcher.html">RSSFetcher</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Spawn.html">Spawn</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Fri Aug 12 2016 14:41:44 GMT+0530 (IST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Fri Aug 12 2016 23:10:12 GMT+0530 (IST)
 </footer>
 
 <script> prettyPrint(); </script>

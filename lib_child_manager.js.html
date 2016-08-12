@@ -56,7 +56,7 @@ var proto = require(parent_dir + '/lib/proto.js');
 var JSONX = proto.JSONX;
 var ObjectX = proto.ObjectX;
 var BloomFilter = require('bloomfilter').BloomFilter;
-
+var elasticsearch = require('elasticsearch');
 
 /**
     Manages workers owned by the bot and manages 
@@ -73,6 +73,9 @@ var ChildManager = function(message_obj) {
     var childs = config.getConfig("childs"); //childs to spawn
     var batchSize = config.getConfig("batch_size");
     var botObjs = message.get('botsObj'); //stores the robots.txt data
+    var es_client;
+
+
 
     /** Tracks size of bloom filter
         @private
@@ -140,6 +143,14 @@ var ChildManager = function(message_obj) {
     server.start();
     URL = new URL(message);
     var rss_fetcher_obj = new RSSFetcher(message);
+
+    if(config.getConfig("elasticsearch_server")){
+
+        var es_config = config.getConfig("elasticsearch");
+        msg("Attempting to connect to elasticsearch " + JSON.stringify(es_config, null, 2) , "info");
+        es_client = new elasticsearch.Client(es_config);
+    
+    }
 
     /**
         Responsible for allocating vacant childs 
@@ -336,9 +347,9 @@ var ChildManager = function(message_obj) {
                 }
                 var ids = _.pluck(docs, '_id');
                 var idss = [];
-                for (var i in ids) {
-                    idss.push(ids[i].toString());
-                }
+                _.each(ids, function(item) {
+                    idss.push(item.toString());
+                });
                 //console.log(idss,"############################## IDS");
                 pool.failed_db.update({
                     "_id": {
@@ -350,11 +361,10 @@ var ChildManager = function(message_obj) {
                     }
                 }, function(e, r) {
                     //console.log(e,r,"updateeeeeeddeed #########################");
-                    for (var index in docs) {
-                        var doc = docs[index];
+                    _.each(docs, function(doc){
                         doc["failed_info"]['bucket_id'] = 'failed_queue_' + doc["failed_info"]['bucket_id'] + '_' + doc["_id"] + '_' + doc["count"];
                         li.push(doc["failed_info"]);
-                    }
+                    });
                     //console.log(li);
                     createChild_for_failed_queue(li, 'failed_queue', 'failed_queue'); // sending failed_queue string instead of bucket hash
                 });
@@ -619,8 +629,7 @@ var ChildManager = function(message_obj) {
 
                         var l = [];
 
-                        for (var index in li) {
-                            var item = li[index];
+                        _.each(li, function(item){
                             var url = URL.url(item);
                             if (url.isAccepted()) {
                                 var format = [];
@@ -629,9 +638,9 @@ var ChildManager = function(message_obj) {
                                 format.push(doc["_id"]);
                                 l.push(format);
                             }
-                        }
+                        });
 
-
+                        
                         message.set('inlinks_pool', message.get('inlinks_pool').concat(l));
 
                         msg("links " + l.length + " obtained from rss " + doc["_id"], "success");
@@ -1211,6 +1220,7 @@ var ChildManager = function(message_obj) {
                     }
                 } else {
                     msg("pool.setCrawled", "error");
+                    console.log(err);
                 }
 
             } else {
@@ -1236,14 +1246,20 @@ var ChildManager = function(message_obj) {
                             gridStore.write(html_data, function(err, gridStore) {
                                 gridStore.close(function(err, fileData) {
                                     bot_obj.updateStats("crawledPages", 1);
+                                    //console.log('hey1');
+                                    elasticIndex(dict);
                                     msg(("Updated " + url), "success");
+                                    
                                 });
                             });
                         });
 
                     } else {
                         bot_obj.updateStats("crawledPages", 1);
+                        //console.log('hey12');
+                        elasticIndex(dict);
                         msg(("Updated " + url), "success");
+                        
                     }
 
                 }
@@ -1256,6 +1272,48 @@ var ChildManager = function(message_obj) {
 
         });
         return fn();
+    };
+
+    /**
+        Indexes js Object into Elasticsearch.
+        If elasticsearch enabled from config.
+        @private
+        @param {JSON} dict
+    */
+    function elasticIndex(dict){
+        if(config.getConfig("elasticsearch_server")){
+
+            delete dict["crawled"];
+            var id = dict["data"]["_source"]["id"];
+            delete dict["data"]["_source"]["id"];
+            delete dict["data"]["_source"]["rss_feeds"];
+
+            var response_time = dict["response_time"];
+            var response = dict["response"];
+
+
+            var url = dict["url"];
+            dict["data"]["_source"]["url"] = url;
+
+            var source = dict["data"]["_source"];
+            source["response"] = response;
+            source["response_time"] = response_time;
+
+          
+           var indexx = config.getConfig('elasticsearch','index');
+            es_client.index({
+              index: indexx,
+              type: config.getConfig('elasticsearch','type'),
+              body: source,
+              id: id,
+            }, function es_client_cb (error, response) {
+                if(error){
+                    console.log(error);
+                }else{
+                    msg("updated " + id + " into elasticsearch index '" + indexx + "'"  , "success");
+                }
+            });
+        }
     };
     /**
         Kill the workers spawned by the child manager.
@@ -1278,9 +1336,9 @@ var ChildManager = function(message_obj) {
                 "status": 0
             }, function() {
 
-                for (var key in spawned) {
+                _.each(spawned, function(e, key) {
                     spawned[key].kill(); //kill the childs before exit
-                }
+                });
                 return fn();
             });
         });
@@ -1307,7 +1365,7 @@ var ChildManager = function(message_obj) {
 
                     var done = 0;
 
-                    for (var index in docs) {
+                    _.each(docs, function(doc) {
 
                         try {
                             var doc = docs[index];
@@ -1390,7 +1448,7 @@ var ChildManager = function(message_obj) {
                             }
                         }
 
-                    }
+                    });
                 } else {
                     message.get("tika_indexer_busy").release();
                     return;
@@ -1451,13 +1509,13 @@ module.exports = ChildManager;</code></pre>
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="Bucket.html">Bucket</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="Message.html">Message</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="ObjectX.html">ObjectX</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="RSSFetcher.html">RSSFetcher</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Spawn.html">Spawn</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="-_.html">_</a></li><li><a href="ArgumentProcesser.html">ArgumentProcesser</a></li><li><a href="Bot.html">Bot</a></li><li><a href="Bucket.html">Bucket</a></li><li><a href="BucketProxy.html">BucketProxy</a></li><li><a href="ChildManager.html">ChildManager</a></li><li><a href="Cluster.html">Cluster</a></li><li><a href="Config.html">Config</a></li><li><a href="Crawler.html">Crawler</a></li><li><a href="DBConfig.html">DBConfig</a></li><li><a href="DepCheck.html">DepCheck</a></li><li><a href="Graph.html">Graph</a></li><li><a href="JSONX.html">JSONX</a></li><li><a href="Lock.html">Lock</a></li><li><a href="Logger.html">Logger</a></li><li><a href="Message.html">Message</a></li><li><a href="MongoDB.html">MongoDB</a></li><li><a href="Pool.html">Pool</a></li><li><a href="Proto.html">Proto</a></li><li><a href="Robots.html">Robots</a></li><li><a href="RSSFetcher.html">RSSFetcher</a></li><li><a href="Score.html">Score</a></li><li><a href="SeedLoader.html">SeedLoader</a></li><li><a href="Server.html">Server</a></li><li><a href="Sitemap.html">Sitemap</a></li><li><a href="Spawn.html">Spawn</a></li><li><a href="Stats.html">Stats</a></li><li><a href="Tika.html">Tika</a></li><li><a href="TikaQueue.html">TikaQueue</a></li><li><a href="URLCreator.html">URLCreator</a></li><li><a href="URLCreator_url-URL.html">URL</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Fri Aug 12 2016 14:41:44 GMT+0530 (IST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Fri Aug 12 2016 23:10:12 GMT+0530 (IST)
 </footer>
 
 <script> prettyPrint(); </script>
