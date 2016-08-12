@@ -59,7 +59,8 @@
     "dnscache": "0.0.4",
     "bloomfilter": "0.0.16",
     "feedparser": "1.1.4",
-    "iconv": "2.2.1"
+    "iconv": "2.2.1",
+    "elasticsearch": "11.0.1"
   },
   "devDependencies": {
     "mocha": "2.5.3",
