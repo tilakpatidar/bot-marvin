@@ -19,6 +19,7 @@ Basic useful feature list:
  * Collects rss feeds and author info
  * Pluggable parsers
  * Pluggable indexers (currently MongoDB supported)
+ * Indexing crawled data in elasticsearch supported
 
 ### install
 
@@ -95,6 +96,7 @@ sudo bot-marvin
 
  * [request](https://www.npmjs.com/package/request) for making http requests
  * [mongodb](https://www.npmjs.com/package/mongodb) for mongodb connectivity
+ * [elasticsearch](https://www.npmjs.com/package/elasticsearch) for elasticsearch connectivity
  * [underscore](https://www.npmjs.com/package/underscore) Js utility functions library
  * [immutable](https://www.npmjs.com/package/immutable) Js lib for advanced data structures
  * [check-types](https://www.npmjs.com/package/check-types) for Strict type checking
@@ -107,4 +109,4 @@ sudo bot-marvin
  * [progress](https://www.npmjs.com/package/progress) for download progress bars
  * [string-editor](https://www.npmjs.com/package/string-editor) for providing nano like editor for editing config from terminal 
  * [node-static](https://www.npmjs.com/package/node-static) server for web app
- * [feed-read](https://www.npmjs.com/package/feed-read) for parsing rss feeds
+ * [feedparser](https://www.npmjs.com/package/feedparser) for parsing rss feeds
