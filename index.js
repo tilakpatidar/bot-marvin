@@ -6,6 +6,7 @@ var check = require('check-types');
 var _ = require("underscore");
 var proto = require(__dirname + '/lib/proto.js');
 process.getAbsolutePath = proto.getAbsolutePath;
+process.setMaxListeners(0); //unlimited listeners
 var parent_dir = __dirname; //parent dir path for importing modules safely
 
 

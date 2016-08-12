@@ -2,6 +2,7 @@ var proto = require(__dirname + "/lib/proto.js");
 var URL = require(__dirname + "/lib/url.js");
 var child = require('child_process');
 process.getAbsolutePath = proto.getAbsolutePath;
+process.setMaxListeners(0); //unlimited listeners
 var parent_dir = process.getAbsolutePath(__dirname);
 var _ = require('underscore');
 
@@ -286,7 +287,7 @@ var Spawn = function() {
                     });
 
                 } catch (err) {
-                    msg("Child killed", "error")
+                    //msg("Child killed", "error")
                 }
 
             }
@@ -303,11 +304,13 @@ var Spawn = function() {
                     "bot": "spawn",
                     "finishedBatch": [that.batchId, that.refresh_label, that.bot_type]
                 });
-                setTimeout(function() {
-                    process.exit(0);
-                }, 5000);
+                
             } catch (err) {
                 //  msg("Child killed","error")
+            }finally{
+                setTimeout(function(){
+                    process.exit(0);
+                },10000);
             }
 
 
