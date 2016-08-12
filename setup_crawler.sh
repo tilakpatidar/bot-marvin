@@ -1,9 +1,9 @@
 #!/bin/sh
-echo "sudo nodejs index.js --reset --force" &&
-sudo nodejs index.js --reset --force &&
-echo "sudo nodejs lib/db_config.js --force" &&
-sudo nodejs lib/db_config.js --force &&
-echo "sudo nodejs index.js --config --force " &&
-sudo nodejs index.js --config --force &&
-echo "sudo nodejs index.js --loadSeedFile seed.json --force" &&
-sudo nodejs index.js --loadSeedFile seed.json --force 
+echo "sudo -E nodejs index.js --reset --force" &&
+sudo -E nodejs index.js --reset --force &&
+echo "sudo -E nodejs lib/db_config.js --force" &&
+sudo -E nodejs lib/db_config.js --force &&
+echo "sudo -E nodejs index.js --config --force " &&
+sudo -E nodejs index.js --config --force &&
+echo "sudo -E nodejs index.js --loadSeedFile seed.json --force" &&
+sudo -E nodejs index.js --loadSeedFile seed.json --force 
