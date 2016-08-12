@@ -152,11 +152,11 @@ var NutchParser = function(config_obj){
 		 ret['open_graph']['url'] = fetchMultipleAttr($('meta[property="og:url" i]'),'content');
 		 ret['open_graph']['description'] = fetchMultipleAttr($('meta[property="og:description" i]'),'content');
 
-		 for(var key in ret['open_graph']){
+		 _.each(ret['open_graph'], function(e, key){
 		 	if(!check.assigned(ret['open_graph'][key])){
 		 		delete ret['open_graph'][key];
 		 	}
-		 }
+		 });
 
 
 		 //twitter card
@@ -182,13 +182,17 @@ var NutchParser = function(config_obj){
 
 
 
-		 for(var key in ret['twitter']){
+		 _.each(ret['twitter'], function(element, key){
 		 	if(!check.assigned(ret['twitter'][key])){
 		 		delete ret['twitter'][key];
 		 	}
-		 }
+		 });
+
+
 		 var feeds = [];
-		 for(var index in ret['rss_feeds']){
+		 
+
+		 _.each(ret['rss_feeds'], function(element, index){
 		 	if(!check.assigned(ret['rss_feeds'][index])){
 		 		delete ret['rss_feeds'][index];
 		 	}else{
@@ -200,7 +204,8 @@ var NutchParser = function(config_obj){
 		 			feeds.push(URL.resolve(domain, ret['rss_feeds'][index]));
 		 		}
 		 	}
-		 }
+		 });
+
 		 ret["rss_feeds"] = feeds;
 
 		 ret['msg'] = {};
@@ -215,14 +220,16 @@ var NutchParser = function(config_obj){
 		 		content_tag_content = content_tag_content.toLowerCase();
 		 		var accepted_types = config.getConfig("http","accepted_mime_types");
 		 		var accepted = false;
-		 		for(var index in accepted_types){
+
+		 		_.each(accepted_types), function(e, index){
 		 			var a_t = accepted_types[index];
 		 			if(content_tag_content.indexOf(a_t)>=0){
 		 				accepted = true;
-		 				break;
+		 				return {};
 
 			 		}
-		 		}
+		 		});
+
 		 		if(!accepted){
 		 			ret['msg']['content-type-reject'] = content_tag_content;
 		 		}
