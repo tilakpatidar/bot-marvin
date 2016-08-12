@@ -15,7 +15,6 @@ var config={
   "inlink_cache_size":5000,
   "network_interface": "eth0",
   "network_host": "127.0.0.1",
-  "network_port": "2020",
   "cluster_port": 5555,
   "http": {
     "http_proxy":"",
