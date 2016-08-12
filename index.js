@@ -189,16 +189,14 @@ var Crawler = function(args) {
             if (done) {
                 //console.log(done,"done")
                 process.nextTick(function() {
-                    var pids = fs.readFileSync(__dirname + "/db/pids/active_pids.txt").toString().split("\n");
-                    for (var i = 0; i < pids.length; i++) {
-                        try {
-                            //#debug#console.log(parseInt(pids[i]))
-                            process.kill(parseInt(pids[i]));
-                        } catch (err) {
-                            //#debug#console.log(err)
-                        }
-
-                    };
+                    var pids = fs.readFileSync(__dirname + "/db/pids/active_pids.txt").toString();
+                    
+                    try {
+                        //#debug#console.log(parseInt(pids[i]))
+                        process.kill(parseInt(pids));
+                    } catch (err) {
+                        //#debug#console.log(err)
+                    }
                     fs.unlinkSync(__dirname + "/db/pids/active_pids.txt");
                     if (process.RUN_ENV === "TEST") {
                         message_obj.set("bot_stopped", true);
@@ -689,7 +687,7 @@ var Crawler = function(args) {
                 var ls = spawn(config.getConfig("env"), [file_path], {
                     stdio: 'inherit'
                 });
-                fs.appendFileSync(__dirname + "/db/pids/active_pids.txt", ls.pid + "\n");
+                fs.writeFileSync(__dirname + "/db/pids/active_pids.txt", ls.pid);
                 //ls.stdout.pipe(process.stdout);
                 //process.exit(0);			
                 ls.on("exit", function() {
@@ -760,7 +758,7 @@ var Crawler = function(args) {
 
 
 
-        fs.appendFileSync(__dirname + "/db/pids/active_pids.txt", process.pid + "\n");
+        fs.writeFileSync(__dirname + "/db/pids/active_pids.txt", process.pid );
 
 
         var config_obj = new ConfigLoader(message_obj);
