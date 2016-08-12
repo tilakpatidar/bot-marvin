@@ -127,7 +127,8 @@ describe('Testing URL', function() {
         //limit_depth check
         var u = url_obj.url("http://www.google.com/a/b/c/d", "http://www.google.com");
         assert.equal(u.details.accepted, false, "limit depth check failed");
-
+	var u = url_obj.url("http://www.telegraphindia.com/1160812/jsp/northeast/story_102047.jsp", "http://www.telegraphindia.com");
+	console.log(u.details.accepted);
 
     });
     
