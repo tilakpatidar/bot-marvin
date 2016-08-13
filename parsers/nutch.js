@@ -43,7 +43,10 @@ var NutchParser = function(config_obj){
          	dic._source["author"] = indexed["author"];
          	dic._source["open_graph"] = indexed["open_graph"];
          	dic._source["rss_feeds"] = indexed["rss_feeds"];
+         	
          }
+
+         dic._source["tstamp"] = new Date().toISOString(); //indexed tstamp
 
 		 return fn([indexed["dom"],dic,[], indexed["html"], indexed["msg"]]);//cheerio object ,dic to insert ,inlinks to give
 		 //for documents indexed["dom"] is null
