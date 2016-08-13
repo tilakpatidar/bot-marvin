@@ -69,6 +69,7 @@ var config={
   "batch_size": 100,
   "db_type": "mongodb",
   "elasticsearch_server": true, 
+  "es_rss_index": true,
   "remove_tags": [
     "table",
     "style",
