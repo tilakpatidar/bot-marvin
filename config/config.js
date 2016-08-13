@@ -70,6 +70,7 @@ var config={
   "db_type": "mongodb",
   "elasticsearch_server": true, 
   "es_rss_index": true,
+  "rss_refetch_interval": 1200000,
   "remove_tags": [
     "table",
     "style",

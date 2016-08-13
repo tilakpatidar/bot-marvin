@@ -135,7 +135,7 @@ var MongoDB = function(message_obj){
 		var docs = [];
 		for(var index in rss_links){
 			var rss_link = rss_links[index];
-			docs.push({"_id": rss_link, page: url, nextRefresh: new Date().getTime(), domains: domain_group_id});
+			docs.push({page: url ,rss_link: rss_link , nextRefresh: new Date().getTime(), domains: domain_group_id});
 			
 		}
 		that.rss_feeds.insertMany(docs);
@@ -175,6 +175,7 @@ var MongoDB = function(message_obj){
 			that.mongodb_collection.createIndex({url :1},{unique: true});
 			that.mongodb_collection.createIndex({md5 :1},{unique: true});
 			that.rss_feeds = db.collection("rss_feeds"); 
+			that.rss_feeds.createIndex({rss_link :1},{unique: true});
 			that.bucket_collection.createIndex({level:1},function(err){});//asc order sort for score
 			that.tika_f_queue = db.collection(config.getConfig("bot_name")+"_tika_f_queue");
 			that.tika_queue = db.collection(config.getConfig("bot_name")+"_tika_queue");
