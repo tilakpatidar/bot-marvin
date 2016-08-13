@@ -556,7 +556,9 @@ var Spawn = function() {
                             });
                         } catch (err) {
                             console.log(err);
-                        } finally {}
+                        } finally {
+                            //msg("Child killed","error")
+                        }
 
 
                     }
@@ -570,7 +572,11 @@ var Spawn = function() {
                                 "bot": "spawn",
                                 "insertAuthor": d
                             });
-                        } finally {
+                        }catch(err){
+                            console.log(err);
+                        }
+                        finally {
+                            //msg("Child killed","error")
 
                         }
                     }
